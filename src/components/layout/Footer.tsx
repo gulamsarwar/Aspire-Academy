@@ -190,7 +190,7 @@ export function Footer() {
 
         {/* Legal & Policy Links */}
         <div className="mt-12 pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-          <p>© 2026 {settings.academy_name}. All rights reserved.</p>
+          <p suppressHydrationWarning>© 2026 {settings.academy_name}. All rights reserved.</p>
           <div className="flex flex-wrap items-center gap-6">
             <Link href="/privacy-policy" className="hover:text-slate-300 transition-colors">
               Privacy Policy
