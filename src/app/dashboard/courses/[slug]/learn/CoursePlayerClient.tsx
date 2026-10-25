@@ -59,6 +59,13 @@ export function CoursePlayerClient({
     return map;
   });
 
+  React.useEffect(() => {
+    const progress = db.getStudentProgressForCourse(studentId, course.id);
+    const map: Record<string, boolean> = {};
+    progress.completedLessonIds.forEach((id) => (map[id] = true));
+    setCompletedLessons(map);
+  }, [studentId, course.id]);
+
   const toggleComplete = (lessonId: string) => {
     const updated = db.toggleLessonProgress(studentId, lessonId);
     setCompletedLessons((prev) => ({
