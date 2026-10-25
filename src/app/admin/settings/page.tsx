@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSiteSettings } from '@/components/settings/SiteSettingsContext';
 import {
@@ -19,15 +19,87 @@ import {
   ExternalLink,
   ShieldCheck,
   Eye,
+  Database,
+  RefreshCw,
+  AlertTriangle,
+  Copy,
+  Terminal,
 } from 'lucide-react';
 
 export default function AdminSettingsPage() {
   const { settings, updateSettings, resetToDefaults } = useSiteSettings();
 
   const [formData, setFormData] = useState({ ...settings });
-  const [activeTab, setActiveTab] = useState<'branding' | 'contact' | 'banner' | 'stats'>('branding');
+  const [activeTab, setActiveTab] = useState<'branding' | 'contact' | 'banner' | 'stats' | 'supabase'>('branding');
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  // Supabase Database Connection State
+  const [supabaseUrl, setSupabaseUrl] = useState('');
+  const [anonKey, setAnonKey] = useState('');
+  const [serviceKey, setServiceKey] = useState('');
+  const [dbStatus, setDbStatus] = useState<any>(null);
+  const [isTestingDb, setIsTestingDb] = useState(false);
+  const [isSavingDb, setIsSavingDb] = useState(false);
+  const [dbNotice, setDbNotice] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+
+  const fetchDbStatus = async () => {
+    setIsTestingDb(true);
+    try {
+      const res = await fetch('/api/admin/supabase-status');
+      const data = await res.json();
+      setDbStatus(data);
+      if (data.url && data.url.startsWith('https://')) {
+        setSupabaseUrl(data.url);
+      }
+    } catch (err: any) {
+      setDbStatus({ success: false, status: 'error', message: err.message });
+    } finally {
+      setIsTestingDb(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDbStatus();
+  }, []);
+
+  const handleSaveSupabase = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supabaseUrl.trim() || !anonKey.trim()) {
+      alert('Please provide both Supabase Project URL and Anon Key.');
+      return;
+    }
+    setIsSavingDb(true);
+    setDbNotice(null);
+    try {
+      const res = await fetch('/api/admin/supabase-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          supabaseUrl,
+          anonKey,
+          serviceRoleKey: serviceKey,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setDbNotice({
+          type: 'success',
+          message: 'Supabase configuration saved and tested successfully! The platform is connected to Supabase.',
+        });
+        setDbStatus(data.testResult);
+      } else {
+        setDbNotice({
+          type: 'error',
+          message: data.error || 'Failed to save configuration.',
+        });
+      }
+    } catch (err: any) {
+      setDbNotice({ type: 'error', message: err.message });
+    } finally {
+      setIsSavingDb(false);
+    }
+  };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -183,6 +255,22 @@ export default function AdminSettingsPage() {
           >
             <BarChart3 className="w-4 h-4" />
             <span>Trust Counters & Stats</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('supabase')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition ${
+              activeTab === 'supabase'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <Database className="w-4 h-4 text-emerald-400" />
+            <span>Supabase PostgreSQL</span>
+            {dbStatus?.success && (
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            )}
           </button>
         </div>
 
@@ -469,26 +557,201 @@ export default function AdminSettingsPage() {
           </div>
         )}
 
-        {/* Actions Bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-200">
-          <button
-            type="button"
-            onClick={handleReset}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs transition"
-          >
-            <RotateCcw className="w-4 h-4 text-slate-500" />
-            <span>Reset to Factory Defaults</span>
-          </button>
+        {/* Tab 5: Supabase Database Configuration */}
+        {activeTab === 'supabase' && (
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+              <div>
+                <h2 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
+                  <Database className="w-5 h-5 text-emerald-600" />
+                  <span>Supabase PostgreSQL Cloud Database</span>
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Connect your live Supabase project. When connected, all courses, lectures, enrollments, and settings sync securely to your PostgreSQL cloud database.
+                </p>
+              </div>
 
-          <button
-            type="submit"
-            disabled={saving}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-[#046BD2] hover:bg-[#0352A0] text-white font-bold text-sm shadow-md transition disabled:bg-slate-300"
-          >
-            <Save className="w-4 h-4" />
-            <span>{saving ? 'Saving changes...' : 'Save All Changes'}</span>
-          </button>
-        </div>
+              <button
+                type="button"
+                onClick={fetchDbStatus}
+                disabled={isTestingDb}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 transition shadow-sm self-start sm:self-auto"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isTestingDb ? 'animate-spin' : ''}`} />
+                <span>Test Connection Ping</span>
+              </button>
+            </div>
+
+            {/* Live Connection Diagnostic Status */}
+            <div
+              className={`p-5 rounded-2xl border-2 transition ${
+                dbStatus?.success
+                  ? 'bg-emerald-50/70 border-emerald-400 text-emerald-950'
+                  : 'bg-amber-50/70 border-amber-300 text-amber-950'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    {dbStatus?.success ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-600 text-white shadow-sm">
+                        <CheckCircle2 className="w-4 h-4" />
+                        Connected to Supabase PostgreSQL
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-amber-500 text-slate-950 shadow-sm">
+                        <AlertTriangle className="w-4 h-4" />
+                        Local In-Memory Mode (Keys Required for Cloud Sync)
+                      </span>
+                    )}
+                    {dbStatus?.latencyMs && (
+                      <span className="text-[11px] font-mono font-bold text-slate-500">
+                        Latency: {dbStatus.latencyMs}ms
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-xs font-semibold leading-relaxed">
+                    {dbStatus?.message || 'Checking Supabase connection status...'}
+                  </p>
+
+                  <div className="flex flex-wrap gap-4 pt-2 text-[11px]">
+                    <div>
+                      <span className="text-slate-500 block font-medium">Project URL:</span>
+                      <code className="font-mono font-bold">{dbStatus?.url || 'Not set'}</code>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block font-medium">Anon Key:</span>
+                      <span className="font-bold">
+                        {dbStatus?.hasAnonKey ? '✓ Present' : '✕ Missing'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block font-medium">Verified Tables:</span>
+                      <span className="font-bold">
+                        {dbStatus?.tablesVerified?.length > 0
+                          ? dbStatus.tablesVerified.join(', ')
+                          : 'None (Local DB active)'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {dbNotice && (
+              <div
+                className={`p-4 rounded-xl text-xs font-bold flex items-center gap-2 ${
+                  dbNotice.type === 'success'
+                    ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                    : 'bg-rose-100 text-rose-900 border border-rose-300'
+                }`}
+              >
+                <span>{dbNotice.message}</span>
+              </div>
+            )}
+
+            {/* Supabase Credentials Input Form */}
+            <div className="space-y-4 pt-2">
+              <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                Enter Supabase API Keys (Supabase Dashboard ➔ Project Settings ➔ API)
+              </h3>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">
+                  Supabase Project URL (NEXT_PUBLIC_SUPABASE_URL) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://xyzabcdefghijklm.supabase.co"
+                  value={supabaseUrl}
+                  onChange={(e) => setSupabaseUrl(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-xs font-mono font-bold focus:outline-none focus:border-emerald-600 bg-slate-50/50"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">
+                  Supabase Anon Public API Key (NEXT_PUBLIC_SUPABASE_ANON_KEY) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6..."
+                  value={anonKey}
+                  onChange={(e) => setAnonKey(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-xs font-mono focus:outline-none focus:border-emerald-600 bg-slate-50/50"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                  <span>Supabase Service Role Key (SUPABASE_SERVICE_ROLE_KEY)</span>
+                  <span className="text-[10px] text-slate-400 font-normal">Optional (Strictly Backend)</span>
+                </label>
+                <input
+                  type="password"
+                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... (Optional)"
+                  value={serviceKey}
+                  onChange={(e) => setServiceKey(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-xs font-mono focus:outline-none focus:border-emerald-600 bg-slate-50/50"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSaveSupabase}
+                disabled={isSavingDb}
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md transition disabled:bg-slate-300"
+              >
+                <Save className="w-4 h-4" />
+                <span>{isSavingDb ? 'Testing & Saving...' : 'Save & Connect to Supabase'}</span>
+              </button>
+            </div>
+
+            {/* Quick SQL Schema Setup Guide */}
+            <div className="p-5 rounded-2xl bg-slate-900 text-white space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                  <Terminal className="w-4 h-4" />
+                  Database Schema & Migration Setup
+                </span>
+                <span className="text-[10px] text-slate-400">supabase/migrations/20261025000000_init_schema.sql</span>
+              </div>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Supabase project me tables create karne ke liye:
+                <br />
+                1. Apne Supabase Dashboard me jaakar <strong>SQL Editor</strong> open karein.
+                <br />
+                2. Project ke <code>supabase/migrations/20261025000000_init_schema.sql</code> aur <code>supabase/seed.sql</code> ka code wahan paste karein.
+                <br />
+                3. <strong>Run (Ctrl+Enter)</strong> dabayein. Saare 15 tables, RLS security policies, aur sample data 5 second me ready ho jayenge!
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Actions Bar */}
+        {activeTab !== 'supabase' && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-200">
+            <button
+              type="button"
+              onClick={handleReset}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs transition"
+            >
+              <RotateCcw className="w-4 h-4 text-slate-500" />
+              <span>Reset to Factory Defaults</span>
+            </button>
+
+            <button
+              type="submit"
+              disabled={saving}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-[#046BD2] hover:bg-[#0352A0] text-white font-bold text-sm shadow-md transition disabled:bg-slate-300"
+            >
+              <Save className="w-4 h-4" />
+              <span>{saving ? 'Saving changes...' : 'Save All Changes'}</span>
+            </button>
+          </div>
+        )}
       </form>
     </div>
   );

@@ -24,13 +24,47 @@ export default function AdminOverviewPage() {
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-          Academy Administration & Control Center
-        </h1>
-        <p className="text-xs sm:text-sm text-slate-500">
-          Live statistics, enrollment trends, order verifications, and student access audits.
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+            Academy Administration & Control Center
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500">
+            Live statistics, enrollment trends, order verifications, and student access audits.
+          </p>
+        </div>
+
+        <Link
+          href="/admin/lessons"
+          className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-[#046BD2] hover:bg-[#0352A0] text-white font-extrabold text-xs shadow-lg transition self-start md:self-auto hover:scale-105"
+        >
+          <Video className="w-4 h-4 text-rose-400" />
+          <span>📹 Paste YouTube Video Link Now</span>
+        </Link>
+      </div>
+
+      {/* Quick Video Upload Action Banner */}
+      <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 rounded-3xl p-6 sm:p-7 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border-2 border-blue-400/30">
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 text-yellow-300 text-xs font-black uppercase tracking-wider">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Course Video CMS</span>
+          </div>
+          <h2 className="text-xl sm:text-2xl font-black tracking-tight">
+            Naya Video Lecture Upload / Link Paste Karein
+          </h2>
+          <p className="text-xs sm:text-sm text-blue-100 max-w-xl leading-relaxed">
+            Apne unlisted YouTube video ka link yahan paste karein aur course me publish karein. Enrolled students bina kisi ad ke turant study player me padh sakenge.
+          </p>
+        </div>
+
+        <Link
+          href="/admin/lessons"
+          className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-white text-blue-900 font-black text-sm shadow-xl hover:bg-yellow-300 hover:text-slate-950 transition transform hover:scale-105 whitespace-nowrap self-stretch md:self-auto justify-center"
+        >
+          <Video className="w-5 h-5 text-red-600" />
+          <span>Open Link Paste Box →</span>
+        </Link>
       </div>
 
       {/* KPI Cards */}

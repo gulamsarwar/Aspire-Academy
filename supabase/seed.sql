@@ -264,3 +264,30 @@ INSERT INTO public.announcements (
   timezone('utc'::text, now())
 )
 ON CONFLICT (id) DO NOTHING;
+
+-- 7. SITE SETTINGS
+INSERT INTO public.site_settings (
+  id, academy_name, director_name, tagline, hero_headline, hero_subheadline,
+  primary_phone, secondary_phone, whatsapp_number, primary_email, office_address,
+  announcement_ticker, ticker_active, stats_students, stats_toppers, stats_lectures, stats_rating
+) VALUES (
+  'global',
+  'Aspire Academy Online',
+  'Er. Shekhar Sir',
+  'Bihar Board & CBSE Hindi/English Medium Online Coaching',
+  'Bihar Board Class 12th & 11th Topper Banane Ka Sankalp',
+  'NCERT line-by-line conceptual video lectures, high-yield numerical solutions, bilingual handwritten PDF notes, and daily doubt solving under Shekhar Sir.',
+  '+91 9123456789',
+  '+91 9876543210',
+  '919123456789',
+  'support@aspireacademyonline.in',
+  'Main Road, Kankarbagh, Near Colony More, Patna, Bihar 800020',
+  '🔥 New Target 2027 Class 12 Batch Starting Soon! Flat 60% OFF for First 100 Students.',
+  true,
+  '10,000+',
+  '95%+',
+  '1,200+',
+  '4.9/5'
+)
+ON CONFLICT (id) DO NOTHING;
+

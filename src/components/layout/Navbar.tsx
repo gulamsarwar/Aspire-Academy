@@ -146,16 +146,23 @@ export function Navbar() {
             </nav>
 
             {/* Desktop Action Buttons */}
-            <div className="hidden lg:flex items-center gap-3">
-              {role === 'admin' ? (
-                <Link
-                  href="/admin"
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-sm transition-all"
-                >
-                  <Shield className="w-4 h-4" />
-                  Admin Panel
-                </Link>
-              ) : null}
+            <div className="hidden lg:flex items-center gap-2.5">
+              <Link
+                href="/admin/lessons"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition-all"
+                title="Paste YouTube video link for courses"
+              >
+                <Video className="w-3.5 h-3.5" />
+                <span>📹 Paste Video Link</span>
+              </Link>
+
+              <Link
+                href="/admin"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-sm transition-all"
+              >
+                <Shield className="w-3.5 h-3.5" />
+                <span>Admin Panel</span>
+              </Link>
 
               {user ? (
                 <div className="flex items-center gap-2">
@@ -227,16 +234,23 @@ export function Navbar() {
             </div>
 
             <div className="pt-4 border-t border-slate-200 space-y-2">
-              {role === 'admin' && (
-                <Link
-                  href="/admin"
-                  onClick={() => setIsOpen(false)}
-                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl font-bold bg-amber-500 text-slate-950 text-sm"
-                >
-                  <Shield className="w-4 h-4" />
-                  Admin Panel
-                </Link>
-              )}
+              <Link
+                href="/admin/lessons"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl font-bold bg-rose-600 text-white text-sm shadow-sm"
+              >
+                <Video className="w-4 h-4" />
+                <span>📹 Paste YouTube Video Link</span>
+              </Link>
+
+              <Link
+                href="/admin"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl font-bold bg-amber-500 text-slate-950 text-sm"
+              >
+                <Shield className="w-4 h-4" />
+                <span>Admin Panel</span>
+              </Link>
 
               {user ? (
                 <>

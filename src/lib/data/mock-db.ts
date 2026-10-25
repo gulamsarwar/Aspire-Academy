@@ -733,6 +733,22 @@ class MockDatabase {
     return lesson;
   }
 
+  updateLesson(id: string, updates: Partial<Lesson>) {
+    const lesson = this.lessons.find((l) => l.id === id);
+    if (!lesson) return null;
+    Object.assign(lesson, updates);
+    return lesson;
+  }
+
+  deleteLesson(id: string) {
+    const idx = this.lessons.findIndex((l) => l.id === id);
+    if (idx >= 0) {
+      this.lessons.splice(idx, 1);
+      return true;
+    }
+    return false;
+  }
+
   scheduleLiveClass(liveClassData: Omit<LiveClass, 'id' | 'created_at'>) {
     const liveClass: LiveClass = {
       ...liveClassData,

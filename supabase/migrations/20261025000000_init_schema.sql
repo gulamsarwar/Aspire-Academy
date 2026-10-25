@@ -440,3 +440,38 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- ==============================================================================
+-- 15. SITE SETTINGS TABLE (DYNAMIC CMS FOR ACADEMY DETAILS)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.site_settings (
+    id TEXT PRIMARY KEY DEFAULT 'global',
+    academy_name TEXT NOT NULL DEFAULT 'Aspire Academy Online',
+    director_name TEXT NOT NULL DEFAULT 'Er. Shekhar Sir',
+    tagline TEXT NOT NULL DEFAULT 'Bihar Board & CBSE Hindi/English Medium Online Coaching',
+    hero_headline TEXT NOT NULL DEFAULT 'Bihar Board Class 12th & 11th Topper Banane Ka Sankalp',
+    hero_subheadline TEXT NOT NULL DEFAULT 'NCERT line-by-line conceptual video lectures, high-yield numerical solutions, bilingual handwritten PDF notes, and daily doubt solving under Shekhar Sir.',
+    primary_phone TEXT NOT NULL DEFAULT '+91 9123456789',
+    secondary_phone TEXT NOT NULL DEFAULT '+91 9876543210',
+    whatsapp_number TEXT NOT NULL DEFAULT '919123456789',
+    primary_email TEXT NOT NULL DEFAULT 'support@aspireacademyonline.in',
+    office_address TEXT NOT NULL DEFAULT 'Main Road, Kankarbagh, Near Colony More, Patna, Bihar 800020',
+    announcement_ticker TEXT NOT NULL DEFAULT '🔥 New Target 2027 Class 12 Batch Starting Soon! Flat 60% OFF for First 100 Students.',
+    ticker_active BOOLEAN NOT NULL DEFAULT true,
+    stats_students TEXT NOT NULL DEFAULT '10,000+',
+    stats_toppers TEXT NOT NULL DEFAULT '95%+',
+    stats_lectures TEXT NOT NULL DEFAULT '1,200+',
+    stats_rating TEXT NOT NULL DEFAULT '4.9/5',
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view site settings" 
+ON public.site_settings FOR SELECT 
+USING (true);
+
+CREATE POLICY "Only admins can update site settings" 
+ON public.site_settings FOR ALL 
+USING (public.is_admin());
+

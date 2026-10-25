@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { db } from '@/lib/data/mock-db';
 import { Course } from '@/lib/types';
 import {
@@ -13,6 +14,7 @@ import {
   Edit,
   Eye,
   Check,
+  Video,
 } from 'lucide-react';
 
 export default function AdminCoursesPage() {
@@ -86,13 +88,22 @@ export default function AdminCoursesPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs bg-[#046BD2] hover:bg-[#0352A0] text-white shadow-md transition self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add New Course</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Link
+            href="/admin/lessons"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-md transition"
+          >
+            <Video className="w-4 h-4" />
+            <span>Paste Video Link Now</span>
+          </Link>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs bg-[#046BD2] hover:bg-[#0352A0] text-white shadow-md transition"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add New Course</span>
+          </button>
+        </div>
       </div>
 
       {/* Courses List Table */}
@@ -167,17 +178,27 @@ export default function AdminCoursesPage() {
                       )}
                     </td>
 
-                    <td className="px-6 py-4 text-right space-x-2">
-                      <button
-                        onClick={() => togglePublish(course.id)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                          course.published
-                            ? 'bg-red-50 text-red-600 hover:bg-red-100'
-                            : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                        }`}
-                      >
-                        {course.published ? 'Unpublish' : 'Publish Live'}
-                      </button>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Link
+                          href={`/admin/lessons?courseId=${course.id}`}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-50 text-[#046BD2] hover:bg-blue-100 transition border border-blue-200"
+                          title="Paste YouTube video links and manage lessons for this course"
+                        >
+                          <Video className="w-3.5 h-3.5 text-red-600" />
+                          <span>Paste Video Link</span>
+                        </Link>
+                        <button
+                          onClick={() => togglePublish(course.id)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                            course.published
+                              ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                              : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                          }`}
+                        >
+                          {course.published ? 'Unpublish' : 'Publish Live'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

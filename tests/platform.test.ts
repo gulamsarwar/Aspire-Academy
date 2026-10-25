@@ -267,4 +267,22 @@ describe('Aspire Academy Online — Comprehensive Platform Test Suite', () => {
     const lastAudit = db.auditLogs[0];
     assert.equal(lastAudit.action, 'SITE_SETTINGS_UPDATED');
   });
+
+  // 13. Supabase Integration & Hybrid Fallback
+  test('13. Supabase Integration: Diagnostic test returns proper status and resilient fallback', async () => {
+    const { testSupabaseConnection, isSupabaseConfigured } = await import('../src/lib/data/supabase-service');
+    const diagnostic = await testSupabaseConnection();
+
+    assert.ok(diagnostic);
+    assert.ok(['connected', 'not_configured', 'error'].includes(diagnostic.status));
+    assert.ok(diagnostic.message.length > 0);
+
+    // If keys not set, system must report not_configured and preserve flawless mock-db fallback
+    if (!isSupabaseConfigured()) {
+      assert.equal(diagnostic.status, 'not_configured');
+      assert.equal(diagnostic.success, false);
+      assert.ok(db.courses.length >= 4, 'Mock database courses must remain available');
+    }
+  });
 });
+

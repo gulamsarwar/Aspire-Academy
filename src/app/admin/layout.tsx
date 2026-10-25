@@ -33,7 +33,7 @@ export default function AdminLayout({
     { label: 'Academy Settings', href: '/admin/settings', icon: Settings },
     { label: 'Courses Management', href: '/admin/courses', icon: BookOpen },
     { label: 'Batch Management', href: '/admin/batches', icon: Calendar },
-    { label: 'Lesson Video & PDF', href: '/admin/lessons', icon: FileText },
+    { label: '📹 Paste Video Link', href: '/admin/lessons', icon: Video, badge: 'YouTube' },
     { label: 'Live Stream Scheduler', href: '/admin/live', icon: Video },
     { label: 'Student Management', href: '/admin/students', icon: Users },
     { label: 'Payments & Orders', href: '/admin/payments', icon: CreditCard },
@@ -96,6 +96,11 @@ export default function AdminLayout({
             >
               <Icon className="w-3.5 h-3.5" />
               <span>{item.label}</span>
+              {item.badge && (
+                <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-red-600 text-white ml-1">
+                  {item.badge}
+                </span>
+              )}
             </Link>
           );
         })}
@@ -137,7 +142,13 @@ export default function AdminLayout({
                   <Icon className="w-4 h-4" />
                   <span>{item.label}</span>
                 </div>
-                {active && <ChevronRight className="w-3.5 h-3.5" />}
+                {item.badge ? (
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-red-600 text-white shadow-sm">
+                    {item.badge}
+                  </span>
+                ) : active ? (
+                  <ChevronRight className="w-3.5 h-3.5" />
+                ) : null}
               </Link>
             );
           })}
