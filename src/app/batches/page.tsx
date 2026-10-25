@@ -78,11 +78,11 @@ export default function BatchesPage() {
 
                 <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
                   <span className="text-lg font-black text-slate-900">
-                    ₹{course?.price.toLocaleString('en-IN')}
+                    ₹{(course?.price || 0).toLocaleString('en-IN')}
                   </span>
 
                   <Link
-                    href={`/courses/${course?.slug}#enroll`}
+                    href={course?.slug ? `/courses/${course.slug}#enroll` : '/courses'}
                     className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#046BD2] hover:bg-[#0352A0] text-white shadow-sm transition"
                   >
                     <span>Enroll in Batch</span>

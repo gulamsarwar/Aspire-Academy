@@ -1,8 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { Course, Batch } from '@/lib/types';
-import { Clock, Users, ArrowRight, CheckCircle2, Sparkles } from 'lucide-react';
+import { Clock, ArrowRight, CheckCircle2, Sparkles } from 'lucide-react';
 
 export function CourseCard({
   course,

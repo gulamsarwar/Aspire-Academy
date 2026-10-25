@@ -13,14 +13,9 @@ import {
   FileCheck,
   CheckCircle,
   Users,
-  Calendar,
-  HelpCircle,
   ArrowRight,
-  ShieldCheck,
-  PhoneCall,
   Laptop,
   GraduationCap,
-  Star,
   Quote,
 } from 'lucide-react';
 
@@ -438,7 +433,7 @@ export default function HomePage() {
               <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
                 As soon as your payment is verified via UPI or Netbanking through our secure
                 Razorpay gateway, your enrollment is automatically activated in your Student
-                Dashboard under 'My Courses' instantly.
+                Dashboard under &apos;My Courses&apos; instantly.
               </p>
             </div>
 

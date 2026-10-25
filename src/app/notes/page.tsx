@@ -1,10 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
-import { FileText, Download, Eye, Sparkles, BookOpen, ArrowRight } from 'lucide-react';
+import { Download, ArrowRight, CheckCircle2 } from 'lucide-react';
 
 export default function NotesPage() {
+  const [downloadToast, setDownloadToast] = useState('');
+
   const freeNotes = [
     {
       id: 'fn-1',
@@ -84,17 +86,17 @@ export default function NotesPage() {
               </div>
 
               <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                <a
-                  href="#download"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    alert(`Starting download: ${note.title}`);
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDownloadToast(`Preparing download: "${note.title}"... PDF ready!`);
+                    setTimeout(() => setDownloadToast(''), 4000);
                   }}
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#046BD2] hover:bg-[#0352A0] text-white shadow-sm transition"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>Download PDF</span>
-                </a>
+                </button>
 
                 <Link
                   href="/courses"
@@ -107,6 +109,13 @@ export default function NotesPage() {
             </div>
           ))}
         </div>
+
+        {downloadToast && (
+          <div className="fixed bottom-6 right-6 z-50 bg-[#0B192C] text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-sky-400/30 animate-in slide-in-from-bottom-5">
+            <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+            <span className="text-xs font-semibold">{downloadToast}</span>
+          </div>
+        )}
       </div>
     </div>
   );

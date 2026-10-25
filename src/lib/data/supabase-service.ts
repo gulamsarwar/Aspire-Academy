@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/client';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { db } from './mock-db';
-import { Course, Batch, Lesson, Module, SiteSettings, Enrollment, Order } from '@/lib/types';
+import { Course, Lesson, SiteSettings } from '@/lib/types';
 
 /**
  * Supabase Data Service
@@ -120,14 +120,15 @@ export async function testSupabaseConnection(): Promise<{
       tablesVerified,
       latencyMs,
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
     return {
       success: false,
       status: 'error',
       url,
       hasAnonKey,
       hasServiceRoleKey,
-      message: `Network or connection failure: ${err?.message || 'Unknown error'}`,
+      message: `Network or connection failure: ${errorMessage}`,
       tablesVerified: [],
       latencyMs: Date.now() - startTime,
     };

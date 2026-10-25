@@ -89,7 +89,7 @@ export default function StudyMaterialsPage() {
                   </button>
                 ) : (
                   <Link
-                    href={`/courses/${course?.slug}#enroll`}
+                    href={course?.slug ? `/courses/${course.slug}#enroll` : '/courses'}
                     className="text-xs font-bold text-[#046BD2] hover:underline"
                   >
                     Enroll to Unlock →

@@ -2,7 +2,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { db } from '../src/lib/data/mock-db';
-import { verifyPaymentSignature, verifyWebhookSignature } from '../src/lib/razorpay';
+import { verifyWebhookSignature } from '../src/lib/razorpay';
 import { Course, Batch } from '../src/lib/types';
 
 describe('Aspire Academy Online — Comprehensive Platform Test Suite', () => {

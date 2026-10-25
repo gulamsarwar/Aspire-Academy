@@ -70,7 +70,7 @@ export default function StudentBatchesPage() {
 
                 <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
                   <Link
-                    href={`/dashboard/courses/${course?.slug}/learn`}
+                    href={course?.slug ? `/dashboard/courses/${course.slug}/learn` : '/dashboard/courses'}
                     className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#046BD2] hover:bg-[#0352A0] shadow-sm transition"
                   >
                     <span>Open Learning Room</span>

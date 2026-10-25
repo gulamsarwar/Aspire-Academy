@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
 import { db } from '@/lib/data/mock-db';
 import { useAuth } from '@/components/auth/AuthContext';
 import { CreditCard, CheckCircle2, Clock, AlertCircle } from 'lucide-react';

@@ -13,13 +13,6 @@ export default function ProfileSettingsPage() {
   const [newPassword, setNewPassword] = useState('');
   const [saved, setSaved] = useState(false);
 
-  React.useEffect(() => {
-    if (user) {
-      setFullName(user.full_name);
-      setPhone(user.phone || '');
-    }
-  }, [user]);
-
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     setSaved(true);

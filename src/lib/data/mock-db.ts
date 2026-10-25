@@ -719,7 +719,7 @@ class MockDatabase {
   }
 
   addModule(courseId: string, title: string, description?: string) {
-    const module: Module = {
+    const newModule: Module = {
       id: generateUUID(),
       course_id: courseId,
       title,
@@ -727,8 +727,8 @@ class MockDatabase {
       sort_order: this.modules.filter((m) => m.course_id === courseId).length + 1,
       created_at: new Date().toISOString(),
     };
-    this.modules.push(module);
-    return module;
+    this.modules.push(newModule);
+    return newModule;
   }
 
   addLesson(lessonData: Omit<Lesson, 'id' | 'created_at'>) {
