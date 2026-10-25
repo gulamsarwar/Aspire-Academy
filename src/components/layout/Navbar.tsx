@@ -147,22 +147,34 @@ export function Navbar() {
 
             {/* Desktop Action Buttons */}
             <div className="hidden lg:flex items-center gap-2.5">
-              <Link
-                href="/admin/lessons"
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition-all"
-                title="Paste YouTube video link for courses"
-              >
-                <Video className="w-3.5 h-3.5" />
-                <span>📹 Paste Video Link</span>
-              </Link>
+              {!pathname.startsWith('/admin') ? (
+                <>
+                  <Link
+                    href="/admin/lessons"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition-all whitespace-nowrap"
+                    title="Paste YouTube video link for courses"
+                  >
+                    <Video className="w-3.5 h-3.5" />
+                    <span>📹 Paste Video Link</span>
+                  </Link>
 
-              <Link
-                href="/admin"
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-sm transition-all"
-              >
-                <Shield className="w-3.5 h-3.5" />
-                <span>Admin Panel</span>
-              </Link>
+                  <Link
+                    href="/admin"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-sm transition-all whitespace-nowrap"
+                  >
+                    <Shield className="w-3.5 h-3.5" />
+                    <span>Admin Panel</span>
+                  </Link>
+                </>
+              ) : (
+                <Link
+                  href="/"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-all whitespace-nowrap"
+                >
+                  <Eye className="w-3.5 h-3.5 text-slate-500" />
+                  <span>View Public Website</span>
+                </Link>
+              )}
 
               {user ? (
                 <div className="flex items-center gap-2">

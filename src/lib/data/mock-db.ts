@@ -14,9 +14,17 @@ import {
   SiteSettings,
 } from '@/lib/types';
 
-// ==============================================================================
-// INITIAL IN-MEMORY DATA STORE (Mirroring Supabase Seed Schema)
-// ==============================================================================
+// Helper to generate valid RFC 4122 UUIDs for PostgreSQL compatibility
+export function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 export const initialCourses: Course[] = [
   {
@@ -712,7 +720,7 @@ class MockDatabase {
 
   addModule(courseId: string, title: string, description?: string) {
     const module: Module = {
-      id: `m_${Date.now()}`,
+      id: generateUUID(),
       course_id: courseId,
       title,
       description,
@@ -726,7 +734,7 @@ class MockDatabase {
   addLesson(lessonData: Omit<Lesson, 'id' | 'created_at'>) {
     const lesson: Lesson = {
       ...lessonData,
-      id: `l_${Date.now()}`,
+      id: generateUUID(),
       created_at: new Date().toISOString(),
     };
     this.lessons.push(lesson);
@@ -752,7 +760,7 @@ class MockDatabase {
   scheduleLiveClass(liveClassData: Omit<LiveClass, 'id' | 'created_at'>) {
     const liveClass: LiveClass = {
       ...liveClassData,
-      id: `lc_${Date.now()}`,
+      id: generateUUID(),
       created_at: new Date().toISOString(),
     };
     this.liveClasses.unshift(liveClass);
@@ -790,7 +798,7 @@ class MockDatabase {
         this.enrollments[enrollmentIndex].status = 'active';
       } else {
         this.enrollments.unshift({
-          id: `e_manual_${Date.now()}`,
+          id: generateUUID(),
           student_id: studentId,
           course_id: courseId,
           batch_id: batchId,

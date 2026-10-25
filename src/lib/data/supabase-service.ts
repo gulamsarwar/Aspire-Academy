@@ -11,13 +11,15 @@ import { Course, Batch, Lesson, Module, SiteSettings, Enrollment, Order } from '
 
 export function isSupabaseConfigured(): boolean {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const key =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   return Boolean(
     url &&
     key &&
     !url.includes('your-project-id') &&
     url.startsWith('https://') &&
-    key.length > 20
+    key.length > 15
   );
 }
 
@@ -37,7 +39,10 @@ export async function testSupabaseConnection(): Promise<{
   latencyMs?: number;
 }> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const hasAnonKey = Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+  const key =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const hasAnonKey = Boolean(key && key.length > 15);
   const hasServiceRoleKey = isServiceRoleConfigured();
 
   if (!isSupabaseConfigured()) {
@@ -90,15 +95,20 @@ export async function testSupabaseConnection(): Promise<{
 
     const tablesVerified = ['courses'];
 
-    // Verify site_settings table if possible
-    try {
-      const settingsRes = await client.from('site_settings').select('id').limit(1);
-      if (!settingsRes.error) {
-        tablesVerified.push('site_settings');
-      }
-    } catch {
-      // ignore
-    }
+    // Verify other core tables
+    const otherTables = ['batches', 'modules', 'lessons', 'site_settings'];
+    await Promise.all(
+      otherTables.map(async (tableName) => {
+        try {
+          const res = await client.from(tableName).select('id').limit(1);
+          if (!res.error) {
+            tablesVerified.push(tableName);
+          }
+        } catch {
+          // ignore
+        }
+      })
+    );
 
     return {
       success: true,
