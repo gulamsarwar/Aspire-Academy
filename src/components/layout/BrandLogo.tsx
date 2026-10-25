@@ -57,14 +57,14 @@ export function BrandLogo({
             isLight ? 'text-white' : 'text-slate-900'
           }`}
         >
-          {firstWord} <span className="text-[#046BD2]">{restOfName}</span>
+          Aspire <span className="text-[#046BD2]">Academy</span>
         </span>
         <span
           className={`font-semibold tracking-widest uppercase ${sizeClasses.sub} ${
             isLight ? 'text-slate-300' : 'text-slate-500'
           }`}
         >
-          {settings.tagline || 'Online Education'}
+          {settings.tagline || 'Learn Today. Lead Tomorrow.'}
         </span>
       </div>
     </Link>

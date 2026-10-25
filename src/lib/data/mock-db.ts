@@ -426,7 +426,7 @@ export const initialAuditLogs: AuditLog[] = [
 ];
 
 export const initialSiteSettings: SiteSettings = {
-  academy_name: 'Aspire Academy Online',
+  academy_name: 'Aspire Academy',
   tagline: 'Learn Today. Lead Tomorrow.',
   description:
     'Aspire Academy provides top-tier education for Bihar Board, CBSE, NEET, and Foundation students through experienced faculty, smart digital classes, chapter-wise tests, and personal mentoring led by renowned Shekhar Sir.',

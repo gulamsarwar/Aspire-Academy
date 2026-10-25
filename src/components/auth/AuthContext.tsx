@@ -24,7 +24,7 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Default to demo admin (Shekhar Sir) so admin panel, CMS, and video upload are immediately accessible
+  // Default to guest visitor (null) so visitors and students see clean Student Login state
   const [user, setUser] = useState<Profile | null>(() => {
     if (typeof window !== 'undefined') {
       const savedUser = localStorage.getItem('aspire_user');
@@ -36,15 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
     }
-    return {
-      id: 'u0000000-0000-0000-0000-000000000002',
-      email: 'admin@aspireacademy.demo',
-      full_name: 'Shekhar Sir (Admin)',
-      phone: '+91 9123456789',
-      avatar_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=200&q=80',
-      created_at: '2026-04-01T00:00:00Z',
-      updated_at: '2026-04-01T00:00:00Z',
-    };
+    return null;
   });
 
   const [role, setRole] = useState<UserRoleType>(() => {
@@ -52,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const savedRole = localStorage.getItem('aspire_role') as UserRoleType;
       if (savedRole) return savedRole;
     }
-    return 'admin';
+    return 'student';
   });
 
   const [isLoading] = useState(false);
