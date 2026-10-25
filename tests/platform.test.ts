@@ -212,7 +212,7 @@ describe('Aspire Academy Online — Comprehensive Platform Test Suite', () => {
 
   // 10. Lesson Progress Tracking
   test('10. Progress Tracking: Mark lesson complete and calculate percentages', () => {
-    const lessonId = 'l0000000-0000-0000-0000-000000000001';
+    const lessonId = db.lessons[0]?.id || 'e0000000-0000-0000-0000-000000000001';
 
     // Toggle complete
     const isDone = db.toggleLessonProgress(testStudentId, lessonId);

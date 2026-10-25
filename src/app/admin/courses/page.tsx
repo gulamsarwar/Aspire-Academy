@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { db } from '@/lib/data/mock-db';
+import { addCourseToDatabase, updateCourseInDatabase } from '@/lib/data/supabase-service';
 import { Course } from '@/lib/types';
 import {
   BookOpen,
@@ -31,25 +32,26 @@ export default function AdminCoursesPage() {
   const [newInstructor, setNewInstructor] = useState('Shekhar Sir');
   const [newDuration, setNewDuration] = useState(24);
 
-  const togglePublish = (courseId: string) => {
+  const togglePublish = async (courseId: string) => {
     const course = courses.find((c) => c.id === courseId);
     if (!course) return;
 
-    const updated = db.updateCourse(courseId, { published: !course.published });
+    const newPublishStatus = !course.published;
+    const updated = await updateCourseInDatabase(courseId, { published: newPublishStatus });
     if (updated) {
       setCourses((prev) =>
-        prev.map((c) => (c.id === courseId ? { ...c, published: !c.published } : c))
+        prev.map((c) => (c.id === courseId ? { ...c, published: newPublishStatus } : c))
       );
     }
   };
 
-  const handleCreateCourse = (e: React.FormEvent) => {
+  const handleCreateCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
 
     const slug = newTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
-    const created = db.addCourse({
+    const created = await addCourseToDatabase({
       slug,
       title: newTitle,
       subtitle: newSubtitle || 'Comprehensive Board & Entrance Preparation',

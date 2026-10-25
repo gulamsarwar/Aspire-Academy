@@ -198,7 +198,7 @@ export const initialBatches: Batch[] = [
 
 export const initialModules: Module[] = [
   {
-    id: 'm0000000-0000-0000-0000-000000000001',
+    id: 'a0000000-0000-0000-0000-000000000001',
     course_id: 'c0000000-0000-0000-0000-000000000001',
     title: 'Unit 1: Sexual Reproduction in Flowering Plants',
     description: 'Flower morphology, microsporogenesis, megasporogenesis, pollination and double fertilization.',
@@ -206,7 +206,7 @@ export const initialModules: Module[] = [
     created_at: '2026-04-01T00:00:00Z',
   },
   {
-    id: 'm0000000-0000-0000-0000-000000000002',
+    id: 'a0000000-0000-0000-0000-000000000002',
     course_id: 'c0000000-0000-0000-0000-000000000001',
     title: 'Unit 2: Human Reproduction & Reproductive Health',
     description: 'Male & Female reproductive systems, gametogenesis, menstrual cycle, fertilization, and contraception.',
@@ -214,7 +214,7 @@ export const initialModules: Module[] = [
     created_at: '2026-04-01T00:00:00Z',
   },
   {
-    id: 'm0000000-0000-0000-0000-000000000003',
+    id: 'a0000000-0000-0000-0000-000000000003',
     course_id: 'c0000000-0000-0000-0000-000000000001',
     title: 'Unit 3: Genetics & Principles of Inheritance',
     description: 'Mendelian genetics, chromosomal disorders, linkage, sex determination, and pedigree analysis.',
@@ -222,7 +222,7 @@ export const initialModules: Module[] = [
     created_at: '2026-04-01T00:00:00Z',
   },
   {
-    id: 'm0000000-0000-0000-0000-000000000004',
+    id: 'a0000000-0000-0000-0000-000000000004',
     course_id: 'c0000000-0000-0000-0000-000000000002',
     title: 'Unit 1: Electric Charges & Gauss Law',
     description: 'Coulombs law, electric field lines, electric dipole, flux and Gauss theorem applications.',
@@ -233,8 +233,8 @@ export const initialModules: Module[] = [
 
 export const initialLessons: Lesson[] = [
   {
-    id: 'l0000000-0000-0000-0000-000000000001',
-    module_id: 'm0000000-0000-0000-0000-000000000001',
+    id: 'e0000000-0000-0000-0000-000000000001',
+    module_id: 'a0000000-0000-0000-0000-000000000001',
     title: 'Lesson 1: Introduction to Flower Structure & Stamen Details',
     description: 'Deep dive into anther structure, 4 microsporangia layers (epidermis, endothecium, middle layers, tapetum), and pollen wall composition.',
     youtube_video_id: '7lC4cZ7wT4o',
@@ -247,8 +247,8 @@ export const initialLessons: Lesson[] = [
     created_at: '2026-04-01T00:00:00Z',
   },
   {
-    id: 'l0000000-0000-0000-0000-000000000002',
-    module_id: 'm0000000-0000-0000-0000-000000000001',
+    id: 'e0000000-0000-0000-0000-000000000002',
+    module_id: 'a0000000-0000-0000-0000-000000000001',
     title: 'Lesson 2: Megasporogenesis & 7-Celled 8-Nucleate Embryo Sac',
     description: 'Ovule types, integuments, nucellus, functional megaspore, free nuclear mitotic divisions, and egg apparatus structure.',
     youtube_video_id: '9bZkp7q19f0',
@@ -261,8 +261,8 @@ export const initialLessons: Lesson[] = [
     created_at: '2026-04-01T00:00:00Z',
   },
   {
-    id: 'l0000000-0000-0000-0000-000000000003',
-    module_id: 'm0000000-0000-0000-0000-000000000001',
+    id: 'e0000000-0000-0000-0000-000000000003',
+    module_id: 'a0000000-0000-0000-0000-000000000001',
     title: 'Lesson 3: Pollination Agents & Outbreeding Mechanisms',
     description: 'Wind, water, and animal pollination adaptations. Self-incompatibility, dichogamy, and pollen-pistil interaction.',
     youtube_video_id: '3JZ_D3ELwOQ',
@@ -275,8 +275,8 @@ export const initialLessons: Lesson[] = [
     created_at: '2026-04-01T00:00:00Z',
   },
   {
-    id: 'l0000000-0000-0000-0000-000000000004',
-    module_id: 'm0000000-0000-0000-0000-000000000002',
+    id: 'e0000000-0000-0000-0000-000000000004',
+    module_id: 'a0000000-0000-0000-0000-000000000002',
     title: 'Lesson 1: Male Reproductive System & Spermatogenesis',
     description: 'Testis histology, Leydig cells, Sertoli cells, GnRH regulation, and spermiogenesis vs spermiation.',
     youtube_video_id: 'JGwWNGJdvx8',
@@ -406,7 +406,7 @@ export const initialLessonProgress: LessonProgress[] = [
   {
     id: 'lp_001',
     student_id: 'u0000000-0000-0000-0000-000000000001',
-    lesson_id: 'l0000000-0000-0000-0000-000000000001',
+    lesson_id: 'e0000000-0000-0000-0000-000000000001',
     completed: true,
     completed_at: '2026-04-02T11:30:00Z',
     updated_at: '2026-04-02T11:30:00Z',
@@ -551,7 +551,7 @@ class MockDatabase {
     gatewayOrderId: string;
   }): Order {
     const order: Order = {
-      id: `ord_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      id: generateUUID(),
       student_id: studentId,
       course_id: courseId,
       batch_id: batchId,
@@ -587,7 +587,7 @@ class MockDatabase {
 
     // Record payment
     const payment: Payment = {
-      id: `pay_${Date.now()}`,
+      id: generateUUID(),
       order_id: order.id,
       gateway_payment_id: gatewayPaymentId,
       amount: order.amount,
@@ -614,7 +614,7 @@ class MockDatabase {
       enrollment = existingEnrollment;
     } else {
       enrollment = {
-        id: `e_${Date.now()}`,
+        id: generateUUID(),
         student_id: order.student_id,
         course_id: order.course_id,
         batch_id: order.batch_id,
@@ -656,7 +656,7 @@ class MockDatabase {
       return existing.completed;
     } else {
       this.lessonProgress.push({
-        id: `lp_${Date.now()}`,
+        id: generateUUID(),
         student_id: studentId,
         lesson_id: lessonId,
         completed: true,
@@ -692,7 +692,7 @@ class MockDatabase {
   addCourse(courseData: Omit<Course, 'id' | 'created_at' | 'updated_at'>) {
     const course: Course = {
       ...courseData,
-      id: `c_${Date.now()}`,
+      id: generateUUID(),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -710,7 +710,7 @@ class MockDatabase {
   addBatch(batchData: Omit<Batch, 'id' | 'enrolled_count' | 'created_at'>) {
     const batch: Batch = {
       ...batchData,
-      id: `b_${Date.now()}`,
+      id: generateUUID(),
       enrolled_count: 0,
       created_at: new Date().toISOString(),
     };

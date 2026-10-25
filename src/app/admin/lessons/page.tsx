@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/data/mock-db';
+import { addLessonToDatabase, updateLessonInDatabase, deleteLessonFromDatabase } from '@/lib/data/supabase-service';
 import { Lesson } from '@/lib/types';
 import {
   FileText,
@@ -105,7 +106,7 @@ export default function AdminLessonsPage() {
     }
   };
 
-  const handleCreateLesson = (e: React.FormEvent) => {
+  const handleCreateLesson = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanVideoId = extractVideoId(youtubeVideoId);
     if (!title.trim() || !cleanVideoId) {
@@ -113,8 +114,8 @@ export default function AdminLessonsPage() {
       return;
     }
 
-    const created = db.addLesson({
-      module_id: selectedModuleId || modules[0]?.id || 'm0000000-0000-0000-0000-000000000001',
+    const created = await addLessonToDatabase({
+      module_id: selectedModuleId || modules[0]?.id || 'a0000000-0000-0000-0000-000000000001',
       title,
       description,
       youtube_video_id: cleanVideoId,
@@ -132,7 +133,7 @@ export default function AdminLessonsPage() {
     setYoutubeVideoId('');
     setMaterialName('');
 
-    setSuccessToast(`Video lecture "${created.title}" published successfully!`);
+    setSuccessToast(`Video lecture "${created.title}" published & saved successfully!`);
     setTimeout(() => setSuccessToast(''), 4000);
   };
 
@@ -145,7 +146,7 @@ export default function AdminLessonsPage() {
     setEditMaterialName(lesson.material_name || '');
   };
 
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingLesson) return;
 
@@ -155,7 +156,7 @@ export default function AdminLessonsPage() {
       return;
     }
 
-    db.updateLesson(editingLesson.id, {
+    await updateLessonInDatabase(editingLesson.id, {
       title: editTitle,
       youtube_video_id: cleanVideoId,
       duration_minutes: Number(editDuration),
@@ -166,13 +167,13 @@ export default function AdminLessonsPage() {
 
     setLessons([...db.lessons]);
     setEditingLesson(null);
-    setSuccessToast(`Lesson "${editTitle}" video link updated!`);
+    setSuccessToast(`Lesson "${editTitle}" video link updated & synced!`);
     setTimeout(() => setSuccessToast(''), 4000);
   };
 
-  const handleDeleteLesson = (lessonId: string, lessonTitle: string) => {
+  const handleDeleteLesson = async (lessonId: string, lessonTitle: string) => {
     if (confirm(`Are you sure you want to delete lesson "${lessonTitle}"?`)) {
-      db.deleteLesson(lessonId);
+      await deleteLessonFromDatabase(lessonId);
       setLessons([...db.lessons]);
       setSuccessToast(`Lesson "${lessonTitle}" removed.`);
       setTimeout(() => setSuccessToast(''), 3000);

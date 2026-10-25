@@ -19,6 +19,7 @@ import {
   LogOut,
   ChevronDown,
   Sparkles,
+  Eye,
 } from 'lucide-react';
 
 export function Navbar() {

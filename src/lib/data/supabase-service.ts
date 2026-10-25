@@ -180,6 +180,62 @@ export async function getCourseBySlug(slug: string): Promise<Course | undefined>
   return db.getCourseBySlug(slug);
 }
 
+export async function addCourseToDatabase(courseData: Omit<Course, 'id' | 'created_at' | 'updated_at'>): Promise<Course> {
+  const created = db.addCourse(courseData);
+
+  if (isSupabaseConfigured()) {
+    const admin = createAdminClient() || createClient();
+    if (admin) {
+      try {
+        await admin.from('courses').insert({
+          id: created.id,
+          slug: created.slug,
+          title: created.title,
+          subtitle: created.subtitle,
+          description: created.description,
+          category: created.category,
+          target_class: created.target_class,
+          thumbnail_url: created.thumbnail_url,
+          price: created.price,
+          original_price: created.original_price,
+          currency: created.currency,
+          published: created.published,
+          featured: created.featured,
+          language: created.language,
+          duration_weeks: created.duration_weeks,
+          instructor_name: created.instructor_name,
+          instructor_title: created.instructor_title,
+          instructor_avatar: created.instructor_avatar,
+          features: created.features,
+          created_at: created.created_at,
+          updated_at: created.updated_at,
+        });
+      } catch (err) {
+        console.warn('Could not persist course to Supabase:', err);
+      }
+    }
+  }
+
+  return created;
+}
+
+export async function updateCourseInDatabase(id: string, updates: Partial<Course>): Promise<Course | null> {
+  const updated = db.updateCourse(id, updates);
+
+  if (isSupabaseConfigured()) {
+    const admin = createAdminClient() || createClient();
+    if (admin) {
+      try {
+        await admin.from('courses').update(updates).eq('id', id);
+      } catch (err) {
+        console.warn('Could not update course in Supabase:', err);
+      }
+    }
+  }
+
+  return updated;
+}
+
 /**
  * Site Settings Operations
  */
@@ -257,4 +313,38 @@ export async function addLessonToDatabase(lessonData: Omit<Lesson, 'id' | 'creat
   }
 
   return created;
+}
+
+export async function updateLessonInDatabase(id: string, updates: Partial<Lesson>): Promise<Lesson | null> {
+  const updated = db.updateLesson(id, updates);
+
+  if (isSupabaseConfigured()) {
+    const admin = createAdminClient() || createClient();
+    if (admin) {
+      try {
+        await admin.from('lessons').update(updates).eq('id', id);
+      } catch (err) {
+        console.warn('Could not update lesson in Supabase:', err);
+      }
+    }
+  }
+
+  return updated;
+}
+
+export async function deleteLessonFromDatabase(id: string): Promise<boolean> {
+  const success = db.deleteLesson(id);
+
+  if (isSupabaseConfigured()) {
+    const admin = createAdminClient() || createClient();
+    if (admin) {
+      try {
+        await admin.from('lessons').delete().eq('id', id);
+      } catch (err) {
+        console.warn('Could not delete lesson from Supabase:', err);
+      }
+    }
+  }
+
+  return success;
 }
