@@ -44,25 +44,25 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 w-full">
-      {/* Top Announcement Bar */}
+      {/* Top Announcement Bar - PhysicsWallah / Unacademy Style */}
       {settings.announcement_active && (
-        <div className="bg-[#0B192C] text-white px-4 py-1.5 text-xs font-medium border-b border-white/10">
+        <div className="bg-gradient-to-r from-[#0352A0] via-[#046BD2] to-[#0284C7] text-white px-4 py-2 text-xs font-semibold shadow-sm">
           <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <span className="bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded font-bold uppercase tracking-wider text-[10px]">
+              <span className="bg-white/20 text-white px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider text-[10px] shadow-sm">
                 {settings.announcement_tag}
               </span>
-              <span className="hidden sm:inline text-slate-300">
+              <span className="hidden sm:inline text-white/95 font-medium">
                 {settings.announcement_text}
               </span>
             </div>
 
-            <div className="flex items-center gap-4 text-slate-300">
+            <div className="flex items-center gap-4 text-white/90">
               <a
                 href={`tel:${settings.phone.replace(/\s+/g, '')}`}
                 className="flex items-center gap-1.5 hover:text-white transition-colors"
               >
-                <PhoneCall className="w-3.5 h-3.5 text-sky-400" />
+                <PhoneCall className="w-3.5 h-3.5 text-white" />
                 <span>{settings.phone}</span>
               </a>
 
@@ -70,10 +70,10 @@ export function Navbar() {
             <div className="relative">
               <button
                 onClick={() => setShowRoleMenu(!showRoleMenu)}
-                className="flex items-center gap-1 text-[11px] bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded transition text-sky-200"
+                className="flex items-center gap-1 text-[11px] bg-black/15 hover:bg-black/25 px-2.5 py-0.5 rounded-full transition text-white border border-white/20"
                 title="Switch between student and admin preview"
               >
-                <Sparkles className="w-3 h-3 text-amber-300" />
+                <Sparkles className="w-3 h-3 text-amber-200" />
                 <span>Mode: <strong className="uppercase text-white">{role}</strong></span>
                 <ChevronDown className="w-3 h-3" />
               </button>
@@ -146,29 +146,32 @@ export function Navbar() {
 
             {/* Desktop Action Buttons */}
             <div className="hidden lg:flex items-center gap-2.5">
-              {!pathname.startsWith('/admin') ? (
-                <>
+              {/* Admin-only shortcuts (hidden from normal student view) */}
+              {role === 'admin' && !pathname.startsWith('/admin') && (
+                <div className="flex items-center gap-2 mr-1">
                   <Link
                     href="/admin/lessons"
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition-all whitespace-nowrap"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-50 hover:bg-blue-100 text-[#046BD2] border border-blue-200 transition-all whitespace-nowrap"
                     title="Paste YouTube video link for courses"
                   >
                     <Video className="w-3.5 h-3.5" />
-                    <span>📹 Paste Video Link</span>
+                    <span>Paste Video</span>
                   </Link>
 
                   <Link
                     href="/admin"
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-sm transition-all whitespace-nowrap"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition-all whitespace-nowrap"
                   >
-                    <Shield className="w-3.5 h-3.5" />
+                    <Shield className="w-3.5 h-3.5 text-amber-600" />
                     <span>Admin Panel</span>
                   </Link>
-                </>
-              ) : (
+                </div>
+              )}
+
+              {pathname.startsWith('/admin') && (
                 <Link
                   href="/"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-all whitespace-nowrap"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-all whitespace-nowrap"
                 >
                   <Eye className="w-3.5 h-3.5 text-slate-500" />
                   <span>View Public Website</span>
@@ -179,14 +182,14 @@ export function Navbar() {
                 <div className="flex items-center gap-2">
                   <Link
                     href="/dashboard"
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-[#0B192C] hover:bg-[#1E3E62] text-white shadow-sm transition-all"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-[#046BD2] hover:bg-[#0352A0] text-white shadow-md shadow-blue-500/20 transition-all"
                   >
-                    <UserCheck className="w-4 h-4 text-sky-400" />
+                    <UserCheck className="w-4 h-4 text-white" />
                     <span>My Dashboard</span>
                   </Link>
                   <button
                     onClick={logout}
-                    className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                    className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition"
                     title="Logout"
                   >
                     <LogOut className="w-4 h-4" />
@@ -196,16 +199,16 @@ export function Navbar() {
                 <div className="flex items-center gap-2">
                   <Link
                     href="/auth/login"
-                    className="px-4 py-2 text-sm font-bold text-slate-700 hover:text-slate-900 transition"
+                    className="px-4 py-2 text-sm font-bold text-slate-700 hover:text-[#046BD2] transition"
                   >
                     Login
                   </Link>
                   <Link
                     href="/courses"
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold bg-[#046BD2] hover:bg-[#0352A0] text-white shadow-sm shadow-blue-500/20 transition-all hover:scale-105"
+                    className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-bold bg-[#046BD2] hover:bg-[#0352A0] text-white shadow-md shadow-blue-500/25 transition-all hover:scale-105"
                   >
                     <BookOpen className="w-4 h-4" />
-                    Explore Courses
+                    <span>Explore Courses</span>
                   </Link>
                 </div>
               )}

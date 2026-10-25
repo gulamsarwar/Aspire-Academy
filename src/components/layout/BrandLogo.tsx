@@ -26,13 +26,13 @@ export function BrandLogo({
   const restOfName = nameParts.slice(1).join(' ') || 'Academy';
 
   return (
-    <Link href="/" className="inline-flex items-center gap-2.5 group">
+    <Link href="/" className="inline-flex items-center gap-2.5 group outline-none focus:outline-none focus-visible:outline-none select-none">
       {/* Dynamic Emblem */}
       <div
         className={`relative flex items-center justify-center ${sizeClasses.icon} rounded-xl shadow-md transition-transform duration-300 group-hover:scale-105 ${
           isLight
             ? 'bg-gradient-to-br from-blue-400 to-indigo-600 text-white shadow-blue-500/20'
-            : 'bg-gradient-to-br from-[#0B192C] to-[#1E3E62] text-white shadow-slate-900/15 ring-1 ring-white/10'
+            : 'bg-gradient-to-br from-[#046BD2] to-[#0252A5] text-white shadow-blue-500/25 ring-1 ring-blue-400/20'
         }`}
       >
         <svg
@@ -42,7 +42,7 @@ export function BrandLogo({
           strokeWidth="2.2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="w-5 h-5 text-sky-300 group-hover:text-white transition-colors"
+          className="w-5 h-5 text-white transition-colors"
         >
           <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
           <path d="M6 6h10" />
