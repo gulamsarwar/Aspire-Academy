@@ -24,15 +24,75 @@ import {
   AlertTriangle,
   Copy,
   Terminal,
+  CreditCard,
 } from 'lucide-react';
 
 export default function AdminSettingsPage() {
   const { settings, updateSettings, resetToDefaults } = useSiteSettings();
 
   const [formData, setFormData] = useState({ ...settings });
-  const [activeTab, setActiveTab] = useState<'branding' | 'contact' | 'banner' | 'stats' | 'supabase'>('branding');
+  const [activeTab, setActiveTab] = useState<'branding' | 'contact' | 'banner' | 'stats' | 'supabase' | 'razorpay'>('branding');
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  // Razorpay Gateway State
+  const [rzpKeyId, setRzpKeyId] = useState('');
+  const [rzpKeySecret, setRzpKeySecret] = useState('');
+  const [rzpWebhookSecret, setRzpWebhookSecret] = useState('');
+  const [rzpStatus, setRzpStatus] = useState<any>(null);
+  const [isSavingRzp, setIsSavingRzp] = useState(false);
+  const [rzpNotice, setRzpNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const fetchRzpStatus = async () => {
+    try {
+      const res = await fetch('/api/admin/razorpay-status');
+      const data = await res.json();
+      setRzpStatus(data);
+      if (data.rawKeyId) {
+        setRzpKeyId(data.rawKeyId);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleSaveRazorpay = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rzpKeyId.trim() || !rzpKeySecret.trim()) {
+      alert('Please provide both Razorpay Key ID and Key Secret.');
+      return;
+    }
+    setIsSavingRzp(true);
+    setRzpNotice(null);
+    try {
+      const res = await fetch('/api/admin/razorpay-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          keyId: rzpKeyId,
+          keySecret: rzpKeySecret,
+          webhookSecret: rzpWebhookSecret,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setRzpNotice({
+          type: 'success',
+          message: data.message || 'Razorpay credentials saved successfully!',
+        });
+        fetchRzpStatus();
+      } else {
+        setRzpNotice({
+          type: 'error',
+          message: data.error || 'Failed to save Razorpay keys.',
+        });
+      }
+    } catch (err: any) {
+      setRzpNotice({ type: 'error', message: err.message });
+    } finally {
+      setIsSavingRzp(false);
+    }
+  };
 
   // Supabase Database Connection State
   const [supabaseUrl, setSupabaseUrl] = useState('');
@@ -255,6 +315,24 @@ export default function AdminSettingsPage() {
           >
             <BarChart3 className="w-4 h-4" />
             <span>Trust Counters & Stats</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('razorpay')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition ${
+              activeTab === 'razorpay'
+                ? 'bg-[#046BD2] text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <CreditCard className="w-4 h-4" />
+            <span>Razorpay Payments</span>
+            {rzpStatus?.isLive && (
+              <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-emerald-500 text-white ml-1">
+                LIVE
+              </span>
+            )}
           </button>
 
           <button
@@ -730,8 +808,141 @@ export default function AdminSettingsPage() {
           </div>
         )}
 
+        {/* Tab 6: Razorpay Payment Gateway */}
+        {activeTab === 'razorpay' && (
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">
+                  Razorpay UPI & Cards Payment Gateway
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Shekhar Sir / Aspire Academy merchant credentials setup so all student course payments deposit directly into your bank account.
+                </p>
+              </div>
+
+              {rzpStatus && (
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+                      rzpStatus.isLive
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-amber-50 text-amber-800 border border-amber-200'
+                    }`}
+                  >
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        rzpStatus.isLive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+                      }`}
+                    />
+                    {rzpStatus.isLive ? 'Active LIVE Mode' : 'Sandbox Test Mode'}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {rzpNotice && (
+              <div
+                className={`p-4 rounded-2xl text-xs font-bold flex items-center gap-2.5 ${
+                  rzpNotice.type === 'success'
+                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                    : 'bg-red-50 text-red-800 border border-red-200'
+                }`}
+              >
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                <span>{rzpNotice.message}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 gap-5">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 block">
+                  Razorpay Key ID <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="rzp_live_xxxxxxxxxxxx (or rzp_test_xxxxxxxxxxxx)"
+                  value={rzpKeyId}
+                  onChange={(e) => setRzpKeyId(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-xs font-mono focus:outline-none focus:border-blue-600 bg-slate-50/50"
+                />
+                <span className="text-[11px] text-slate-400 block">
+                  Live payments ke liye yeh <code>rzp_live_</code> se start hota hai.
+                </span>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 block">
+                  Razorpay Key Secret <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  placeholder="Paste your 24+ character Key Secret here"
+                  value={rzpKeySecret}
+                  onChange={(e) => setRzpKeySecret(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-xs font-mono focus:outline-none focus:border-blue-600 bg-slate-50/50"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 block">
+                  Webhook Secret (Optional)
+                </label>
+                <input
+                  type="password"
+                  placeholder="aspire_webhook_secret_..."
+                  value={rzpWebhookSecret}
+                  onChange={(e) => setRzpWebhookSecret(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-xs font-mono focus:outline-none focus:border-blue-600 bg-slate-50/50"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSaveRazorpay}
+                disabled={isSavingRzp}
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#046BD2] hover:bg-[#0352A0] text-white font-black text-xs shadow-md transition disabled:bg-slate-300"
+              >
+                <Save className="w-4 h-4" />
+                <span>{isSavingRzp ? 'Saving...' : 'Save Razorpay Credentials'}</span>
+              </button>
+            </div>
+
+            {/* Step-by-Step Instructions */}
+            <div className="p-5 rounded-2xl bg-blue-50/60 border border-blue-200 space-y-3 text-xs text-slate-700">
+              <h4 className="font-bold text-slate-900 flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                Razorpay Live Key kaise nikalein (2 Minutes):
+              </h4>
+              <ol className="list-decimal pl-5 space-y-1.5 leading-relaxed">
+                <li>
+                  Apna <strong>Razorpay Dashboard</strong> open karein:{' '}
+                  <a
+                    href="https://dashboard.razorpay.com/app/keys"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[#046BD2] font-bold hover:underline inline-flex items-center gap-1"
+                  >
+                    <span>dashboard.razorpay.com/app/keys</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </li>
+                <li>
+                  Dashboard me top-right switch se <strong>Live Mode</strong> select karein.
+                </li>
+                <li>
+                  <strong>Settings ➔ API Keys</strong> par jaakar <strong>Generate Key</strong> par click karein.
+                </li>
+                <li>
+                  Wahan se <code>Key ID</code> aur <code>Key Secret</code> copy karke upar ke box me paste karein aur <strong>Save Razorpay Credentials</strong> button daba dein!
+                </li>
+              </ol>
+            </div>
+          </div>
+        )}
+
         {/* Actions Bar */}
-        {activeTab !== 'supabase' && (
+        {activeTab !== 'supabase' && activeTab !== 'razorpay' && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-200">
             <button
               type="button"
