@@ -11,6 +11,7 @@ import {
   Announcement,
   AuditLog,
   Profile,
+  SiteSettings,
 } from '@/lib/types';
 
 // ==============================================================================
@@ -416,6 +417,29 @@ export const initialAuditLogs: AuditLog[] = [
   },
 ];
 
+export const initialSiteSettings: SiteSettings = {
+  academy_name: 'Aspire Academy Online',
+  tagline: 'Learn Today. Lead Tomorrow.',
+  description:
+    'Aspire Academy provides top-tier education for Bihar Board, CBSE, NEET, and Foundation students through experienced faculty, smart digital classes, chapter-wise tests, and personal mentoring led by renowned Shekhar Sir.',
+  lead_faculty: 'Shekhar Sir',
+  phone: '+91 9876543210',
+  whatsapp: '+91 9876543210',
+  email: 'contact@aspireacademyonline.in',
+  address: 'Main Road, Near College Chowk, Bihar 800001',
+  office_hours: 'Mon – Sat: 8:00 AM – 8:00 PM, Sun: 9:00 AM – 2:00 PM',
+  announcement_tag: 'New Batch 2026-27',
+  announcement_text: 'Class 12 Bihar Board & NEET Foundation Admissions Open!',
+  announcement_active: true,
+  stat_students: '500+',
+  stat_experience: '10+ Yrs',
+  stat_success: '100%',
+  hero_headline: 'Learn Today. Lead Tomorrow.',
+  hero_subheadline:
+    'Aspire Academy provides top-tier education for Bihar Board, CBSE, NEET, and Foundation students through experienced faculty, smart digital classes, chapter-wise tests, and personal mentoring led by renowned Shekhar Sir.',
+  updated_at: '2026-04-01T00:00:00Z',
+};
+
 // In-Memory Database store with runtime mutability
 class MockDatabase {
   courses: Course[] = [...initialCourses];
@@ -430,6 +454,7 @@ class MockDatabase {
   payments: Payment[] = [...initialPayments];
   lessonProgress: LessonProgress[] = [...initialLessonProgress];
   auditLogs: AuditLog[] = [...initialAuditLogs];
+  settings: SiteSettings = { ...initialSiteSettings };
   processedWebhookEvents: Set<string> = new Set(['event_test_demo_001']);
 
   // Courses
@@ -798,6 +823,31 @@ class MockDatabase {
       totalRevenue,
       upcomingLiveCount,
     };
+  }
+
+  // Site Settings Management
+  getSettings(): SiteSettings {
+    return { ...this.settings };
+  }
+
+  updateSettings(updates: Partial<SiteSettings>): SiteSettings {
+    this.settings = {
+      ...this.settings,
+      ...updates,
+      updated_at: new Date().toISOString(),
+    };
+
+    this.auditLogs.unshift({
+      id: `al_${Date.now()}`,
+      admin_id: 'u0000000-0000-0000-0000-000000000002',
+      action: 'SITE_SETTINGS_UPDATED',
+      target_user_id: 'u0000000-0000-0000-0000-000000000002',
+      target_resource: 'academy_settings',
+      reason: 'Admin updated academy branding and contact details',
+      created_at: new Date().toISOString(),
+    });
+
+    return { ...this.settings };
   }
 }
 

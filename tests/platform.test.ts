@@ -249,4 +249,22 @@ describe('Aspire Academy Online — Comprehensive Platform Test Suite', () => {
     const fetched = db.getCourseBySlug('class-12-math-test');
     assert.equal(fetched?.title, 'Class 12 Mathematics (Test)');
   });
+
+  // 12. Admin Global Site Settings Management
+  test('12. Admin Global Site Settings: Can update academy name, phone, address, and creates audit log', () => {
+    const updated = db.updateSettings({
+      academy_name: 'Aspire Academy Premier',
+      phone: '+91 9999988888',
+      address: 'Test New Campus Address, Patna, Bihar',
+    });
+
+    assert.equal(updated.academy_name, 'Aspire Academy Premier');
+    assert.equal(updated.phone, '+91 9999988888');
+
+    const fetched = db.getSettings();
+    assert.equal(fetched.address, 'Test New Campus Address, Patna, Bihar');
+
+    const lastAudit = db.auditLogs[0];
+    assert.equal(lastAudit.action, 'SITE_SETTINGS_UPDATED');
+  });
 });

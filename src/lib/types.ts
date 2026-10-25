@@ -166,3 +166,24 @@ export interface AuditLog {
   metadata?: Record<string, unknown>;
   created_at: string;
 }
+
+export interface SiteSettings {
+  academy_name: string;
+  tagline: string;
+  description: string;
+  lead_faculty: string;
+  phone: string;
+  whatsapp: string;
+  email: string;
+  address: string;
+  office_hours: string;
+  announcement_tag: string;
+  announcement_text: string;
+  announcement_active: boolean;
+  stat_students: string;
+  stat_experience: string;
+  stat_success: string;
+  hero_headline: string;
+  hero_subheadline: string;
+  updated_at: string;
+}

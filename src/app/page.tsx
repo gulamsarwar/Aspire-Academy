@@ -1,6 +1,9 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
 import { db } from '@/lib/data/mock-db';
+import { useSiteSettings } from '@/components/settings/SiteSettingsContext';
 import { CourseCard } from '@/components/ui/CourseCard';
 import {
   BookOpen,
@@ -22,6 +25,7 @@ import {
 } from 'lucide-react';
 
 export default function HomePage() {
+  const { settings } = useSiteSettings();
   const courses = db.getCourses(true);
   const liveClasses = db.liveClasses.filter((lc) => lc.status === 'scheduled');
   const upcomingLive = liveClasses[0];
@@ -46,18 +50,12 @@ export default function HomePage() {
 
               {/* Headline */}
               <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-tight">
-                Learn Today.{' '}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-blue-300 to-indigo-300">
-                  Lead Tomorrow.
-                </span>
+                {settings.hero_headline}
               </h1>
 
               {/* Description */}
               <p className="text-base sm:text-lg text-slate-300 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-                Aspire Academy provides top-tier education for{' '}
-                <strong className="text-white">Bihar Board, CBSE, NEET, and Foundation</strong>{' '}
-                students through experienced faculty, smart digital classes, chapter-wise
-                tests, and personal mentoring led by renowned <strong>Shekhar Sir</strong>.
+                {settings.description}
               </p>
 
               {/* CTAs */}
@@ -83,15 +81,21 @@ export default function HomePage() {
               {/* Quick Trust Highlights */}
               <div className="pt-6 grid grid-cols-3 gap-4 border-t border-white/10 text-center lg:text-left">
                 <div>
-                  <div className="text-2xl sm:text-3xl font-black text-sky-400">500+</div>
+                  <div className="text-2xl sm:text-3xl font-black text-sky-400">
+                    {settings.stat_students}
+                  </div>
                   <div className="text-xs text-slate-400 font-medium">Students Mentored</div>
                 </div>
                 <div>
-                  <div className="text-2xl sm:text-3xl font-black text-amber-400">10+ Yrs</div>
+                  <div className="text-2xl sm:text-3xl font-black text-amber-400">
+                    {settings.stat_experience}
+                  </div>
                   <div className="text-xs text-slate-400 font-medium">Faculty Experience</div>
                 </div>
                 <div>
-                  <div className="text-2xl sm:text-3xl font-black text-emerald-400">100%</div>
+                  <div className="text-2xl sm:text-3xl font-black text-emerald-400">
+                    {settings.stat_success}
+                  </div>
                   <div className="text-xs text-slate-400 font-medium">NCERT Aligned</div>
                 </div>
               </div>

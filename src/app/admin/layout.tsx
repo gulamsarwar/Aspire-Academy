@@ -17,6 +17,7 @@ import {
   ExternalLink,
   LogOut,
   AlertTriangle,
+  Settings,
 } from 'lucide-react';
 
 export default function AdminLayout({
@@ -29,6 +30,7 @@ export default function AdminLayout({
 
   const navItems = [
     { label: 'Admin Overview', href: '/admin', icon: LayoutDashboard },
+    { label: 'Academy Settings', href: '/admin/settings', icon: Settings },
     { label: 'Courses Management', href: '/admin/courses', icon: BookOpen },
     { label: 'Batch Management', href: '/admin/batches', icon: Calendar },
     { label: 'Lesson Video & PDF', href: '/admin/lessons', icon: FileText },

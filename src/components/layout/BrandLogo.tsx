@@ -1,5 +1,8 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
+import { useSiteSettings } from '@/components/settings/SiteSettingsContext';
 
 export function BrandLogo({
   variant = 'dark',
@@ -8,6 +11,7 @@ export function BrandLogo({
   variant?: 'light' | 'dark';
   size?: 'sm' | 'md' | 'lg';
 }) {
+  const { settings } = useSiteSettings();
   const isLight = variant === 'light';
 
   const sizeClasses = {
@@ -15,6 +19,11 @@ export function BrandLogo({
     md: { icon: 'w-9 h-9', title: 'text-xl', sub: 'text-[10px]' },
     lg: { icon: 'w-11 h-11', title: 'text-2xl', sub: 'text-xs' },
   }[size];
+
+  // Split academy name into first word and remainder for styling
+  const nameParts = (settings.academy_name || 'Aspire Academy').split(' ');
+  const firstWord = nameParts[0] || 'Aspire';
+  const restOfName = nameParts.slice(1).join(' ') || 'Academy';
 
   return (
     <Link href="/" className="inline-flex items-center gap-2.5 group">
@@ -48,14 +57,14 @@ export function BrandLogo({
             isLight ? 'text-white' : 'text-slate-900'
           }`}
         >
-          Aspire <span className="text-[#046BD2]">Academy</span>
+          {firstWord} <span className="text-[#046BD2]">{restOfName}</span>
         </span>
         <span
           className={`font-semibold tracking-widest uppercase ${sizeClasses.sub} ${
             isLight ? 'text-slate-300' : 'text-slate-500'
           }`}
         >
-          Online Education
+          {settings.tagline || 'Online Education'}
         </span>
       </div>
     </Link>

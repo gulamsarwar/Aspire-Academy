@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { BrandLogo } from './BrandLogo';
+import { useSiteSettings } from '@/components/settings/SiteSettingsContext';
 import {
   Phone,
   Mail,
@@ -14,6 +15,8 @@ import {
 } from 'lucide-react';
 
 export function Footer() {
+  const { settings } = useSiteSettings();
+
   return (
     <footer className="bg-[#0B192C] text-slate-300 border-t border-slate-800">
       {/* Top Value Banner */}
@@ -46,7 +49,7 @@ export function Footer() {
               </div>
               <div>
                 <h4 className="text-white font-bold text-sm">Personal Mentor Support</h4>
-                <p className="text-xs text-slate-400">Weekly doubt clearing with Shekhar Sir</p>
+                <p className="text-xs text-slate-400">Weekly doubt clearing with {settings.lead_faculty || 'Shekhar Sir'}</p>
               </div>
             </div>
           </div>
@@ -60,13 +63,11 @@ export function Footer() {
           <div className="lg:col-span-2 space-y-4">
             <BrandLogo variant="light" size="md" />
             <p className="text-sm text-slate-400 leading-relaxed pr-6">
-              Aspire Academy provides top-tier education for Bihar Board, CBSE, NEET,
-              and Foundation students. Powered by experienced faculty, interactive smart
-              classrooms, regular tests, and personalized mentoring.
+              {settings.description}
             </p>
             <div className="pt-2 flex items-center gap-3">
               <a
-                href="https://wa.me/919876543210"
+                href={`https://wa.me/${settings.whatsapp.replace(/\D/g, '')}`}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-sm"
@@ -88,7 +89,7 @@ export function Footer() {
                   href="/courses/class-12-biology"
                   className="hover:text-white transition-colors"
                 >
-                  Class 12 Biology (Shekhar Sir)
+                  Class 12 Biology ({settings.lead_faculty || 'Shekhar Sir'})
                 </Link>
               </li>
               <li>
@@ -165,23 +166,23 @@ export function Footer() {
             <ul className="space-y-3 text-sm text-slate-400">
               <li className="flex items-start gap-2.5">
                 <MapPin className="w-4 h-4 text-sky-400 mt-0.5 flex-shrink-0" />
-                <span>Aspire Academy Campus, Near Rajendra Nagar, Bihar, India</span>
+                <span>{settings.address}</span>
               </li>
               <li className="flex items-center gap-2.5">
                 <Phone className="w-4 h-4 text-sky-400 flex-shrink-0" />
-                <a href="tel:+919876543210" className="hover:text-white">
-                  +91 9876543210
+                <a href={`tel:${settings.phone.replace(/\s+/g, '')}`} className="hover:text-white">
+                  {settings.phone}
                 </a>
               </li>
               <li className="flex items-center gap-2.5">
                 <Mail className="w-4 h-4 text-sky-400 flex-shrink-0" />
-                <a href="mailto:contact@aspireacademyonline.in" className="hover:text-white">
-                  contact@aspireacademyonline.in
+                <a href={`mailto:${settings.email}`} className="hover:text-white">
+                  {settings.email}
                 </a>
               </li>
               <li className="flex items-center gap-2.5">
                 <Clock className="w-4 h-4 text-sky-400 flex-shrink-0" />
-                <span>Mon – Sat: 7:00 AM – 8:30 PM</span>
+                <span>{settings.office_hours}</span>
               </li>
             </ul>
           </div>
@@ -189,7 +190,7 @@ export function Footer() {
 
         {/* Legal & Policy Links */}
         <div className="mt-12 pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-          <p>© 2026 Aspire Academy Online. All rights reserved.</p>
+          <p>© 2026 {settings.academy_name}. All rights reserved.</p>
           <div className="flex flex-wrap items-center gap-6">
             <Link href="/privacy-policy" className="hover:text-slate-300 transition-colors">
               Privacy Policy

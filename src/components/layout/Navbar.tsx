@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { BrandLogo } from './BrandLogo';
 import { useAuth } from '@/components/auth/AuthContext';
+import { useSiteSettings } from '@/components/settings/SiteSettingsContext';
 import {
   Menu,
   X,
@@ -25,6 +26,7 @@ export function Navbar() {
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const pathname = usePathname();
   const { user, role, loginAsStudent, loginAsAdmin, logout } = useAuth();
+  const { settings } = useSiteSettings();
 
   const navLinks = [
     { label: 'Home', href: '/' },
@@ -44,25 +46,26 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 w-full">
       {/* Top Announcement Bar */}
-      <div className="bg-[#0B192C] text-white px-4 py-1.5 text-xs font-medium border-b border-white/10">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded font-bold uppercase tracking-wider text-[10px]">
-              New Batch 2026-27
-            </span>
-            <span className="hidden sm:inline text-slate-300">
-              Class 12 Bihar Board & NEET Foundation Admissions Open!
-            </span>
-          </div>
+      {settings.announcement_active && (
+        <div className="bg-[#0B192C] text-white px-4 py-1.5 text-xs font-medium border-b border-white/10">
+          <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded font-bold uppercase tracking-wider text-[10px]">
+                {settings.announcement_tag}
+              </span>
+              <span className="hidden sm:inline text-slate-300">
+                {settings.announcement_text}
+              </span>
+            </div>
 
-          <div className="flex items-center gap-4 text-slate-300">
-            <a
-              href="tel:+919876543210"
-              className="flex items-center gap-1.5 hover:text-white transition-colors"
-            >
-              <PhoneCall className="w-3.5 h-3.5 text-sky-400" />
-              <span>+91 9876543210</span>
-            </a>
+            <div className="flex items-center gap-4 text-slate-300">
+              <a
+                href={`tel:${settings.phone.replace(/\s+/g, '')}`}
+                className="flex items-center gap-1.5 hover:text-white transition-colors"
+              >
+                <PhoneCall className="w-3.5 h-3.5 text-sky-400" />
+                <span>{settings.phone}</span>
+              </a>
 
             {/* Role quick switcher for testing */}
             <div className="relative">
@@ -111,6 +114,7 @@ export function Navbar() {
           </div>
         </div>
       </div>
+      )}
 
       {/* Main Navigation Bar */}
       <div className="glass-header">

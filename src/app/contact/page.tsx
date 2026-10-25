@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useSiteSettings } from '@/components/settings/SiteSettingsContext';
 import {
   Phone,
   Mail,
@@ -13,6 +14,8 @@ import {
 } from 'lucide-react';
 
 export default function ContactPage() {
+  const { settings } = useSiteSettings();
+
   const [formData, setFormData] = useState({
     fullName: '',
     phone: '',
@@ -62,7 +65,7 @@ export default function ContactPage() {
             We are here to assist
           </span>
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight">
-            Get in Touch with Aspire Academy
+            Get in Touch with {settings.academy_name}
           </h1>
           <p className="text-slate-300 text-sm sm:text-base max-w-2xl leading-relaxed">
             Have questions about courses, batch timings, fees, or admissions? Connect
@@ -74,21 +77,21 @@ export default function ContactPage() {
         {/* Quick Contact Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <a
-            href="tel:+919876543210"
+            href={`tel:${settings.phone.replace(/\s+/g, '')}`}
             className="p-6 rounded-2xl bg-white border border-slate-200 hover:border-blue-300 hover:shadow-md transition space-y-2 block group"
           >
             <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#046BD2] flex items-center justify-center group-hover:scale-105 transition">
               <Phone className="w-5 h-5" />
             </div>
             <h3 className="font-bold text-slate-900 text-sm">Call Us Directly</h3>
-            <p className="text-xs text-slate-500 font-medium">+91 9876543210</p>
+            <p className="text-xs text-slate-500 font-medium">{settings.phone}</p>
             <span className="text-[11px] text-[#046BD2] font-semibold block pt-1">
               Tap to call →
             </span>
           </a>
 
           <a
-            href="https://wa.me/919876543210"
+            href={`https://wa.me/${settings.whatsapp.replace(/\D/g, '')}`}
             target="_blank"
             rel="noreferrer"
             className="p-6 rounded-2xl bg-white border border-slate-200 hover:border-emerald-300 hover:shadow-md transition space-y-2 block group"
@@ -97,7 +100,7 @@ export default function ContactPage() {
               <MessageCircle className="w-5 h-5" />
             </div>
             <h3 className="font-bold text-slate-900 text-sm">WhatsApp Chat</h3>
-            <p className="text-xs text-slate-500 font-medium">Quick admission guidance</p>
+            <p className="text-xs text-slate-500 font-medium">{settings.whatsapp}</p>
             <span className="text-[11px] text-emerald-600 font-semibold block pt-1">
               Start chat →
             </span>
@@ -108,7 +111,7 @@ export default function ContactPage() {
               <Mail className="w-5 h-5" />
             </div>
             <h3 className="font-bold text-slate-900 text-sm">Email Support</h3>
-            <p className="text-xs text-slate-500 font-medium">contact@aspireacademyonline.in</p>
+            <p className="text-xs text-slate-500 font-medium">{settings.email}</p>
             <span className="text-[11px] text-slate-400 block pt-1">24 hr reply</span>
           </div>
 
@@ -117,7 +120,7 @@ export default function ContactPage() {
               <Clock className="w-5 h-5" />
             </div>
             <h3 className="font-bold text-slate-900 text-sm">Office Hours</h3>
-            <p className="text-xs text-slate-500 font-medium">Mon – Sat: 7:00 AM – 8:30 PM</p>
+            <p className="text-xs text-slate-500 font-medium">{settings.office_hours}</p>
             <span className="text-[11px] text-amber-600 font-semibold block pt-1">
               Counselors available
             </span>
@@ -304,11 +307,11 @@ export default function ContactPage() {
               <div className="space-y-2">
                 <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                   <MapPin className="w-5 h-5 text-[#046BD2]" />
-                  <span>Aspire Academy Campus</span>
+                  <span>{settings.academy_name} Campus</span>
                 </h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Near Rajendra Nagar Main Road, Bihar, India. Students and parents are
-                  welcome to visit our administrative office for one-on-one counseling.
+                  {settings.address}. Students and parents are welcome to visit our
+                  administrative office during working hours ({settings.office_hours}).
                 </p>
               </div>
 

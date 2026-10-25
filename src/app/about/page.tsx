@@ -1,5 +1,8 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
+import { useSiteSettings } from '@/components/settings/SiteSettingsContext';
 import {
   GraduationCap,
   Users,
@@ -12,21 +15,21 @@ import {
 } from 'lucide-react';
 
 export default function AboutPage() {
+  const { settings } = useSiteSettings();
+
   return (
     <div className="min-h-screen bg-slate-50 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
         {/* Hero Section */}
         <div className="bg-gradient-to-r from-[#0B192C] to-[#1E3E62] rounded-3xl p-8 sm:p-14 text-white shadow-xl space-y-4">
           <span className="bg-sky-500/20 text-sky-300 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider inline-block">
-            About Aspire Academy
+            About {settings.academy_name}
           </span>
           <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
             Empowering Students to Learn Today & Lead Tomorrow
           </h1>
           <p className="text-slate-300 text-sm sm:text-base max-w-3xl leading-relaxed">
-            Aspire Academy was founded to deliver uncompromising quality in coaching for
-            Bihar Board, CBSE, NEET, and Science Foundation. We bridge the gap between
-            school curricula and competitive entrance exams through expert pedagogy.
+            {settings.description}
           </p>
         </div>
 
