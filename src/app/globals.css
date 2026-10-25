@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --brand-navy-900: #071326;
+    --brand-navy-800: #0B192C;
+    --brand-navy-700: #1E3E62;
+    --brand-blue: #046BD2;
+    --brand-blue-hover: #0352A0;
+    --brand-cyan: #00B4D8;
+    --brand-accent: #EBF3FA;
+    --surface-light: #F8FAFC;
+    --surface-card: #FFFFFF;
+    --border-subtle: #E2E8F0;
+  }
+
+  body {
+    background-color: #F8FAFC;
+    color: #0F172A;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+}
+
+/* Custom Utilities for Premium Educational Aesthetics */
+.glass-header {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.dark-glass-header {
+  background: rgba(11, 25, 44, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.hero-gradient {
+  background: radial-gradient(circle at 10% 20%, rgba(4, 107, 210, 0.08) 0%, transparent 40%),
+              radial-gradient(circle at 90% 80%, rgba(30, 62, 98, 0.06) 0%, transparent 45%);
+}
+
+.card-hover-effect {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card-hover-effect:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgba(11, 25, 44, 0.08), 0 8px 10px -6px rgba(11, 25, 44, 0.04);
+}
+
+/* Custom Scrollbar for Course Curriculum & Lesson Drawers */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
