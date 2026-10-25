@@ -19,6 +19,8 @@ import {
   AlertCircle,
   Clock,
   BookOpen,
+  Tag,
+  Check,
 } from 'lucide-react';
 
 declare global {
@@ -46,10 +48,50 @@ export function CheckoutClient({
   const [completedOrderId, setCompletedOrderId] = useState('');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'upi' | 'card' | 'netbanking'>('upi');
 
+  // Coupon State
+  const [couponInput, setCouponInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number; label: string } | null>(null);
+  const [couponMessage, setCouponMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   const selectedBatch = batches.find((b) => b.id === selectedBatchId) || batches[0];
 
   const discountAmount =
     course.original_price > course.price ? course.original_price - course.price : 0;
+
+  const handleApplyCoupon = (codeToApply?: string) => {
+    const raw = (codeToApply || couponInput).trim().toUpperCase();
+    if (!raw) return;
+
+    if (raw === 'TOPPER100') {
+      const discount = Math.min(100, course.price - 1);
+      setAppliedCoupon({ code: raw, discount, label: 'TOPPER100 (₹100 Scholarship Discount)' });
+      setCouponMessage({ type: 'success', text: '🎉 TOPPER100 applied! You saved flat ₹100.' });
+      setCouponInput('TOPPER100');
+    } else if (raw === 'SHEKHAR50') {
+      const discount = Math.min(50, course.price - 1);
+      setAppliedCoupon({ code: raw, discount, label: 'SHEKHAR50 (₹50 Shekhar Sir Mentorship Discount)' });
+      setCouponMessage({ type: 'success', text: '🎉 SHEKHAR50 applied! You saved flat ₹50.' });
+      setCouponInput('SHEKHAR50');
+    } else if (raw === 'BIHAR20') {
+      const discount = Math.round(course.price * 0.2);
+      setAppliedCoupon({ code: raw, discount, label: 'BIHAR20 (20% Target Batch Discount)' });
+      setCouponMessage({ type: 'success', text: `🎉 BIHAR20 applied! You saved ₹${discount}.` });
+      setCouponInput('BIHAR20');
+    } else {
+      setCouponMessage({
+        type: 'error',
+        text: 'Invalid promo code. Tap a verified code below: TOPPER100 or SHEKHAR50',
+      });
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput('');
+    setCouponMessage(null);
+  };
+
+  const finalPayable = appliedCoupon ? Math.max(1, course.price - appliedCoupon.discount) : course.price;
 
   const triggerCelebration = () => {
     try {
@@ -87,6 +129,7 @@ export function CheckoutClient({
           courseId: course.id,
           batchId: selectedBatchId,
           studentId: user.id,
+          couponCode: appliedCoupon?.code,
         }),
       });
 
@@ -218,7 +261,7 @@ export function CheckoutClient({
             </div>
             <div className="flex justify-between text-slate-500">
               <span>Amount Paid:</span>
-              <span className="font-bold text-emerald-700">₹{course.price} (UPI / Gateway Verified)</span>
+              <span className="font-bold text-emerald-700">₹{finalPayable} (UPI / Gateway Verified)</span>
             </div>
           </div>
 
@@ -455,6 +498,94 @@ export function CheckoutClient({
                 </div>
               </div>
 
+              {/* Promo / Coupon Code Section */}
+              <div className="border-t border-slate-100 pt-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <Tag className="w-3.5 h-3.5 text-[#046BD2]" />
+                    <span>Have a Promo / Coupon Code?</span>
+                  </label>
+                  {appliedCoupon && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveCoupon}
+                      className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 hover:underline"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+
+                {!appliedCoupon ? (
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={couponInput}
+                        onChange={(e) => setCouponInput(e.target.value)}
+                        placeholder="Enter coupon (e.g. TOPPER100)"
+                        className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#046BD2] font-mono uppercase tracking-wider"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleApplyCoupon()}
+                        disabled={!couponInput.trim()}
+                        className="px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 text-white text-xs font-bold rounded-xl transition"
+                      >
+                        Apply
+                      </button>
+                    </div>
+
+                    {/* Quick suggestion chips */}
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      <span className="text-[10px] text-slate-400 font-medium">Offers:</span>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyCoupon('TOPPER100')}
+                        className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-[#046BD2] border border-blue-200 hover:bg-blue-100 transition"
+                      >
+                        TOPPER100 (-₹100)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyCoupon('SHEKHAR50')}
+                        className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition"
+                      >
+                        SHEKHAR50 (-₹50)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyCoupon('BIHAR20')}
+                        className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition"
+                      >
+                        BIHAR20 (-20%)
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                      <div>
+                        <span className="font-mono font-black text-emerald-800">{appliedCoupon.code}</span>
+                        <p className="text-[10px] text-emerald-600 font-medium">Saved ₹{appliedCoupon.discount} on this course</p>
+                      </div>
+                    </div>
+                    <span className="text-xs font-black text-emerald-700">-₹{appliedCoupon.discount}</span>
+                  </div>
+                )}
+
+                {couponMessage && (
+                  <p
+                    className={`text-[11px] font-medium ${
+                      couponMessage.type === 'success' ? 'text-emerald-600' : 'text-rose-500'
+                    }`}
+                  >
+                    {couponMessage.text}
+                  </p>
+                )}
+              </div>
+
               {/* Price Calculation */}
               <div className="space-y-2 text-xs border-t border-slate-100 pt-4">
                 <div className="flex justify-between text-slate-600">
@@ -467,15 +598,28 @@ export function CheckoutClient({
                     <span>-₹{discountAmount.toLocaleString('en-IN')}</span>
                   </div>
                 )}
+                {appliedCoupon && (
+                  <div className="flex justify-between text-emerald-600 font-bold">
+                    <span>Coupon Discount ({appliedCoupon.code}):</span>
+                    <span>-₹{appliedCoupon.discount.toLocaleString('en-IN')}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-slate-600">
                   <span>Study Notes & Diagram Pack:</span>
                   <span className="text-emerald-600 font-semibold">FREE</span>
                 </div>
                 <div className="flex justify-between text-base font-black text-slate-900 pt-2 border-t border-slate-100">
                   <span>Total Amount Payable:</span>
-                  <span className="text-xl text-[#046BD2]">
-                    ₹{course.price.toLocaleString('en-IN')}
-                  </span>
+                  <div className="text-right">
+                    {appliedCoupon && (
+                      <span className="text-xs text-slate-400 line-through mr-2">
+                        ₹{course.price.toLocaleString('en-IN')}
+                      </span>
+                    )}
+                    <span className="text-xl text-[#046BD2]">
+                      ₹{finalPayable.toLocaleString('en-IN')}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -491,7 +635,7 @@ export function CheckoutClient({
                 ) : (
                   <>
                     <Lock className="w-4 h-4" />
-                    <span>Pay ₹{course.price} via Razorpay Sandbox</span>
+                    <span>Pay ₹{finalPayable} via Razorpay Sandbox</span>
                   </>
                 )}
               </button>

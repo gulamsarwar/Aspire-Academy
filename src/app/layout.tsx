@@ -6,6 +6,7 @@ import { AuthProvider } from '@/components/auth/AuthContext';
 import { SiteSettingsProvider } from '@/components/settings/SiteSettingsContext';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
+import { FloatingWhatsApp } from '@/components/layout/FloatingWhatsApp';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -63,6 +64,7 @@ export default function RootLayout({
             </Suspense>
             <main className="flex-1">{children}</main>
             <Footer />
+            <FloatingWhatsApp />
           </SiteSettingsProvider>
         </AuthProvider>
       </body>

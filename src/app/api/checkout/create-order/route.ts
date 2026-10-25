@@ -7,6 +7,7 @@ const createOrderSchema = z.object({
   courseId: z.string().min(1, 'Course ID is required'),
   batchId: z.string().min(1, 'Batch ID is required'),
   studentId: z.string().min(1, 'Student ID is required'),
+  couponCode: z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { courseId, batchId, studentId } = result.data;
+    const { courseId, batchId, studentId, couponCode } = result.data;
 
     // Validate course exists and is published
     const course = db.getCourseById(courseId);
@@ -48,8 +49,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Calculate coupon discounts server-side
+    let finalPrice = course.price;
+    const cleanCoupon = (couponCode || '').trim().toUpperCase();
+    if (cleanCoupon === 'TOPPER100') {
+      finalPrice = Math.max(1, finalPrice - 100);
+    } else if (cleanCoupon === 'SHEKHAR50') {
+      finalPrice = Math.max(1, finalPrice - 50);
+    } else if (cleanCoupon === 'BIHAR20') {
+      finalPrice = Math.max(1, Math.round(finalPrice * 0.8));
+    }
+
     // Server calculates exact amount in paise (1 INR = 100 paise)
-    const amountInPaise = Math.round(course.price * 100);
+    const amountInPaise = Math.round(finalPrice * 100);
     const currency = course.currency || 'INR';
 
     let gatewayOrderId = `order_test_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
@@ -68,10 +80,11 @@ export async function POST(req: NextRequest) {
             batchId: batch.id,
             batchName: batch.name,
             studentId,
+            couponCode: cleanCoupon || 'NONE',
           },
         });
         gatewayOrderId = rzpOrder.id;
-      } catch (rzpErr: any) {
+      } catch (rzpErr: unknown) {
         console.error('Razorpay gateway error, falling back to sandbox order:', rzpErr);
       }
     }
@@ -81,7 +94,7 @@ export async function POST(req: NextRequest) {
       studentId,
       courseId,
       batchId,
-      amount: course.price,
+      amount: finalPrice,
       currency,
       gatewayOrderId,
     });
@@ -93,7 +106,9 @@ export async function POST(req: NextRequest) {
       orderId: order.id,
       gatewayOrderId,
       amount: amountInPaise,
-      amountInRupees: course.price,
+      amountInRupees: finalPrice,
+      originalPrice: course.price,
+      discountApplied: course.price - finalPrice,
       currency,
       keyId,
       courseTitle: course.title,

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Course, Module, Lesson, LiveClass, Announcement } from '@/lib/types';
 import { useAuth } from '@/components/auth/AuthContext';
+import { useSiteSettings } from '@/components/settings/SiteSettingsContext';
 import { db } from '@/lib/data/mock-db';
 import {
   PlayCircle,
@@ -19,6 +20,7 @@ import {
   Sparkles,
   ArrowRight,
   ShieldAlert,
+  MessageCircle,
 } from 'lucide-react';
 
 export function CoursePlayerClient({
@@ -33,7 +35,12 @@ export function CoursePlayerClient({
   announcements: Announcement[];
 }) {
   const { user, role } = useAuth();
+  const { settings } = useSiteSettings();
   const studentId = user?.id || 'u0000000-0000-0000-0000-000000000001';
+
+  // Support phone for direct WhatsApp doubts
+  const rawPhone = (settings.whatsapp || settings.phone || '9939598284').replace(/[^0-9]/g, '');
+  const cleanPhone = rawPhone.startsWith('91') ? rawPhone : `91${rawPhone}`;
 
   // Check enrollment
   const isEnrolled = db.isStudentEnrolled(studentId, course.id) || role === 'admin';
@@ -47,6 +54,7 @@ export function CoursePlayerClient({
   );
 
   const [activeTab, setActiveTab] = useState<'overview' | 'notes' | 'live' | 'announcements'>('overview');
+  const [toastMessage, setToastMessage] = useState<string>('');
 
   const activeLesson = allLessons.find((l) => l.id === activeLessonId) || allLessons[0];
   const activeLessonIndex = allLessons.findIndex((l) => l.id === activeLessonId);
@@ -58,6 +66,9 @@ export function CoursePlayerClient({
     progress.completedLessonIds.forEach((id) => (map[id] = true));
     return map;
   });
+
+  const completedCount = allLessons.filter((l) => completedLessons[l.id]).length;
+  const progressPercent = allLessons.length > 0 ? Math.round((completedCount / allLessons.length) * 100) : 0;
 
   React.useEffect(() => {
     const progress = db.getStudentProgressForCourse(studentId, course.id);
@@ -146,8 +157,20 @@ export function CoursePlayerClient({
           </h1>
         </div>
 
-        {/* Progress Pill */}
-        <div className="flex items-center gap-3">
+        {/* Progress Tracker and Complete Toggle */}
+        <div className="flex items-center gap-4">
+          <div className="hidden sm:flex flex-col items-end text-xs">
+            <span className="font-bold text-slate-800">
+              {completedCount} of {allLessons.length} Completed ({progressPercent}%)
+            </span>
+            <div className="w-32 h-2 bg-slate-200 rounded-full mt-1 overflow-hidden">
+              <div
+                className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+          </div>
+
           <button
             onClick={() => toggleComplete(activeLesson.id)}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm ${
@@ -262,15 +285,42 @@ export function CoursePlayerClient({
 
             <div className="p-6">
               {activeTab === 'overview' && (
-                <div className="space-y-4">
-                  <h3 className="text-base font-bold text-slate-900">
-                    {activeLesson?.title}
-                  </h3>
-                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed whitespace-pre-line">
-                    {activeLesson?.description}
-                  </p>
+                <div className="space-y-5">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">
+                      {activeLesson?.title}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-600 leading-relaxed whitespace-pre-line mt-2">
+                      {activeLesson?.description}
+                    </p>
+                  </div>
 
-                  <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                  {/* 1-Tap Faculty Doubt Solver */}
+                  <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 border border-emerald-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-900">
+                        <MessageCircle className="w-4 h-4 text-emerald-600" />
+                        <span>Have a doubt on this concept?</span>
+                      </div>
+                      <p className="text-[11px] text-emerald-700">
+                        Ask Shekhar Sir directly on WhatsApp with your query or question screenshot.
+                      </p>
+                    </div>
+
+                    <a
+                      href={`https://wa.me/${cleanPhone}?text=${encodeURIComponent(
+                        `Namaste Shekhar Sir, I am studying "${course.title}" and have a doubt in Lesson: "${activeLesson?.title || ''}". Could you please guide me?`
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-600/20 transition hover:scale-105 whitespace-nowrap"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      <span>Ask Doubt on WhatsApp</span>
+                    </a>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
                     <span>Duration: <strong>{activeLesson?.duration_minutes} Minutes</strong></span>
                     <span>Instructor: <strong>{course.instructor_name}</strong></span>
                   </div>
@@ -302,7 +352,8 @@ export function CoursePlayerClient({
                         href="#download-pdf"
                         onClick={(e) => {
                           e.preventDefault();
-                          alert(`Downloading: ${activeLesson.material_name || 'Notes.pdf'}`);
+                          setToastMessage(`Downloading "${activeLesson.material_name || 'Notes.pdf'}"... PDF ready!`);
+                          setTimeout(() => setToastMessage(''), 4000);
                         }}
                         className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#046BD2] hover:bg-[#0352A0] transition flex items-center gap-1.5 shadow-sm"
                       >
@@ -441,6 +492,14 @@ export function CoursePlayerClient({
           </div>
         </div>
       </div>
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 left-6 z-50 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl text-xs font-bold flex items-center gap-2 animate-in slide-in-from-bottom-3 duration-200 border border-slate-700">
+          <Sparkles className="w-4 h-4 text-emerald-400" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
     </div>
   );
 }
