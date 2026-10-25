@@ -144,7 +144,7 @@ export function CheckoutClient({
           key: orderData.keyId,
           amount: orderData.amount,
           currency: orderData.currency,
-          name: 'Aspire Academy Online',
+          name: 'Aspire Academy',
           description: `${course.title} (${selectedBatch.name})`,
           order_id: orderData.gatewayOrderId,
           prefill: {

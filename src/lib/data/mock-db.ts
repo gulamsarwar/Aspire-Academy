@@ -333,7 +333,7 @@ export const initialAnnouncements: Announcement[] = [
   },
   {
     id: 'a0000000-0000-0000-0000-000000000002',
-    title: 'Welcome to Aspire Academy Online Platform!',
+    title: 'Welcome to Aspire Academy Platform!',
     body: 'We are thrilled to launch the high-speed Aspire Academy web platform. Enrolled students can track their chapter progress, download authentic handwritten notes, and join live streams effortlessly.',
     priority: 'normal',
     published_at: '2026-04-09T14:00:00.000Z',

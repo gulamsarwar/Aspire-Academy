@@ -62,7 +62,7 @@ export function FloatingWhatsApp() {
           <div className="p-4 bg-slate-50 space-y-3 text-xs text-slate-700">
             <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm space-y-1">
               <p className="font-semibold text-slate-800">
-                👋 Namaste! Welcome to Aspire Academy Online.
+                👋 Namaste! Welcome to Aspire Academy.
               </p>
               <p className="text-slate-600 text-[11px] leading-relaxed">
                 Need help choosing the right batch for <strong>Bihar Board Class 12 / 10</strong> or have questions about syllabus & handwritten notes?

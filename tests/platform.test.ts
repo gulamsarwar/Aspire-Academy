@@ -5,7 +5,7 @@ import { db } from '../src/lib/data/mock-db';
 import { verifyWebhookSignature } from '../src/lib/razorpay';
 import { Course, Batch } from '../src/lib/types';
 
-describe('Aspire Academy Online — Comprehensive Platform Test Suite', () => {
+describe('Aspire Academy — Comprehensive Platform Test Suite', () => {
   const testStudentId = 'student_test_101';
   const testAdminId = 'u0000000-0000-0000-0000-000000000002';
   const testCourseSlug = 'class-12-biology';

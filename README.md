@@ -1,4 +1,4 @@
-# 🎓 Aspire Academy Online — Complete Production Learning Platform
+# 🎓 Aspire Academy — Complete Production Learning Platform
 
 > **Official Online Platform for Aspire Academy**  
 > *Premier Coaching for Bihar Board, CBSE, NEET & Foundation (Class 10 & 12)*  
@@ -10,10 +10,10 @@
 ## 📋 Table of Contents
 1. [Platform Overview & Architecture](#platform-overview--architecture)
 2. [Technology Stack](#technology-stack)
-3. [Quick Start for Non-Expert Administrators](#quick-start-for-non-expert-administrators)
-4. [Demo Accounts & Role Switcher](#demo-accounts--role-switcher)
+3. [Quick Start for Administrators](#quick-start-for-administrators)
+4. [Authentication & Student Accounts](#authentication--student-accounts)
 5. [Database Setup & Security (Supabase)](#database-setup--security-supabase)
-6. [Razorpay Payment Gateway & Webhook Setup](#razorpay-payment-gateway--webhook-setup)
+6. [Razorpay Payment Gateway & Live Key Setup](#razorpay-payment-gateway--live-key-setup)
 7. [Android APK Packaging (Capacitor)](#android-apk-packaging-capacitor)
 8. [Automated Test Suite](#automated-test-suite)
 9. [Google Play Store Compliance Notice](#google-play-store-compliance-notice)
@@ -23,7 +23,7 @@
 
 ## 🏛️ Platform Overview & Architecture
 
-Aspire Academy Online is a custom-coded, enterprise-grade educational web and mobile application designed to replace legacy WordPress setups. Built to support **1,000+ concurrent students** with sub-second response times, zero lag, and bank-grade payment security.
+Aspire Academy is a custom-coded, enterprise-grade educational web and mobile application designed to replace legacy WordPress setups. Built to support **1,000+ concurrent students** with sub-second response times, zero lag, and bank-grade payment security.
 
 ### Key Functional Subsystems
 - **Public Educational Portal**: Clean, modern Indian educational branding with Deep Navy (`#0B192C`) & Royal Blue (`#046BD2`). Includes full Course Catalog, Course Details with interactive Syllabus Accordions and mandatory Batch Selection, Free Notes library, Timetable/Batches explorer, About Us, Anti-spam Contact form with WhatsApp integration, and Legal policies (Terms, Privacy, Refund).
@@ -81,12 +81,13 @@ Open **[http://localhost:3000](http://localhost:3000)** in your web browser. You
 
 ---
 
-## 🔑 Demo Accounts & Role Switcher
+## 🔑 Authentication & Student Accounts
 
-For seamless evaluation, a **Role Switcher** is pinned to the top navigation bar:
-- **Student Mode (`student@aspireacademy.demo`)**: Pre-enrolled in *Class 12 Biology (Bihar Board 2026-27)*. Browse lessons, watch videos, download PDF notes, or purchase additional courses.
-- **Admin Mode (`admin@aspireacademy.demo`)**: Full access to the `/admin` control center. Manage courses, batches, lessons, live classes, students, and inspect payments.
-- **Demo Switcher**: Click the badge in the top right of the navigation header to switch instantly between roles with zero password entry required!
+The platform features authentic Indian student authentication workflows:
+- **Google / Gmail One-Click Sign In**: Real OAuth flow allowing students to sign in directly with their verified Gmail account.
+- **Email ID & Password**: Secure email registration and authentication with password reset links.
+- **Mobile Number & OTP / Password**: India `+91` mobile registration and login with SMS OTP verification.
+- **Admin Control Center**: Access restricted to authorized instructors and staff at `/admin`. Direct Razorpay keys management available inside `/admin/settings`.
 
 ---
 
@@ -231,5 +232,5 @@ Before opening admissions publicly:
 
 ---
 
-© 2026 **Aspire Academy Online**. All rights reserved.  
+© 2026 **Aspire Academy**. All rights reserved.  
 *Empowering Students for Bihar Board, CBSE & NEET Excellence.*

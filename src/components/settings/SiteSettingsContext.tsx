@@ -18,22 +18,23 @@ const SiteSettingsContext = createContext<SiteSettingsContextType>({
 
 export function SiteSettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<SiteSettings>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('aspire_site_settings');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (db && typeof db.updateSettings === 'function') {
-            db.updateSettings(parsed);
-          }
-          return parsed;
-        } catch {
-          // ignore parsing error
-        }
-      }
-    }
     return (db && typeof db.getSettings === 'function') ? db.getSettings() : initialSiteSettings;
   });
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('aspire_site_settings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (db && typeof db.updateSettings === 'function') {
+          db.updateSettings(parsed);
+        }
+        setSettings(parsed);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const updateSettings = (updates: Partial<SiteSettings>) => {
     const updated = (db && typeof db.updateSettings === 'function')

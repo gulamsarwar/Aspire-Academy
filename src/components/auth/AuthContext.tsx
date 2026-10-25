@@ -28,30 +28,24 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Default to guest visitor (null) so visitors and students see clean Student Login state
-  const [user, setUser] = useState<Profile | null>(() => {
-    if (typeof window !== 'undefined') {
+  const [user, setUser] = useState<Profile | null>(null);
+  const [role, setRole] = useState<UserRoleType>('student');
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    try {
       const savedUser = localStorage.getItem('aspire_user');
       if (savedUser) {
-        try {
-          return JSON.parse(savedUser);
-        } catch {
-          // ignore parsing error
-        }
+        setUser(JSON.parse(savedUser));
       }
-    }
-    return null;
-  });
-
-  const [role, setRole] = useState<UserRoleType>(() => {
-    if (typeof window !== 'undefined') {
       const savedRole = localStorage.getItem('aspire_role') as UserRoleType;
-      if (savedRole) return savedRole;
+      if (savedRole) {
+        setRole(savedRole);
+      }
+    } catch {
+      // ignore storage errors
     }
-    return 'student';
-  });
-
-  const [isLoading, setIsLoading] = useState(false);
+  }, []);
 
   const loginAsStudent = () => {
     const studentUser: Profile = {

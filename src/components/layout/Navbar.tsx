@@ -22,9 +22,8 @@ import {
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
-  const [showRoleMenu, setShowRoleMenu] = useState(false);
   const pathname = usePathname();
-  const { user, role, loginAsStudent, loginAsAdmin, logout } = useAuth();
+  const { user, logout } = useAuth();
   const { settings } = useSiteSettings();
 
   const navLinks = [

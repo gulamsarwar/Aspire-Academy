@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'in.aspireacademyonline.app',
-  appName: 'Aspire Academy Online',
+  appName: 'Aspire Academy',
   webDir: 'out',
   server: {
     androidScheme: 'https',
