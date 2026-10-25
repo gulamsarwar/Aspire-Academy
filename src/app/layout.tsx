@@ -45,7 +45,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} h-full scroll-smooth`}>
+    <html
+      lang="en"
+      className={`${inter.variable} h-full scroll-smooth`}
+      data-scroll-behavior="smooth"
+    >
       <head>
         {/* Razorpay Checkout Script */}
         <script src="https://checkout.razorpay.com/v1/checkout.js" async />
