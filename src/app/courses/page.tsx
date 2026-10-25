@@ -13,8 +13,8 @@ export default function CoursesPage() {
   const [selectedClass, setSelectedClass] = useState<string>('All');
   const [sortBy, setSortBy] = useState<'featured' | 'price-low' | 'price-high'>('featured');
 
-  const categories = ['All', 'Bihar Board', 'CBSE', 'Foundation'];
-  const targetClasses = ['All', 'Class 12', 'Class 10'];
+  const categories = ['All', 'Bihar Board', 'CBSE', 'NEET', 'Foundation'];
+  const targetClasses = ['All', 'Class 12', 'Class 11', 'Class 10', 'Class 9', 'Repeater/Dropper'];
 
   const filteredCourses = useMemo(() => {
     return allCourses

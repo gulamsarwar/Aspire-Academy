@@ -55,7 +55,7 @@ export default function ProfileSettingsPage() {
               Registered Email (Primary)
             </span>
             <span className="font-mono text-slate-800 mt-0.5 block">
-              {user?.email || 'student@aspireacademy.demo'}
+              {user?.email || 'student@gmail.com'}
             </span>
           </div>
         </div>

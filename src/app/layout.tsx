@@ -15,27 +15,31 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Aspire Academy Online — Learn Today. Lead Tomorrow. | Bihar Board, CBSE & NEET',
+  title: 'Aspire Academy — विद्या यशः • Accelerate Your Success | Bihar Board, CBSE & NEET',
   description:
     'Aspire Academy provides top-tier education for Bihar Board, CBSE, NEET, and Foundation students with experienced faculty, smart digital classrooms, chapter-wise tests, and personalized mentoring led by Shekhar Sir.',
   keywords: [
-    'Aspire Academy Online',
+    'Aspire Academy',
     'Shekhar Sir Biology',
     'Class 12 Bihar Board Biology',
-    'Bihar Board Online Coaching',
+    'Bihar Board Coaching',
     'NEET Foundation Classes',
     'Class 12 Physics Numericals',
     'Bihar Board Chemistry Notes',
     'Online Test Series',
   ],
-  authors: [{ name: 'Aspire Academy Online' }],
+  icons: {
+    icon: '/aspire-seal.png',
+    apple: '/aspire-seal.png',
+  },
+  authors: [{ name: 'Aspire Academy' }],
   metadataBase: new URL('https://aspireacademyonline.in'),
   openGraph: {
-    title: 'Aspire Academy Online — Bihar Board, CBSE, NEET & Foundation',
+    title: 'Aspire Academy — Bihar Board, CBSE, NEET & Foundation',
     description:
       'Learn from experienced faculty, access smart digital classes, authentic handwritten PDF notes, and personalized mentorship.',
     url: 'https://aspireacademyonline.in',
-    siteName: 'Aspire Academy Online',
+    siteName: 'Aspire Academy',
     locale: 'en_IN',
     type: 'website',
   },

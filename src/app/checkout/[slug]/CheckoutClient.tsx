@@ -345,17 +345,24 @@ export function CheckoutClient({
                 </div>
               ) : (
                 <div className="p-4 rounded-xl bg-blue-50/60 border border-blue-200 space-y-3">
-                  <p className="text-xs text-slate-700">
-                    You need to be logged in with a student profile to attach your course
-                    access.
+                  <p className="text-xs text-slate-700 font-medium">
+                    Please sign in with your student account to link your course purchase.
                   </p>
-                  <button
-                    type="button"
-                    onClick={loginAsStudent}
-                    className="py-2 px-4 rounded-xl bg-[#046BD2] hover:bg-[#0352A0] text-white text-xs font-bold transition shadow-sm"
-                  >
-                    Use Demo Student Profile (Priyanshu)
-                  </button>
+                  <div className="flex flex-wrap gap-2.5 pt-1">
+                    <Link
+                      href={`/auth/login?redirect=/checkout/${course.slug}`}
+                      className="py-2 px-4 rounded-xl bg-[#046BD2] hover:bg-[#0352A0] text-white text-xs font-bold transition shadow-sm inline-flex items-center gap-1.5"
+                    >
+                      <span>Sign In with Email / Mobile</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                    <Link
+                      href={`/auth/register?redirect=/checkout/${course.slug}`}
+                      className="py-2 px-4 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-bold transition shadow-sm"
+                    >
+                      New Student? Register
+                    </Link>
+                  </div>
                 </div>
               )}
             </div>

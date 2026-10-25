@@ -72,14 +72,14 @@ export function Navbar() {
 
       {/* Main Navigation Bar */}
       <div className="glass-header">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 sm:h-20">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16 sm:h-20 gap-4">
             {/* Logo */}
             <div className="flex-shrink-0">
               <BrandLogo variant="dark" size="md" />
             </div>
 
-            {/* Desktop Navigation Links */}
+            {/* Desktop Navigation Links (Always 1 single line with whitespace-nowrap) */}
             <nav className="hidden lg:flex items-center gap-1 xl:gap-2">
               {navLinks.map((link) => {
                 const active = isActive(link.href);
@@ -87,7 +87,7 @@ export function Navbar() {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-150 ${
+                    className={`px-2.5 xl:px-3 py-1.5 xl:py-2 rounded-lg text-[13px] xl:text-sm font-semibold transition-all duration-150 whitespace-nowrap flex-shrink-0 ${
                       active
                         ? 'text-[#046BD2] bg-blue-50/80 font-bold'
                         : 'text-slate-700 hover:text-[#046BD2] hover:bg-slate-50'
@@ -100,7 +100,7 @@ export function Navbar() {
             </nav>
 
             {/* Desktop Action Buttons */}
-            <div className="hidden lg:flex items-center gap-2.5">
+            <div className="hidden lg:flex items-center gap-2 xl:gap-3 flex-shrink-0">
               {pathname.startsWith('/admin') ? (
                 <Link
                   href="/"
@@ -113,7 +113,7 @@ export function Navbar() {
                 <div className="flex items-center gap-2">
                   <Link
                     href="/dashboard"
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-[#046BD2] hover:bg-[#0352A0] text-white shadow-md shadow-blue-500/20 transition-all"
+                    className="inline-flex items-center gap-2 px-3.5 xl:px-4 py-2 rounded-xl text-xs xl:text-sm font-bold bg-[#046BD2] hover:bg-[#0352A0] text-white shadow-md shadow-blue-500/20 transition-all whitespace-nowrap"
                   >
                     <UserCheck className="w-4 h-4 text-white" />
                     <span>My Dashboard</span>
@@ -127,16 +127,16 @@ export function Navbar() {
                   </button>
                 </div>
               ) : (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 xl:gap-2">
                   <Link
                     href="/auth/login"
-                    className="px-4 py-2 text-sm font-bold text-slate-700 hover:text-[#046BD2] hover:bg-blue-50/60 rounded-xl transition"
+                    className="px-3 xl:px-4 py-2 text-xs xl:text-sm font-bold text-slate-700 hover:text-[#046BD2] hover:bg-blue-50/60 rounded-xl transition whitespace-nowrap flex-shrink-0"
                   >
                     Student Login
                   </Link>
                   <Link
                     href="/courses"
-                    className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-bold bg-[#046BD2] hover:bg-[#0352A0] text-white shadow-md shadow-blue-500/25 transition-all hover:scale-105"
+                    className="inline-flex items-center gap-1.5 px-3.5 xl:px-5 py-2 xl:py-2.5 rounded-xl text-xs xl:text-sm font-bold bg-[#046BD2] hover:bg-[#0352A0] text-white shadow-md shadow-blue-500/25 transition-all hover:scale-105 whitespace-nowrap flex-shrink-0"
                   >
                     <BookOpen className="w-4 h-4" />
                     <span>Explore Courses</span>

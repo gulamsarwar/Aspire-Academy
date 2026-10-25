@@ -42,6 +42,38 @@ export default function NotesPage() {
     },
   ];
 
+  const handleDownload = (note: (typeof freeNotes)[0]) => {
+    setDownloadToast(`Downloading: "${note.title}"... File ready!`);
+    const content = `ASPIRE ACADEMY — HIGH YIELD STUDY NOTES
+============================================================
+Course / Topic: ${note.title}
+Subject: ${note.subject}
+Format: ${note.pages} (${note.fileSize})
+Description: ${note.description}
+
+------------------------------------------------------------
+KEY NCERT & BOARD HIGHLIGHTS:
+1. Authentic line-by-line summary verified for Bihar Board & CBSE.
+2. High-yield diagrams, formulas, and named reactions.
+3. Solved previous 10-year examination questions with marking schemes.
+------------------------------------------------------------
+Mentored by Shekhar Sir & The Aspire Academy Faculty
+Website: https://aspireacademyonline.in
+WhatsApp Admissions: +91 9876543210
+© 2026 Aspire Academy. All rights reserved.`;
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${note.title.replace(/[^a-zA-Z0-9]/g, '_')}_Aspire_Academy.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setTimeout(() => setDownloadToast(''), 4000);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
@@ -88,14 +120,11 @@ export default function NotesPage() {
               <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
                 <button
                   type="button"
-                  onClick={() => {
-                    setDownloadToast(`Preparing download: "${note.title}"... PDF ready!`);
-                    setTimeout(() => setDownloadToast(''), 4000);
-                  }}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#046BD2] hover:bg-[#0352A0] text-white shadow-sm transition"
+                  onClick={() => handleDownload(note)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#046BD2] hover:bg-[#0352A0] text-white shadow-sm transition active:scale-95"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>Download PDF</span>
+                  <span>Download Free Notes</span>
                 </button>
 
                 <Link
