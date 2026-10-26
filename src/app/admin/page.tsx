@@ -35,35 +35,78 @@ export default function AdminOverviewPage() {
         </div>
 
         <Link
-          href="/admin/lessons"
-          className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-[#046BD2] hover:bg-[#0352A0] text-white font-extrabold text-xs shadow-lg transition self-start md:self-auto hover:scale-105"
+          href="/admin/courses"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#046BD2] hover:bg-[#0352A0] text-white font-bold text-xs shadow transition self-start md:self-auto"
         >
-          <Video className="w-4 h-4 text-rose-400" />
-          <span>📹 Paste YouTube Video Link Now</span>
+          <BookOpen className="w-4 h-4" />
+          <span>Manage Courses →</span>
         </Link>
       </div>
 
-      {/* Quick Video Upload Action Banner */}
-      <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 rounded-3xl p-6 sm:p-7 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border-2 border-blue-400/30">
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 text-yellow-300 text-xs font-black uppercase tracking-wider">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Course Video CMS</span>
+      {/* Quick Navigation Hub */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Link
+          href="/admin/courses"
+          className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-[#046BD2] shadow-sm hover:shadow-md transition group"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#046BD2] flex items-center justify-center group-hover:scale-110 transition">
+              <BookOpen className="w-5 h-5" />
+            </div>
+            <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-[#046BD2] transition" />
           </div>
-          <h2 className="text-xl sm:text-2xl font-black tracking-tight">
-            Naya Video Lecture Upload / Link Paste Karein
-          </h2>
-          <p className="text-xs sm:text-sm text-blue-100 max-w-xl leading-relaxed">
-            Apne unlisted YouTube video ka link yahan paste karein aur course me publish karein. Enrolled students bina kisi ad ke turant study player me padh sakenge.
+          <h3 className="font-bold text-slate-900 text-sm">Course Management</h3>
+          <p className="text-[11px] text-slate-500 mt-0.5">
+            Manage courses, edit curriculum, and organize video lessons
           </p>
-        </div>
+        </Link>
 
         <Link
-          href="/admin/lessons"
-          className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-white text-blue-900 font-black text-sm shadow-xl hover:bg-yellow-300 hover:text-slate-950 transition transform hover:scale-105 whitespace-nowrap self-stretch md:self-auto justify-center"
+          href="/admin/live"
+          className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-rose-500 shadow-sm hover:shadow-md transition group"
         >
-          <Video className="w-5 h-5 text-red-600" />
-          <span>Open Link Paste Box →</span>
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center group-hover:scale-110 transition">
+              <Video className="w-5 h-5" />
+            </div>
+            <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-rose-600 transition" />
+          </div>
+          <h3 className="font-bold text-slate-900 text-sm">Live Classes</h3>
+          <p className="text-[11px] text-slate-500 mt-0.5">
+            Schedule live YouTube stream lectures and manage schedules
+          </p>
+        </Link>
+
+        <Link
+          href="/admin/quizzes"
+          className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-amber-500 shadow-sm hover:shadow-md transition group"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-110 transition">
+              <Award className="w-5 h-5" />
+            </div>
+            <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-amber-600 transition" />
+          </div>
+          <h3 className="font-bold text-slate-900 text-sm">Quizzes & Tests</h3>
+          <p className="text-[11px] text-slate-500 mt-0.5">
+            Import DOCX/text questions, set marks, and review submissions
+          </p>
+        </Link>
+
+        <Link
+          href="/admin/batches"
+          className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-emerald-500 shadow-sm hover:shadow-md transition group"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition">
+              <Calendar className="w-5 h-5" />
+            </div>
+            <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-emerald-600 transition" />
+          </div>
+          <h3 className="font-bold text-slate-900 text-sm">Batches & Timing</h3>
+          <p className="text-[11px] text-slate-500 mt-0.5">
+            Configure target batches, enrollment caps, and study timings
+          </p>
         </Link>
       </div>
 

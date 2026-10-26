@@ -12,7 +12,62 @@ import {
   AuditLog,
   Profile,
   SiteSettings,
+  Quiz,
+  QuizQuestion,
+  QuizAttempt,
+  Bookmark,
+  StudentDoubt,
+  DownloadedMaterial,
 } from '@/lib/types';
+
+export function generateDeterministicUUID(seed: string): string {
+  if (!seed) return '00000000-0000-4000-8000-000000000001';
+  let h1 = 0xdeadbeef, h2 = 0x41c64e6d, h3 = 0x9e3779b9, h4 = 0x12345678;
+  for (let i = 0; i < seed.length; i++) {
+    const ch = seed.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+    h3 = Math.imul(h3 ^ ch, 2246822507);
+    h4 = Math.imul(h4 ^ ch, 374761393);
+  }
+  const s1 = (h1 >>> 0).toString(16).padStart(8, '0');
+  const s2 = (h2 >>> 16).toString(16).padStart(4, '0');
+  const s3 = ((h3 >>> 16) & 0x0fff | 0x4000).toString(16).padStart(4, '0');
+  const s4 = ((h4 >>> 16) & 0x3fff | 0x8000).toString(16).padStart(4, '0');
+  const s5 = ((h1 ^ h2 ^ h3 ^ h4) >>> 0).toString(16).padStart(8, '0') + ((h2 ^ h3) >>> 0).toString(16).padStart(4, '0');
+  return `${s1}-${s2}-${s3}-${s4}-${s5.slice(0, 12)}`;
+}
+
+export function normalizeStudentId(id: string): string {
+  if (!id || !id.trim()) return '';
+  if (
+    id === 'u0000000-0000-0000-0000-000000000001' ||
+    id === 'student@gmail.com' ||
+    id === 'student@aspireacademy.demo' ||
+    id === 'student.aspire@gmail.com'
+  ) {
+    return '00000000-0000-4000-8000-000000000001';
+  }
+  const cleanDigits = id.replace(/\D/g, '');
+  if (cleanDigits === '9876543210') {
+    return '00000000-0000-4000-8000-000000000001';
+  }
+  if (
+    id === 'u0000000-0000-0000-0000-000000000002' ||
+    id === 'admin@aspireacademy.in' ||
+    id === 'admin@aspireacademy.demo' ||
+    cleanDigits === '9123456789'
+  ) {
+    return '00000000-0000-4000-8000-000000000002';
+  }
+  // If it's already a valid RFC 4122 UUID, return as-is
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    return id.toLowerCase();
+  }
+  // Otherwise, deterministically hash phone number or email into compliant UUID
+  return generateDeterministicUUID(id);
+}
+
 
 // Helper to generate valid RFC 4122 UUIDs for PostgreSQL compatibility
 export function generateUUID(): string {
@@ -342,11 +397,29 @@ export const initialAnnouncements: Announcement[] = [
 
 export const initialProfiles: Profile[] = [
   {
+    id: '00000000-0000-4000-8000-000000000001',
+    email: 'student@aspireacademy.demo',
+    full_name: 'Priyanshu Kumari',
+    phone: '+91 9876543210',
+    avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+    created_at: '2026-04-01T00:00:00Z',
+    updated_at: '2026-04-01T00:00:00Z',
+  },
+  {
     id: 'u0000000-0000-0000-0000-000000000001',
     email: 'student@aspireacademy.demo',
     full_name: 'Priyanshu Kumari',
     phone: '+91 9876543210',
     avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+    created_at: '2026-04-01T00:00:00Z',
+    updated_at: '2026-04-01T00:00:00Z',
+  },
+  {
+    id: '00000000-0000-4000-8000-000000000002',
+    email: 'admin@aspireacademy.demo',
+    full_name: 'Shekhar Sir (Admin)',
+    phone: '+91 9123456789',
+    avatar_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=200&q=80',
     created_at: '2026-04-01T00:00:00Z',
     updated_at: '2026-04-01T00:00:00Z',
   },
@@ -363,11 +436,20 @@ export const initialProfiles: Profile[] = [
 
 export const initialEnrollments: Enrollment[] = [
   {
-    id: 'e0000000-0000-0000-0000-000000000001',
+    id: '00000000-0000-4000-8000-000000000030',
+    student_id: '00000000-0000-4000-8000-000000000001',
+    course_id: 'c0000000-0000-0000-0000-000000000001',
+    batch_id: 'b0000000-0000-0000-0000-000000000001',
+    order_id: '00000000-0000-4000-8000-000000000010',
+    status: 'active',
+    enrolled_at: '2026-04-02T10:00:00Z',
+  },
+  {
+    id: '00000000-0000-4000-8000-000000000031',
     student_id: 'u0000000-0000-0000-0000-000000000001',
     course_id: 'c0000000-0000-0000-0000-000000000001',
     batch_id: 'b0000000-0000-0000-0000-000000000001',
-    order_id: 'ord_demo_001',
+    order_id: '00000000-0000-4000-8000-000000000010',
     status: 'active',
     enrolled_at: '2026-04-02T10:00:00Z',
   },
@@ -375,8 +457,8 @@ export const initialEnrollments: Enrollment[] = [
 
 export const initialOrders: Order[] = [
   {
-    id: 'ord_demo_001',
-    student_id: 'u0000000-0000-0000-0000-000000000001',
+    id: '00000000-0000-4000-8000-000000000010',
+    student_id: '00000000-0000-4000-8000-000000000001',
     course_id: 'c0000000-0000-0000-0000-000000000001',
     batch_id: 'b0000000-0000-0000-0000-000000000001',
     amount: 399,
@@ -390,8 +472,8 @@ export const initialOrders: Order[] = [
 
 export const initialPayments: Payment[] = [
   {
-    id: 'pay_demo_001',
-    order_id: 'ord_demo_001',
+    id: '00000000-0000-4000-8000-000000000020',
+    order_id: '00000000-0000-4000-8000-000000000010',
     gateway_payment_id: 'pay_test_8871239812',
     amount: 399,
     currency: 'INR',
@@ -405,7 +487,7 @@ export const initialPayments: Payment[] = [
 export const initialLessonProgress: LessonProgress[] = [
   {
     id: 'lp_001',
-    student_id: 'u0000000-0000-0000-0000-000000000001',
+    student_id: '00000000-0000-4000-8000-000000000001',
     lesson_id: 'e0000000-0000-0000-0000-000000000001',
     completed: true,
     completed_at: '2026-04-02T11:30:00Z',
@@ -416,12 +498,182 @@ export const initialLessonProgress: LessonProgress[] = [
 export const initialAuditLogs: AuditLog[] = [
   {
     id: 'al_001',
-    admin_id: 'u0000000-0000-0000-0000-000000000002',
+    admin_id: '00000000-0000-4000-8000-000000000002',
     action: 'BATCH_CREATED',
-    target_user_id: 'u0000000-0000-0000-0000-000000000002',
+    target_user_id: '00000000-0000-4000-8000-000000000002',
     target_resource: 'b0000000-0000-0000-0000-000000000001',
     reason: 'Initial session launch for Bihar Board Biology 2026-27',
     created_at: '2026-04-01T00:00:00Z',
+  },
+];
+
+export const initialQuizzes: Quiz[] = [
+  {
+    id: 'qz_001',
+    course_id: 'c0000000-0000-0000-0000-000000000001',
+    batch_id: 'b0000000-0000-0000-0000-000000000001',
+    title: 'Class 12 Biology — Genetics & Inheritance Principles (50% Objective Test)',
+    description: 'Bihar Board & CBSE high-yield objective practice covering Mendel laws, dihybrid cross, and chromosomal theory.',
+    duration_minutes: 20,
+    total_marks: 3,
+    passing_percentage: 60,
+    published: true,
+    questions_count: 3,
+    created_at: '2026-04-05T10:00:00Z',
+  },
+  {
+    id: 'qz_002',
+    course_id: 'c0000000-0000-0000-0000-000000000002',
+    batch_id: 'b0000000-0000-0000-0000-000000000002',
+    title: 'Class 12 Physics — Electrostatics & Coulomb Law Numerical MCQ Test',
+    description: 'Concept verification and formula derivation tests on charge, Coulomb force, and dielectric constants.',
+    duration_minutes: 25,
+    total_marks: 3,
+    passing_percentage: 60,
+    published: true,
+    questions_count: 3,
+    created_at: '2026-04-06T10:00:00Z',
+  },
+];
+
+export const initialQuizQuestions: QuizQuestion[] = [
+  {
+    id: 'qq_001',
+    quiz_id: 'qz_001',
+    question_number: 1,
+    question_text: 'मेंडल के द्विसंकर संकरण (Dihybrid Cross) का $F_2$ पीढ़ी में लक्षणप्ररूपी अनुपात (Phenotypic ratio) क्या होता है?',
+    options: [
+      { id: 'A', text: '$9:3:3:1$' },
+      { id: 'B', text: '$1:2:1$' },
+      { id: 'C', text: '$3:1$' },
+      { id: 'D', text: '$9:7$' },
+    ],
+    correct_option: 'A',
+    explanation: 'मेंडल के स्वतंत्र अपव्यूहन के नियमानुसार द्विसंकर क्रॉस में $F_2$ पीढ़ी का लक्षणप्ररूपी अनुपात $9:3:3:1$ प्राप्त होता है।',
+    subject: 'Biology',
+    marks: 1,
+  },
+  {
+    id: 'qq_002',
+    quiz_id: 'qz_001',
+    question_number: 2,
+    question_text: 'हार्ड-वेनबर्ग साम्यावस्था (Hardy-Weinberg Equilibrium) को किस गणितीय समीकरण द्वारा व्यक्त किया जाता है?',
+    options: [
+      { id: 'A', text: '$p^2 + 2pq + q^2 = 1$' },
+      { id: 'B', text: '$p + q = 1$' },
+      { id: 'C', text: '$p^2 - 2pq + q^2 = 1$' },
+      { id: 'D', text: '$p^2 + q^2 = 1$' },
+    ],
+    correct_option: 'A',
+    explanation: 'जीन आवृतियों की स्थिरता दर्शाने वाला द्विपद समीकरण $p^2 + 2pq + q^2 = 1$ है जहाँ $p^2$ समयुग्मजी प्रभावी और $q^2$ अप्रभावी आवृत्ति है।',
+    subject: 'Biology',
+    marks: 1,
+  },
+  {
+    id: 'qq_003',
+    quiz_id: 'qz_001',
+    question_number: 3,
+    question_text: 'वाटसन और क्रिक द्वारा प्रस्तावित B-DNA के एक पूर्ण घुमाव (Pitch) की लंबाई कितनी होती है?',
+    options: [
+      { id: 'A', text: '$3.4\\text{ nm}$ ($34\\text{ \\AA}$)' },
+      { id: 'B', text: '$0.34\\text{ nm}$' },
+      { id: 'C', text: '$2.0\\text{ nm}$' },
+      { id: 'D', text: '$20\\text{ \\AA}$' },
+    ],
+    correct_option: 'A',
+    explanation: 'B-DNA के एक पूर्ण कुंडल में 10 बेस पेयर्स होते हैं और प्रत्येक घुमाव की लंबाई $3.4\\text{ nm}$ होती है।',
+    subject: 'Biology',
+    marks: 1,
+  },
+  {
+    id: 'qq_004',
+    quiz_id: 'qz_002',
+    question_number: 1,
+    question_text: 'दो बिंदु आवेशों $q_1$ तथा $q_2$ के बीच दूरी $r$ होने पर निर्वात में कूलॉम बल का सही सूत्र क्या है?',
+    options: [
+      { id: 'A', text: '$F = \\frac{1}{4\\pi\\varepsilon_0} \\frac{q_1 q_2}{r^2}$' },
+      { id: 'B', text: '$F = \\frac{1}{4\\pi\\varepsilon_0} \\frac{q_1 q_2}{r}$' },
+      { id: 'C', text: '$F = 4\\pi\\varepsilon_0 \\frac{q_1 q_2}{r^2}$' },
+      { id: 'D', text: '$F = \\frac{1}{2\\pi\\varepsilon_0} \\frac{q_1 q_2}{r^2}$' },
+    ],
+    correct_option: 'A',
+    explanation: 'कूलॉम के नियम के अनुसार दो स्थिर बिंदु आवेशों के बीच आकर्षण या प्रतिकर्षण बल $F = \\frac{1}{4\\pi\\varepsilon_0} \\frac{q_1 q_2}{r^2}$ होता है।',
+    subject: 'Physics',
+    marks: 1,
+  },
+  {
+    id: 'qq_005',
+    quiz_id: 'qz_002',
+    question_number: 2,
+    question_text: 'समांतर पट्टिका संधारित्र (Parallel Plate Capacitor) की धारिता का सूत्र क्या है जहाँ पट्टिकाओं का क्षेत्रफल $A$ और दूरी $d$ है?',
+    options: [
+      { id: 'A', text: '$C = \\frac{\\varepsilon_0 A}{d}$' },
+      { id: 'B', text: '$C = \\frac{\\varepsilon_0 d}{A}$' },
+      { id: 'C', text: '$C = \\varepsilon_0 A d$' },
+      { id: 'D', text: '$C = \\frac{A}{4\\pi\\varepsilon_0 d}$' },
+    ],
+    correct_option: 'A',
+    explanation: 'वायु माध्यम वाले समांतर पट्टिका संधारित्र की धारिता $C = \\frac{\\varepsilon_0 A}{d}$ होती है।',
+    subject: 'Physics',
+    marks: 1,
+  },
+  {
+    id: 'qq_006',
+    quiz_id: 'qz_002',
+    question_number: 3,
+    question_text: 'यदि किसी प्रकाश तरंग की तरंगदैर्घ्य $\\lambda = 6000\\text{ \\AA}$ है, तो इसकी आवृत्ति $\\nu$ कितनी होगी? ($c = 3 \\times 10^8\\text{ m/s}$)',
+    options: [
+      { id: 'A', text: '$5 \\times 10^{14}\\text{ Hz}$' },
+      { id: 'B', text: '$5 \\times 10^{15}\\text{ Hz}$' },
+      { id: 'C', text: '$2 \\times 10^{14}\\text{ Hz}$' },
+      { id: 'D', text: '$1.8 \\times 10^{14}\\text{ Hz}$' },
+    ],
+    correct_option: 'A',
+    explanation: '$\\nu = \\frac{c}{\\lambda} = \\frac{3 \\times 10^8}{6000 \\times 10^{-10}} = \\frac{3 \\times 10^8}{6 \\times 10^{-7}} = 0.5 \\times 10^{15} = 5 \\times 10^{14}\\text{ Hz}$।',
+    subject: 'Physics',
+    marks: 1,
+  },
+];
+
+export const initialQuizAttempts: QuizAttempt[] = [];
+
+export const initialBookmarks: Bookmark[] = [
+  {
+    id: 'bm_001',
+    student_id: '00000000-0000-4000-8000-000000000001',
+    resource_type: 'lesson',
+    resource_id: 'e0000000-0000-0000-0000-000000000001',
+    title: 'DNA Double Helix Structure & Packaging',
+    url: '/dashboard/courses/class-12-biology/learn',
+    created_at: '2026-04-03T12:00:00Z',
+  },
+];
+
+export const initialDoubts: StudentDoubt[] = [
+  {
+    id: 'dbt_001',
+    student_id: '00000000-0000-4000-8000-000000000001',
+    student_name: 'Priyanshu Kumari',
+    course_id: 'c0000000-0000-0000-0000-000000000001',
+    course_title: 'Class 12 Biology — Complete Board & NEET Foundation',
+    question: 'Sir, how to determine whether an inheritance is sex-linked recessive or autosomal dominant in Bihar Board pedigree chart questions?',
+    status: 'answered',
+    answer: 'Look for male-to-male transmission: autosomal traits can pass from father to son, but X-linked recessive father cannot pass to son. Also if unaffected parents produce an affected female child, the trait must be autosomal recessive.',
+    faculty_name: 'Shekhar Sir',
+    created_at: '2026-04-04T15:30:00Z',
+    answered_at: '2026-04-04T18:00:00Z',
+  },
+];
+
+export const initialDownloads: DownloadedMaterial[] = [
+  {
+    id: 'dl_001',
+    student_id: '00000000-0000-4000-8000-000000000001',
+    lesson_id: 'e0000000-0000-0000-0000-000000000001',
+    title: 'Molecular Basis of Inheritance Diagram Notes',
+    file_name: 'molecular-basis-handwritten-notes.pdf',
+    file_size: '4.2 MB',
+    downloaded_at: '2026-04-03T11:45:00Z',
   },
 ];
 
@@ -462,8 +714,15 @@ class MockDatabase {
   payments: Payment[] = [...initialPayments];
   lessonProgress: LessonProgress[] = [...initialLessonProgress];
   auditLogs: AuditLog[] = [...initialAuditLogs];
+  quizzes: Quiz[] = [...initialQuizzes];
+  quizQuestions: QuizQuestion[] = [...initialQuizQuestions];
+  quizAttempts: QuizAttempt[] = [...initialQuizAttempts];
+  bookmarks: Bookmark[] = [...initialBookmarks];
+  doubts: StudentDoubt[] = [...initialDoubts];
+  downloads: DownloadedMaterial[] = [...initialDownloads];
   settings: SiteSettings = { ...initialSiteSettings };
   processedWebhookEvents: Set<string> = new Set(['event_test_demo_001']);
+
 
   // Courses
   getCourses(onlyPublished = true) {
@@ -510,24 +769,158 @@ class MockDatabase {
     });
   }
 
+  // Canonical Identity & Profile Resolver
+  resolveAssociatedStudentIds(studentId: string): string[] {
+    if (!studentId || !studentId.trim()) return [];
+    const sId = normalizeStudentId(studentId);
+    if (!sId) return [];
+    const ids = new Set<string>([studentId, sId]);
+
+    // Find profile
+    const profile = this.profiles.find((p) => p.id === studentId || normalizeStudentId(p.id) === sId);
+    if (profile) {
+      ids.add(profile.id);
+      ids.add(normalizeStudentId(profile.id));
+
+      const cleanPhoneDigits = profile.phone ? profile.phone.replace(/\D/g, '').slice(-10) : '';
+      const cleanEmail = profile.email?.toLowerCase().trim();
+
+      // Find all other profiles matching phone or email
+      this.profiles.forEach((p) => {
+        const pDigits = p.phone ? p.phone.replace(/\D/g, '').slice(-10) : '';
+        const pEmail = p.email?.toLowerCase().trim();
+        if ((cleanPhoneDigits && pDigits === cleanPhoneDigits) || (cleanEmail && pEmail === cleanEmail)) {
+          ids.add(p.id);
+          ids.add(normalizeStudentId(p.id));
+        }
+      });
+    }
+
+    return Array.from(ids);
+  }
+
+  resolveOrCreateProfile({
+    id,
+    email,
+    phone,
+    fullName,
+    avatarUrl,
+  }: {
+    id?: string;
+    email?: string;
+    phone?: string;
+    fullName?: string;
+    avatarUrl?: string;
+  }): Profile {
+    const cleanEmail = email?.toLowerCase().trim();
+    const cleanPhoneDigits = phone ? phone.replace(/\D/g, '').slice(-10) : '';
+
+    // 1. Try to find existing profile by ID or canonical email identifier
+    const targetNormalizedId = id
+      ? normalizeStudentId(id)
+      : (cleanEmail && (cleanEmail.includes('admin') || cleanEmail.includes('student@aspireacademy.demo'))
+          ? normalizeStudentId(cleanEmail)
+          : undefined);
+
+    let profile = targetNormalizedId
+      ? this.profiles.find((p) => p.id === targetNormalizedId || normalizeStudentId(p.id) === targetNormalizedId)
+      : undefined;
+
+    // 2. Try to find existing profile by phone
+    if (!profile && cleanPhoneDigits) {
+      profile = this.profiles.find((p) => {
+        const pDigits = p.phone ? p.phone.replace(/\D/g, '').slice(-10) : '';
+        return pDigits === cleanPhoneDigits;
+      });
+    }
+
+    // 3. Try to find existing profile by email
+    if (!profile && cleanEmail) {
+      profile = this.profiles.find((p) => p.email && p.email.toLowerCase().trim() === cleanEmail);
+    }
+
+    if (profile) {
+      if (cleanEmail && (!profile.email || profile.email.includes('@mobile.aspireacademy.in'))) {
+        profile.email = cleanEmail;
+      }
+      if (cleanPhoneDigits && !profile.phone) {
+        profile.phone = `+91 ${cleanPhoneDigits}`;
+      }
+      if (fullName && (!profile.full_name || profile.full_name.startsWith('Student ('))) {
+        profile.full_name = fullName;
+      }
+      if (avatarUrl && !profile.avatar_url) {
+        profile.avatar_url = avatarUrl;
+      }
+      return profile;
+    }
+
+    // 4. Create new profile with stable deterministic UUID
+    const seed = cleanEmail || cleanPhoneDigits || id || `${Date.now()}`;
+    const newId =
+      id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+        ? id.toLowerCase()
+        : generateDeterministicUUID(`student_${seed}`);
+
+    const newProfile: Profile = {
+      id: newId,
+      email: cleanEmail || `student_${cleanPhoneDigits || 'new'}@aspireacademyonline.in`,
+      full_name:
+        fullName || (cleanEmail ? cleanEmail.split('@')[0] : 'Aspire Student'),
+      phone: cleanPhoneDigits ? `+91 ${cleanPhoneDigits}` : undefined,
+      avatar_url:
+        avatarUrl ||
+        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    this.profiles.unshift(newProfile);
+    return newProfile;
+  }
+
   // Student Access & Enrollments
   isStudentEnrolled(studentId: string, courseId: string): boolean {
+    if (!studentId || !studentId.trim()) return false;
+    const associatedIds = new Set(this.resolveAssociatedStudentIds(studentId));
     return this.enrollments.some(
       (e) =>
-        e.student_id === studentId &&
+        (associatedIds.has(e.student_id) || associatedIds.has(normalizeStudentId(e.student_id))) &&
         e.course_id === courseId &&
         e.status === 'active'
     );
   }
 
   getStudentEnrollments(studentId: string) {
+    if (!studentId || !studentId.trim()) return [];
+    const associatedIds = new Set(this.resolveAssociatedStudentIds(studentId));
     return this.enrollments
-      .filter((e) => e.student_id === studentId && e.status === 'active')
+      .filter(
+        (e) =>
+          (associatedIds.has(e.student_id) || associatedIds.has(normalizeStudentId(e.student_id))) &&
+          e.status === 'active'
+      )
       .map((enrollment) => {
         const course = this.getCourseById(enrollment.course_id);
         const batch = this.getBatchById(enrollment.batch_id);
         return {
           ...enrollment,
+          course,
+          batch,
+        };
+      });
+  }
+
+  getStudentOrders(studentId: string) {
+    if (!studentId || !studentId.trim()) return [];
+    const associatedIds = new Set(this.resolveAssociatedStudentIds(studentId));
+    return this.orders
+      .filter((o) => associatedIds.has(o.student_id) || associatedIds.has(normalizeStudentId(o.student_id)))
+      .map((order) => {
+        const course = this.getCourseById(order.course_id);
+        const batch = this.getBatchById(order.batch_id);
+        return {
+          ...order,
           course,
           batch,
         };
@@ -872,6 +1265,286 @@ class MockDatabase {
     });
 
     return { ...this.settings };
+  }
+
+  // Quiz Management
+  getQuizzes(courseId?: string): Quiz[] {
+    const list = courseId
+      ? this.quizzes.filter((q) => q.course_id === courseId && q.published)
+      : this.quizzes.filter((q) => q.published);
+
+    return list.map((q) => {
+      const course = this.getCourseById(q.course_id);
+      const questions = this.quizQuestions.filter((qq) => qq.quiz_id === q.id);
+      return {
+        ...q,
+        course,
+        questions_count: questions.length,
+      };
+    });
+  }
+
+  getQuizById(id: string, sanitizeForStudent: boolean = false): (Quiz & { questions: QuizQuestion[] }) | null {
+    const quiz = this.quizzes.find((q) => q.id === id);
+    if (!quiz) return null;
+
+    const course = this.getCourseById(quiz.course_id);
+    const rawQuestions = this.quizQuestions
+      .filter((qq) => qq.quiz_id === id)
+      .sort((a, b) => a.question_number - b.question_number);
+
+    let questions = sanitizeForStudent
+      ? rawQuestions.map((q) => ({
+          ...q,
+          correct_option: '', // Sanitized: Never leak correct answer to browser during exam
+          explanation: undefined, // Sanitized: Never leak explanation before submission
+        }))
+      : rawQuestions;
+
+    if (sanitizeForStudent && quiz.randomize_questions) {
+      questions = [...questions].sort(() => 0.5 - Math.random());
+    }
+
+    return {
+      ...quiz,
+      course,
+      questions,
+    };
+  }
+
+  addQuiz(
+    quizData: Omit<Quiz, 'id' | 'created_at' | 'questions_count'>,
+    questions: Omit<QuizQuestion, 'id' | 'quiz_id'>[]
+  ): Quiz {
+    const quizId = generateUUID();
+    const newQuiz: Quiz = {
+      ...quizData,
+      id: quizId,
+      status: quizData.status || (quizData.published ? 'published' : 'draft'),
+      questions_count: questions.length,
+      created_at: new Date().toISOString(),
+    };
+    this.quizzes.unshift(newQuiz);
+
+    questions.forEach((q, idx) => {
+      this.quizQuestions.push({
+        ...q,
+        id: generateUUID(),
+        quiz_id: quizId,
+        question_number: idx + 1,
+      });
+    });
+
+    return newQuiz;
+  }
+
+  updateQuiz(id: string, updates: Partial<Quiz>): Quiz | null {
+    const quiz = this.quizzes.find((q) => q.id === id);
+    if (!quiz) return null;
+    Object.assign(quiz, updates);
+    if (updates.status) {
+      quiz.published = updates.status === 'published';
+    } else if (updates.published !== undefined) {
+      quiz.status = updates.published ? 'published' : 'draft';
+    }
+    return quiz;
+  }
+
+  deleteQuiz(id: string): boolean {
+    const idx = this.quizzes.findIndex((q) => q.id === id);
+    if (idx === -1) return false;
+    this.quizzes.splice(idx, 1);
+    this.quizQuestions = this.quizQuestions.filter((qq) => qq.quiz_id !== id);
+    return true;
+  }
+
+  submitQuizAttempt(data: {
+    studentId: string;
+    quizId: string;
+    answers: Record<string, string>;
+    timeTakenSeconds?: number;
+  }): QuizAttempt {
+    // Look up true quiz with secret answer keys
+    const fullQuiz = this.getQuizById(data.quizId, false);
+    if (!fullQuiz) {
+      throw new Error('Quiz not found');
+    }
+
+    let correctCount = 0;
+    let incorrectCount = 0;
+    let unansweredCount = 0;
+    let positiveMarks = 0;
+    let negativeDeduction = 0;
+    const attemptAnswers: any[] = [];
+
+    const defaultNegative = Number(fullQuiz.negative_marking || 0);
+    const marksPerQ = Number(fullQuiz.marks_per_question || 1);
+
+    fullQuiz.questions.forEach((q) => {
+      const chosen = data.answers[q.id];
+      const qMarks = Number(q.marks || marksPerQ);
+      const qNeg = Number(q.negative_marks !== undefined ? q.negative_marks : defaultNegative);
+
+      if (!chosen || !chosen.trim()) {
+        unansweredCount++;
+        attemptAnswers.push({
+          question_id: q.id,
+          selected_option: '',
+          is_correct: false,
+          marks_awarded: 0,
+        });
+      } else if (chosen.trim().toUpperCase() === q.correct_option.trim().toUpperCase()) {
+        correctCount++;
+        positiveMarks += qMarks;
+        attemptAnswers.push({
+          question_id: q.id,
+          selected_option: chosen.trim().toUpperCase(),
+          is_correct: true,
+          marks_awarded: qMarks,
+        });
+      } else {
+        incorrectCount++;
+        negativeDeduction += qNeg;
+        attemptAnswers.push({
+          question_id: q.id,
+          selected_option: chosen.trim().toUpperCase(),
+          is_correct: false,
+          marks_awarded: -qNeg,
+        });
+      }
+    });
+
+    const calculatedScore = Math.max(0, Number((positiveMarks - negativeDeduction).toFixed(2)));
+    const totalMarks = fullQuiz.total_marks || fullQuiz.questions.length * marksPerQ;
+    const percentage = totalMarks > 0 ? Number(((calculatedScore / totalMarks) * 100).toFixed(1)) : 0;
+    const passed = percentage >= (fullQuiz.passing_percentage || 40);
+
+    const attempt: QuizAttempt = {
+      id: generateUUID(),
+      student_id: normalizeStudentId(data.studentId),
+      quiz_id: data.quizId,
+      score: calculatedScore,
+      total_marks: totalMarks,
+      percentage,
+      passed,
+      status: 'submitted',
+      time_taken_seconds: data.timeTakenSeconds || 0,
+      correct_count: correctCount,
+      incorrect_count: incorrectCount,
+      unanswered_count: unansweredCount,
+      answers: data.answers,
+      attempt_answers: attemptAnswers,
+      started_at: new Date(Date.now() - (data.timeTakenSeconds || 900) * 1000).toISOString(),
+      completed_at: new Date().toISOString(),
+      quiz: fullQuiz,
+    };
+
+    this.quizAttempts.unshift(attempt);
+    return attempt;
+  }
+
+  getStudentQuizAttempts(studentId: string): QuizAttempt[] {
+    const sId = normalizeStudentId(studentId);
+    return this.quizAttempts
+      .filter((a) => a.student_id === studentId || normalizeStudentId(a.student_id) === sId)
+      .map((a) => {
+        const quiz = this.getQuizById(a.quiz_id);
+        return {
+          ...a,
+          quiz: quiz || undefined,
+        };
+      });
+  }
+
+  // Bookmarks
+  getBookmarks(studentId: string): Bookmark[] {
+    const sId = normalizeStudentId(studentId);
+    return this.bookmarks.filter(
+      (b) => b.student_id === studentId || normalizeStudentId(b.student_id) === sId
+    );
+  }
+
+  addBookmark(data: Omit<Bookmark, 'id' | 'created_at'>): Bookmark {
+    const existing = this.bookmarks.find(
+      (b) =>
+        (b.student_id === data.student_id ||
+          normalizeStudentId(b.student_id) === normalizeStudentId(data.student_id)) &&
+        b.resource_id === data.resource_id
+    );
+    if (existing) return existing;
+
+    const bm: Bookmark = {
+      ...data,
+      id: generateUUID(),
+      created_at: new Date().toISOString(),
+    };
+    this.bookmarks.unshift(bm);
+    return bm;
+  }
+
+  removeBookmark(studentId: string, resourceId: string): boolean {
+    const sId = normalizeStudentId(studentId);
+    const idx = this.bookmarks.findIndex(
+      (b) =>
+        (b.student_id === studentId || normalizeStudentId(b.student_id) === sId) &&
+        b.resource_id === resourceId
+    );
+    if (idx >= 0) {
+      this.bookmarks.splice(idx, 1);
+      return true;
+    }
+    return false;
+  }
+
+  // Doubts
+  getDoubts(studentId?: string): StudentDoubt[] {
+    if (studentId) {
+      const sId = normalizeStudentId(studentId);
+      return this.doubts.filter(
+        (d) => d.student_id === studentId || normalizeStudentId(d.student_id) === sId
+      );
+    }
+    return [...this.doubts];
+  }
+
+  addDoubt(data: Omit<StudentDoubt, 'id' | 'created_at' | 'status'>): StudentDoubt {
+    const doubt: StudentDoubt = {
+      ...data,
+      id: generateUUID(),
+      status: 'pending',
+      created_at: new Date().toISOString(),
+    };
+    this.doubts.unshift(doubt);
+    return doubt;
+  }
+
+  answerDoubt(doubtId: string, answer: string, facultyName = 'Shekhar Sir'): StudentDoubt | null {
+    const doubt = this.doubts.find((d) => d.id === doubtId);
+    if (!doubt) return null;
+
+    doubt.answer = answer;
+    doubt.faculty_name = facultyName;
+    doubt.status = 'answered';
+    doubt.answered_at = new Date().toISOString();
+    return doubt;
+  }
+
+  // Downloads
+  getDownloads(studentId: string): DownloadedMaterial[] {
+    const sId = normalizeStudentId(studentId);
+    return this.downloads.filter(
+      (dl) => dl.student_id === studentId || normalizeStudentId(dl.student_id) === sId
+    );
+  }
+
+  recordDownload(data: Omit<DownloadedMaterial, 'id' | 'downloaded_at'>): DownloadedMaterial {
+    const dl: DownloadedMaterial = {
+      ...data,
+      id: generateUUID(),
+      downloaded_at: new Date().toISOString(),
+    };
+    this.downloads.unshift(dl);
+    return dl;
   }
 }
 

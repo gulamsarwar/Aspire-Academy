@@ -76,6 +76,7 @@ export interface Lesson {
   sort_order: number;
   is_free_preview: boolean;
   published: boolean;
+  quiz_id?: string;
   created_at: string;
 }
 
@@ -187,3 +188,114 @@ export interface SiteSettings {
   hero_subheadline: string;
   updated_at: string;
 }
+
+export interface QuizOption {
+  id: string; // 'A' | 'B' | 'C' | 'D'
+  key?: string; // 'A' | 'B' | 'C' | 'D' (alias)
+  text: string;
+  order_index?: number;
+}
+
+export interface QuizQuestion {
+  id: string;
+  quiz_id?: string;
+  question_number: number;
+  question_text: string;
+  question_type?: 'mcq' | 'single_choice' | 'numerical';
+  options: QuizOption[];
+  correct_option: string; // 'A' | 'B' | 'C' | 'D'
+  explanation?: string;
+  subject?: string;
+  marks?: number;
+  negative_marks?: number;
+  image_url?: string;
+}
+
+export interface Quiz {
+  id: string;
+  course_id: string;
+  batch_id?: string;
+  chapter_id?: string;
+  lesson_id?: string;
+  title: string;
+  description: string;
+  subject?: string;
+  target_class?: string;
+  duration_minutes: number;
+  total_marks: number;
+  marks_per_question?: number;
+  negative_marking?: number;
+  passing_percentage: number;
+  attempt_limit?: number;
+  instructions?: string;
+  randomize_questions?: boolean;
+  published: boolean;
+  status?: 'draft' | 'published' | 'archived';
+  questions_count: number;
+  created_at: string;
+  course?: Course;
+  questions?: QuizQuestion[];
+}
+
+export interface QuizAttemptAnswer {
+  question_id: string;
+  selected_option: string;
+  is_correct: boolean;
+  marks_awarded: number;
+}
+
+export interface QuizAttempt {
+  id: string;
+  student_id: string;
+  quiz_id: string;
+  score: number;
+  total_marks: number;
+  percentage: number;
+  passed: boolean;
+  status?: 'in_progress' | 'submitted' | 'auto_submitted' | 'timed_out';
+  time_taken_seconds?: number;
+  correct_count?: number;
+  incorrect_count?: number;
+  unanswered_count?: number;
+  answers: Record<string, string>; // questionId -> chosenOption
+  attempt_answers?: QuizAttemptAnswer[];
+  started_at: string;
+  completed_at: string;
+  quiz?: Quiz;
+}
+
+export interface Bookmark {
+  id: string;
+  student_id: string;
+  resource_type: 'lesson' | 'note' | 'question' | 'live';
+  resource_id: string;
+  title: string;
+  url: string;
+  created_at: string;
+}
+
+export interface StudentDoubt {
+  id: string;
+  student_id: string;
+  student_name: string;
+  course_id: string;
+  course_title?: string;
+  question: string;
+  image_url?: string;
+  status: 'pending' | 'answered';
+  answer?: string;
+  faculty_name?: string;
+  created_at: string;
+  answered_at?: string;
+}
+
+export interface DownloadedMaterial {
+  id: string;
+  student_id: string;
+  lesson_id?: string;
+  title: string;
+  file_name: string;
+  file_size?: string;
+  downloaded_at: string;
+}
+

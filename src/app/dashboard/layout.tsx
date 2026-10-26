@@ -16,6 +16,12 @@ import {
   Sparkles,
   ChevronRight,
   Shield,
+  PlayCircle,
+  CheckSquare,
+  HelpCircle,
+  Clock,
+  Bookmark,
+  Download,
 } from 'lucide-react';
 
 export default function DashboardLayout({
@@ -30,10 +36,16 @@ export default function DashboardLayout({
     { label: 'Overview', href: '/dashboard', icon: LayoutDashboard },
     { label: 'My Courses', href: '/dashboard/courses', icon: BookOpen },
     { label: 'My Batches', href: '/dashboard/batches', icon: Calendar },
+    { label: 'All Classes', href: '/dashboard/classes', icon: PlayCircle },
     { label: 'Live Classes', href: '/dashboard/live', icon: Video },
-    { label: 'Study Materials', href: '/dashboard/materials', icon: FileText },
+    { label: 'All Tests', href: '/dashboard/tests', icon: CheckSquare },
+    { label: 'Pi AI Assistant', href: '/dashboard/pi', icon: Sparkles },
+    { label: 'PDF Bank', href: '/dashboard/materials', icon: FileText },
+    { label: 'Ask Doubts', href: '/dashboard/doubts', icon: HelpCircle },
+    { label: 'Weekly Schedule', href: '/dashboard/schedule', icon: Clock },
+    { label: 'Bookmarks', href: '/dashboard/bookmarks', icon: Bookmark },
+    { label: 'My Downloads', href: '/dashboard/downloads', icon: Download },
     { label: 'Purchase History', href: '/dashboard/purchases', icon: CreditCard },
-    { label: 'Profile & Settings', href: '/dashboard/profile', icon: User },
   ];
 
   const isActive = (href: string) => {

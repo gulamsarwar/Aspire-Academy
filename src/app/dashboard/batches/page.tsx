@@ -1,16 +1,51 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { db } from '@/lib/data/mock-db';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthContext';
-import { Calendar, Clock, Users, ArrowRight, BookOpen } from 'lucide-react';
+import { Calendar, Clock, Users, ArrowRight, BookOpen, Loader2 } from 'lucide-react';
 
 export default function StudentBatchesPage() {
-  const { user } = useAuth();
-  const studentId = user?.id || 'u0000000-0000-0000-0000-000000000001';
+  const router = useRouter();
+  const { user, isAuthReady } = useAuth();
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const enrollments = db.getStudentEnrollments(studentId);
+  useEffect(() => {
+    if (!isAuthReady) return;
+
+    if (!user) {
+      router.push('/auth/login?redirect=' + encodeURIComponent('/dashboard/batches'));
+      return;
+    }
+
+    async function fetchBatches() {
+      try {
+        setLoading(true);
+        const res = await fetch(`/api/student/dashboard?studentId=${encodeURIComponent(user!.id)}`);
+        if (!res.ok) throw new Error('Failed to load batches');
+        const json = await res.json();
+        setData(json);
+      } catch (err) {
+        console.error('Failed to load student batches:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchBatches();
+  }, [isAuthReady, user?.id, router]);
+
+  if (!isAuthReady || (!user && loading)) {
+    return (
+      <div className="min-h-[50vh] flex flex-col items-center justify-center space-y-4">
+        <Loader2 className="w-8 h-8 text-[#046BD2] animate-spin" />
+        <p className="text-xs font-semibold text-slate-500">Loading your enrolled batches...</p>
+      </div>
+    );
+  }
+
+  const enrollments = data?.enrollments || [];
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -23,9 +58,15 @@ export default function StudentBatchesPage() {
         </p>
       </div>
 
-      {enrollments.length > 0 ? (
+      {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {enrollments.map((enr) => {
+          {[1, 2].map((i) => (
+            <div key={i} className="bg-white rounded-2xl border border-slate-200 p-6 animate-pulse h-56" />
+          ))}
+        </div>
+      ) : enrollments.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {enrollments.map((enr: any) => {
             const batch = enr.batch;
             const course = enr.course;
             if (!batch) return null;
@@ -38,7 +79,7 @@ export default function StudentBatchesPage() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-bold text-[#046BD2] bg-blue-50 px-2.5 py-1 rounded-lg">
-                      {course?.target_class}
+                      {course?.target_class || course?.category}
                     </span>
                     <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg">
                       Status: Active
@@ -63,7 +104,7 @@ export default function StudentBatchesPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Users className="w-4 h-4 text-[#046BD2] flex-shrink-0" />
-                      <span><strong>Batch Faculty:</strong> {batch.instructor_name || course?.instructor_name}</span>
+                      <span><strong>Batch Faculty:</strong> {batch.instructor_name || course?.instructor_name || 'Shekhar Sir'}</span>
                     </div>
                   </div>
                 </div>

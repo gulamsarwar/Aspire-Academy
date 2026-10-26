@@ -21,7 +21,10 @@ import {
   ArrowRight,
   ShieldAlert,
   MessageCircle,
+  Bookmark as BookmarkIcon,
+  Award,
 } from 'lucide-react';
+import { YouTubePlayer } from '@/components/ui/YouTubePlayer';
 
 export function CoursePlayerClient({
   course,
@@ -36,31 +39,34 @@ export function CoursePlayerClient({
 }) {
   const { user, role } = useAuth();
   const { settings } = useSiteSettings();
-  const studentId = user?.id || 'u0000000-0000-0000-0000-000000000001';
+  const studentId = user?.id || '';
 
   // Support phone for direct WhatsApp doubts
   const rawPhone = (settings.whatsapp || settings.phone || '9939598284').replace(/[^0-9]/g, '');
   const cleanPhone = rawPhone.startsWith('91') ? rawPhone : `91${rawPhone}`;
 
   // Check enrollment
-  const isEnrolled = db.isStudentEnrolled(studentId, course.id) || role === 'admin';
+  const isEnrolled = Boolean(user && (db.isStudentEnrolled(user.id, course.id) || role === 'admin'));
 
   // All lessons flat array for navigation
   const allLessons = curriculum.flatMap((m) => m.lessons);
 
-  // Active lesson state
+  // Default to first free preview lesson if not enrolled, or first lesson
+  const firstAvailableLesson = allLessons.find((l) => isEnrolled || l.is_free_preview) || allLessons[0];
   const [activeLessonId, setActiveLessonId] = useState<string>(
-    allLessons[0]?.id || ''
+    firstAvailableLesson?.id || allLessons[0]?.id || ''
   );
 
   const [activeTab, setActiveTab] = useState<'overview' | 'notes' | 'live' | 'announcements'>('overview');
   const [toastMessage, setToastMessage] = useState<string>('');
+  const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
 
   const activeLesson = allLessons.find((l) => l.id === activeLessonId) || allLessons[0];
   const activeLessonIndex = allLessons.findIndex((l) => l.id === activeLessonId);
 
   // Student progress tracker
   const [completedLessons, setCompletedLessons] = useState<Record<string, boolean>>(() => {
+    if (!studentId) return {};
     const progress = db.getStudentProgressForCourse(studentId, course.id);
     const map: Record<string, boolean> = {};
     progress.completedLessonIds.forEach((id) => (map[id] = true));
@@ -71,6 +77,10 @@ export function CoursePlayerClient({
   const progressPercent = allLessons.length > 0 ? Math.round((completedCount / allLessons.length) * 100) : 0;
 
   React.useEffect(() => {
+    if (!studentId) {
+      setCompletedLessons({});
+      return;
+    }
     const progress = db.getStudentProgressForCourse(studentId, course.id);
     const map: Record<string, boolean> = {};
     progress.completedLessonIds.forEach((id) => (map[id] = true));
@@ -171,17 +181,49 @@ export function CoursePlayerClient({
             </div>
           </div>
 
-          <button
-            onClick={() => toggleComplete(activeLesson.id)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm ${
-              isCompleted
-                ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
-            }`}
-          >
-            <CheckCircle2 className="w-4 h-4" />
-            <span>{isCompleted ? 'Completed' : 'Mark as Complete'}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch('/api/student/bookmarks', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      studentId,
+                      resourceType: 'lesson',
+                      resourceId: activeLesson.id,
+                      title: activeLesson.title,
+                      url: `/dashboard/courses/${course.slug}/learn`,
+                    }),
+                  });
+                  if (res.ok) {
+                    setIsBookmarked(true);
+                    setToastMessage('Lesson saved to Bookmarks!');
+                    setTimeout(() => setToastMessage(''), 2500);
+                  }
+                } catch {
+                  // ignore
+                }
+              }}
+              className="px-3.5 py-2 rounded-xl text-xs font-bold border border-slate-300 text-slate-700 hover:bg-slate-50 transition flex items-center gap-1.5 shadow-sm"
+              title="Bookmark this lesson"
+            >
+              <BookmarkIcon className={`w-4 h-4 ${isBookmarked ? 'fill-amber-500 text-amber-500' : ''}`} />
+              <span className="hidden sm:inline">{isBookmarked ? 'Bookmarked' : 'Bookmark'}</span>
+            </button>
+
+            <button
+              onClick={() => toggleComplete(activeLesson.id)}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm ${
+                isCompleted
+                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                  : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>{isCompleted ? 'Completed' : 'Mark as Complete'}</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -190,22 +232,18 @@ export function CoursePlayerClient({
         {/* Left Column: Video Embed, Tabs, Notes */}
         <div className="lg:col-span-8 space-y-6">
           {/* 1. Responsive YouTube Video Player */}
-          <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-slate-950 shadow-2xl border border-slate-800">
-            {activeLesson?.youtube_video_id ? (
-              <iframe
-                title={activeLesson.title}
-                src={`https://www.youtube-nocookie.com/embed/${activeLesson.youtube_video_id}?autoplay=0&rel=0&modestbranding=1&enablejsapi=1`}
-                className="w-full h-full border-0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-2">
-                <Video className="w-12 h-12 text-slate-600" />
-                <p className="text-xs">Video content loading...</p>
-              </div>
-            )}
-          </div>
+          {activeLesson?.youtube_video_id ? (
+            <YouTubePlayer
+              videoIdOrUrl={activeLesson.youtube_video_id}
+              title={activeLesson.title}
+              autoPlay={false}
+            />
+          ) : (
+            <div className="aspect-video w-full rounded-2xl bg-slate-950 flex flex-col items-center justify-center text-slate-400 space-y-2">
+              <Video className="w-12 h-12 text-slate-600" />
+              <p className="text-xs">Video content loading...</p>
+            </div>
+          )}
 
           {/* Navigation Controls below Player */}
           <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200 shadow-sm">
@@ -294,6 +332,34 @@ export function CoursePlayerClient({
                       {activeLesson?.description}
                     </p>
                   </div>
+
+                  {/* Attached Lesson Quiz Banner */}
+                  {activeLesson?.quiz_id && (() => {
+                    const attachedQuiz = db.quizzes.find((q) => q.id === activeLesson.quiz_id);
+                    if (!attachedQuiz) return null;
+
+                    return (
+                      <div className="p-4 rounded-xl bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
+                            <Award className="w-4 h-4 text-amber-600" />
+                            <span>Attached Chapter Quiz: {attachedQuiz.title}</span>
+                          </div>
+                          <p className="text-[11px] text-amber-700">
+                            Practice {attachedQuiz.questions_count} questions ({attachedQuiz.duration_minutes} mins) • Test your understanding now.
+                          </p>
+                        </div>
+
+                        <Link
+                          href={`/dashboard/tests?quizId=${attachedQuiz.id}`}
+                          className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow transition whitespace-nowrap"
+                        >
+                          <span>Start Lesson Quiz</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </Link>
+                      </div>
+                    );
+                  })()}
 
                   {/* 1-Tap Faculty Doubt Solver */}
                   <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 border border-emerald-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
@@ -480,9 +546,16 @@ export function CoursePlayerClient({
                           <span className="truncate">{lesson.title}</span>
                         </div>
 
-                        <span className="text-[10px] text-slate-400 flex-shrink-0">
-                          {lesson.duration_minutes}m
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          {lesson.quiz_id && (
+                            <span title="Attached Quiz Available">
+                              <Award className="w-3.5 h-3.5 text-amber-500" />
+                            </span>
+                          )}
+                          <span className="text-[10px] text-slate-400">
+                            {lesson.duration_minutes}m
+                          </span>
+                        </div>
                       </div>
                     );
                   })}

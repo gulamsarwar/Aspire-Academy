@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/data/mock-db';
 import { verifyWebhookSignature } from '@/lib/razorpay';
+import { verifyAndActivateEnrollmentInDatabase } from '@/lib/data/supabase-service';
 
 export async function POST(req: NextRequest) {
   try {
@@ -49,8 +50,8 @@ export async function POST(req: NextRequest) {
       const method = paymentEntity?.method || 'upi';
 
       if (gatewayOrderId) {
-        // Activate enrollment idempotently
-        db.verifyAndActivateEnrollment({
+        // Activate enrollment idempotently in database
+        await verifyAndActivateEnrollmentInDatabase({
           gatewayOrderId,
           gatewayPaymentId,
           method,

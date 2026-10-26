@@ -1,19 +1,20 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthContext';
 import { BrandLogo } from '@/components/layout/BrandLogo';
+import { isAuthorizedAdminEmail } from '@/lib/auth/admin';
 import {
   Lock,
   Mail,
-  Phone,
   ArrowRight,
-  ShieldCheck,
   AlertCircle,
-  KeyRound,
   CheckCircle2,
+  Loader2,
+  Sparkles,
+  Shield,
 } from 'lucide-react';
 
 function GoogleIcon() {
@@ -43,112 +44,75 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get('redirect') || '/dashboard';
+  const urlError = searchParams.get('error');
+  const urlMessage = searchParams.get('message');
 
-  const { customLogin, loginWithGoogle, loginWithPhone, loginAsAdmin } = useAuth();
-
-  // Login Mode: 'email' or 'phone'
-  const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email');
+  const { customLogin, loginWithGoogle } = useAuth();
 
   // Form states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [phone, setPhone] = useState('');
-  const [phoneAuthType, setPhoneAuthType] = useState<'otp' | 'password'>('otp');
-  const [otp, setOtp] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
+
+  // Handle URL errors or messages from OAuth callback or redirects
+  useEffect(() => {
+    if (urlError) {
+      setError(decodeURIComponent(urlError));
+    }
+    if (urlMessage) {
+      setInfoMessage(decodeURIComponent(urlMessage));
+    }
+  }, [urlError, urlMessage]);
 
   // Handle Google / Gmail OAuth Login
   const handleGoogleLogin = async () => {
     setError('');
-    setLoading(true);
+    setInfoMessage('');
+    setGoogleLoading(true);
     try {
-      await loginWithGoogle();
-      router.push(redirectUrl);
-    } catch {
-      setError('Unable to complete Google sign-in. Please try email or mobile.');
-      setLoading(false);
+      await loginWithGoogle(redirectUrl);
+    } catch (err: any) {
+      setError(
+        err?.message ||
+          'Unable to initiate Google sign-in. Please ensure Google OAuth is configured or use email & password.'
+      );
+      setGoogleLoading(false);
     }
   };
 
-  // Handle Send Mobile OTP
-  const handleSendOtp = () => {
-    setError('');
-    const cleanDigits = phone.replace(/\D/g, '');
-    if (cleanDigits.length < 10) {
-      setError('Please enter a valid 10-digit mobile number.');
-      return;
-    }
-    setOtpSent(true);
-    setInfoMessage(`OTP sent to +91 ${cleanDigits.slice(-10)}. Use code: 123456`);
-  };
-
-  // Handle Login Form Submit
+  // Handle Email / Password Login Submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setInfoMessage('');
 
-    if (loginMethod === 'email') {
-      if (!email.trim() || !password) {
-        setError('Please enter your email ID and password.');
-        return;
-      }
-
-      setLoading(true);
-      setTimeout(() => {
-        setLoading(false);
-        // Check for Shekhar Sir admin account
-        if (
-          email.toLowerCase().includes('admin') ||
-          email.toLowerCase().includes('shekhar')
-        ) {
-          loginAsAdmin();
-          router.push('/admin');
-        } else {
-          const userName = email.split('@')[0].replace(/[._-]/g, ' ');
-          const formattedName =
-            userName.charAt(0).toUpperCase() + userName.slice(1);
-          customLogin(email.trim(), formattedName, 'student');
-          router.push(redirectUrl);
-        }
-      }, 500);
-    } else {
-      // Mobile Number Login
-      const cleanDigits = phone.replace(/\D/g, '');
-      if (cleanDigits.length < 10) {
-        setError('Please enter a valid 10-digit mobile number.');
-        return;
-      }
-
-      if (phoneAuthType === 'otp') {
-        if (!otpSent) {
-          handleSendOtp();
-          return;
-        }
-        if (!otp.trim() || otp.trim().length < 4) {
-          setError('Please enter the 6-digit OTP received on your mobile.');
-          return;
-        }
-      } else {
-        if (!password) {
-          setError('Please enter your account password.');
-          return;
-        }
-      }
-
-      setLoading(true);
-      try {
-        await loginWithPhone(cleanDigits);
-        router.push(redirectUrl);
-      } catch {
-        setError('Login failed. Please check your mobile number or try again.');
-        setLoading(false);
-      }
+    if (!email.trim() || !password) {
+      setError('Please enter your email ID and password.');
+      return;
     }
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Prevent administrator accounts from logging in via public student portal
+    if (isAuthorizedAdminEmail(cleanEmail)) {
+      setError(
+        'Administrator detected. Authorized faculty and administrators must sign in through the Admin Portal at /admin/login.'
+      );
+      return;
+    }
+
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      const userName = cleanEmail.split('@')[0].replace(/[._-]/g, ' ');
+      const formattedName = userName.charAt(0).toUpperCase() + userName.slice(1);
+      customLogin(cleanEmail, formattedName, 'student');
+      router.push(redirectUrl);
+    }, 400);
   };
 
   return (
@@ -156,18 +120,18 @@ function LoginForm() {
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center space-y-3">
         <BrandLogo variant="dark" size="lg" />
         <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-          Student & Faculty Portal
+          Student Portal Login
         </h2>
         <p className="text-xs text-slate-500">
-          Sign in to access your enrolled courses, video lessons, and live classes.
+          Sign in to access your enrolled courses, video lectures, test center, and notes.
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-6 shadow-xl sm:rounded-3xl sm:px-10 border border-slate-200 space-y-5">
           {error && (
-            <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2 animate-in fade-in">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
           )}
@@ -183,226 +147,119 @@ function LoginForm() {
           <button
             type="button"
             onClick={handleGoogleLogin}
-            disabled={loading}
-            className="w-full py-3 px-4 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 font-bold text-sm text-slate-700 transition shadow-sm flex items-center justify-center gap-3 group"
+            disabled={googleLoading || loading}
+            className="w-full py-3.5 px-4 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 font-bold text-sm text-slate-700 transition shadow-sm flex items-center justify-center gap-3 group disabled:opacity-60"
           >
-            <GoogleIcon />
-            <span>Continue with Google / Gmail</span>
+            {googleLoading ? (
+              <>
+                <Loader2 className="w-5 h-5 text-[#046BD2] animate-spin" />
+                <span>Connecting to Google...</span>
+              </>
+            ) : (
+              <>
+                <GoogleIcon />
+                <span>Continue with Google / Gmail</span>
+              </>
+            )}
           </button>
 
           {/* Clean Divider */}
           <div className="relative flex items-center justify-center">
             <div className="border-t border-slate-200 w-full" />
             <span className="bg-white px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">
-              Or sign in with
+              Or sign in with email
             </span>
             <div className="border-t border-slate-200 w-full" />
           </div>
 
-          {/* Method Tabs: Email vs Mobile */}
-          <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl gap-1">
-            <button
-              type="button"
-              onClick={() => {
-                setLoginMethod('email');
-                setError('');
-                setInfoMessage('');
-              }}
-              className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
-                loginMethod === 'email'
-                  ? 'bg-white text-[#046BD2] shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Mail className="w-3.5 h-3.5" />
-              <span>Email / Gmail ID</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setLoginMethod('phone');
-                setError('');
-                setInfoMessage('');
-              }}
-              className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
-                loginMethod === 'phone'
-                  ? 'bg-white text-[#046BD2] shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Phone className="w-3.5 h-3.5" />
-              <span>Mobile Number</span>
-            </button>
-          </div>
-
-          {/* Form Content */}
+          {/* Form Content: Email & Password */}
           <form onSubmit={handleSubmit} className="space-y-4">
-            {loginMethod === 'email' ? (
-              <>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700 block">
-                    Email Address / Gmail
-                  </label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="email"
-                      required
-                      placeholder="student@gmail.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#046BD2]"
-                    />
-                  </div>
-                </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 block">
+                Email Address / Gmail ID
+              </label>
+              <div className="relative">
+                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="email"
+                  required
+                  placeholder="student@gmail.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#046BD2]"
+                />
+              </div>
+            </div>
 
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-700">Password</label>
-                    <Link
-                      href="/auth/forgot-password"
-                      className="text-[11px] font-bold text-[#046BD2] hover:underline"
-                    >
-                      Forgot password?
-                    </Link>
-                  </div>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="password"
-                      required
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#046BD2]"
-                    />
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700 block">
-                    Mobile Number
-                  </label>
-                  <div className="flex rounded-xl border border-slate-200 overflow-hidden focus-within:border-[#046BD2]">
-                    <span className="bg-slate-100 px-3.5 py-2.5 text-xs font-bold text-slate-600 flex items-center border-r border-slate-200">
-                      🇮🇳 +91
-                    </span>
-                    <input
-                      type="tel"
-                      required
-                      maxLength={10}
-                      placeholder="98765 43210"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
-                      className="w-full px-3 py-2.5 text-sm focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                {/* Sub-toggle: OTP or Password */}
-                <div className="flex items-center justify-between text-xs pt-1">
-                  <span className="text-slate-500">Sign in using:</span>
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setPhoneAuthType('otp')}
-                      className={`font-bold ${
-                        phoneAuthType === 'otp'
-                          ? 'text-[#046BD2] underline'
-                          : 'text-slate-400 hover:text-slate-600'
-                      }`}
-                    >
-                      OTP Code
-                    </button>
-                    <span className="text-slate-300">|</span>
-                    <button
-                      type="button"
-                      onClick={() => setPhoneAuthType('password')}
-                      className={`font-bold ${
-                        phoneAuthType === 'password'
-                          ? 'text-[#046BD2] underline'
-                          : 'text-slate-400 hover:text-slate-600'
-                      }`}
-                    >
-                      Password
-                    </button>
-                  </div>
-                </div>
-
-                {phoneAuthType === 'otp' ? (
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-slate-700">
-                        Verification Code (OTP)
-                      </label>
-                      <button
-                        type="button"
-                        onClick={handleSendOtp}
-                        className="text-[11px] font-bold text-[#046BD2] hover:underline"
-                      >
-                        {otpSent ? 'Resend OTP' : 'Send OTP'}
-                      </button>
-                    </div>
-                    <div className="relative">
-                      <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        maxLength={6}
-                        placeholder={otpSent ? 'Enter 6-digit OTP' : 'Click Send OTP above'}
-                        value={otp}
-                        onChange={(e) => setOtp(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm tracking-widest font-mono focus:outline-none focus:border-[#046BD2]"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700 block">Password</label>
-                    <div className="relative">
-                      <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="password"
-                        required
-                        placeholder="••••••••"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#046BD2]"
-                      />
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700">Password</label>
+                <Link
+                  href="/auth/forgot-password"
+                  className="text-[11px] font-bold text-[#046BD2] hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#046BD2]"
+                />
+              </div>
+            </div>
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || googleLoading}
               className="w-full py-3.5 px-4 rounded-xl font-bold text-sm text-white bg-[#046BD2] hover:bg-[#0352A0] disabled:bg-slate-300 shadow-md transition-all flex items-center justify-center gap-2"
             >
               {loading ? (
-                <span>Signing in...</span>
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Signing in...</span>
+                </>
               ) : (
                 <>
-                  <span>
-                    {loginMethod === 'phone' && phoneAuthType === 'otp' && !otpSent
-                      ? 'Get OTP & Sign In'
-                      : 'Sign In to Dashboard'}
-                  </span>
+                  <span>Sign In to Dashboard</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
           </form>
 
-          <div className="text-center pt-2 text-xs text-slate-600">
+          {/* Quick Demo Credentials */}
+          <div className="p-3 bg-blue-50/70 rounded-xl border border-blue-100 text-[11px] text-slate-600 flex items-start gap-2">
+            <Sparkles className="w-3.5 h-3.5 text-[#046BD2] flex-shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold text-[#046BD2]">Student Sign-in: </span>
+              Use one-click Google Sign-in above, or enter your registered student email and password.
+            </div>
+          </div>
+
+          <div className="text-center pt-1 text-xs text-slate-600">
             <span>Don't have an account yet? </span>
             <Link
               href="/auth/register"
               className="font-bold text-[#046BD2] hover:underline"
             >
               Register here
+            </Link>
+          </div>
+
+          {/* Dedicated Link to Admin Portal */}
+          <div className="pt-3 border-t border-slate-100 text-center">
+            <Link
+              href="/admin/login"
+              className="text-xs font-bold text-slate-500 hover:text-amber-600 transition inline-flex items-center gap-1.5"
+            >
+              <Shield className="w-3.5 h-3.5 text-amber-500" />
+              <span>Academy Faculty / Administration Sign In →</span>
             </Link>
           </div>
         </div>
@@ -424,4 +281,3 @@ export default function LoginPage() {
     </Suspense>
   );
 }
-

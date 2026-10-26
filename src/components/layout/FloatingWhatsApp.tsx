@@ -25,7 +25,7 @@ export function FloatingWhatsApp() {
   const whatsappUrl = `https://wa.me/${cleanNumber}?text=${defaultMessage}`;
 
   return (
-    <div className="fixed bottom-6 right-6 z-40 font-sans">
+    <div className="fixed bottom-20 md:bottom-6 right-4 sm:right-6 z-40 font-sans">
       {/* Expanded Quick Chat Card */}
       {isOpen && (
         <div className="mb-3 w-80 sm:w-96 bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in slide-in-from-bottom-5 zoom-in-95 duration-200">

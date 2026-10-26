@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { db } from '@/lib/data/mock-db';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthContext';
 import {
   BookOpen,
@@ -15,16 +15,59 @@ import {
   Bell,
   Sparkles,
   CheckCircle2,
-  AlertTriangle,
+  HelpCircle,
+  FileText,
+  Bookmark,
+  CheckSquare,
+  Loader2,
 } from 'lucide-react';
 
 export default function DashboardOverviewPage() {
-  const { user } = useAuth();
-  const studentId = user?.id || 'u0000000-0000-0000-0000-000000000001';
+  const router = useRouter();
+  const { user, isAuthReady } = useAuth();
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const enrollments = db.getStudentEnrollments(studentId);
-  const liveClasses = db.liveClasses.filter((lc) => lc.status === 'scheduled' || lc.status === 'live');
-  const announcements = db.announcements;
+  useEffect(() => {
+    if (!isAuthReady) return;
+
+    if (!user) {
+      router.push('/auth/login?redirect=' + encodeURIComponent('/dashboard'));
+      return;
+    }
+
+    async function fetchDashboard() {
+      try {
+        setLoading(true);
+        const res = await fetch(`/api/student/dashboard?studentId=${encodeURIComponent(user!.id)}`);
+        if (!res.ok) throw new Error('Failed to load dashboard data');
+        const json = await res.json();
+        setData(json);
+      } catch (err: any) {
+        console.error('Dashboard load error:', err);
+        setError(err.message || 'Error loading dashboard');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchDashboard();
+  }, [isAuthReady, user?.id, router]);
+
+  if (!isAuthReady || (!user && loading)) {
+    return (
+      <div className="min-h-[50vh] flex flex-col items-center justify-center space-y-4">
+        <Loader2 className="w-8 h-8 text-[#046BD2] animate-spin" />
+        <p className="text-xs font-semibold text-slate-500">Restoring student session & verifying enrollments...</p>
+      </div>
+    );
+  }
+
+  const enrollments = data?.enrollments || [];
+  const liveClasses = data?.liveClasses || [];
+  const progressList = data?.progressList || [];
+  const tests = data?.tests || [];
+  const doubts = data?.doubts || [];
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
@@ -33,61 +76,130 @@ export default function DashboardOverviewPage() {
         <div className="relative z-10 space-y-3 max-w-2xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-xs font-semibold text-sky-300">
             <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-            <span>Academic Session 2026-27</span>
+            <span>Academic Session 2026-27 • Aspire Academy Online</span>
           </div>
           <h1 className="text-2xl sm:text-4xl font-black tracking-tight">
             Welcome back, {user ? user.full_name : 'Student'}! 👋
           </h1>
           <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
             Continue where you left off. Watch interactive video lectures, download chapter
-            diagram notes, and join upcoming live doubt classes.
+            diagram notes, submit doubts directly to Shekhar Sir, and attempt weekly online tests.
           </p>
         </div>
       </div>
 
       {/* 2. Key Stats Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
-          <div>
-            <span className="text-xs font-semibold text-slate-500 block">Enrolled Courses</span>
-            <span className="text-2xl font-black text-slate-900">{enrollments.length}</span>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#046BD2] flex items-center justify-center">
-            <BookOpen className="w-5 h-5" />
-          </div>
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white p-5 rounded-2xl border border-slate-200 animate-pulse h-24" />
+          ))}
         </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+            <div>
+              <span className="text-xs font-semibold text-slate-500 block">Enrolled Courses</span>
+              <span className="text-2xl font-black text-slate-900">{enrollments.length}</span>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#046BD2] flex items-center justify-center">
+              <BookOpen className="w-5 h-5" />
+            </div>
+          </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
-          <div>
-            <span className="text-xs font-semibold text-slate-500 block">Active Batches</span>
-            <span className="text-2xl font-black text-slate-900">{enrollments.length}</span>
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+            <div>
+              <span className="text-xs font-semibold text-slate-500 block">Active Batches</span>
+              <span className="text-2xl font-black text-slate-900">{enrollments.length}</span>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <Calendar className="w-5 h-5" />
+            </div>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-            <Calendar className="w-5 h-5" />
-          </div>
-        </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
-          <div>
-            <span className="text-xs font-semibold text-slate-500 block">Upcoming Live Classes</span>
-            <span className="text-2xl font-black text-slate-900">{liveClasses.length}</span>
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+            <div>
+              <span className="text-xs font-semibold text-slate-500 block">Scheduled Live Classes</span>
+              <span className="text-2xl font-black text-slate-900">{liveClasses.length}</span>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+              <Video className="w-5 h-5" />
+            </div>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
-            <Video className="w-5 h-5" />
-          </div>
-        </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
-          <div>
-            <span className="text-xs font-semibold text-slate-500 block">Account Status</span>
-            <span className="text-base font-bold text-emerald-600 flex items-center gap-1">
-              <CheckCircle2 className="w-4 h-4" /> Verified Student
-            </span>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-            <Award className="w-5 h-5" />
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+            <div>
+              <span className="text-xs font-semibold text-slate-500 block">Available Tests</span>
+              <span className="text-2xl font-black text-slate-900">{tests.length}</span>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+              <CheckSquare className="w-5 h-5" />
+            </div>
           </div>
         </div>
+      )}
+
+      {/* Quick Feature Navigation Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <Link
+          href="/dashboard/courses"
+          className="p-3.5 bg-white rounded-xl border border-slate-200 hover:border-[#046BD2] hover:shadow-sm transition flex flex-col items-center text-center gap-2 group"
+        >
+          <div className="w-9 h-9 rounded-lg bg-blue-50 text-[#046BD2] group-hover:bg-[#046BD2] group-hover:text-white transition flex items-center justify-center">
+            <BookOpen className="w-4 h-4" />
+          </div>
+          <span className="text-xs font-bold text-slate-800">My Courses</span>
+        </Link>
+
+        <Link
+          href="/dashboard/batches"
+          className="p-3.5 bg-white rounded-xl border border-slate-200 hover:border-[#046BD2] hover:shadow-sm transition flex flex-col items-center text-center gap-2 group"
+        >
+          <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition flex items-center justify-center">
+            <Calendar className="w-4 h-4" />
+          </div>
+          <span className="text-xs font-bold text-slate-800">My Batches</span>
+        </Link>
+
+        <Link
+          href="/dashboard/live"
+          className="p-3.5 bg-white rounded-xl border border-slate-200 hover:border-[#046BD2] hover:shadow-sm transition flex flex-col items-center text-center gap-2 group"
+        >
+          <div className="w-9 h-9 rounded-lg bg-rose-50 text-rose-600 group-hover:bg-rose-600 group-hover:text-white transition flex items-center justify-center">
+            <Video className="w-4 h-4" />
+          </div>
+          <span className="text-xs font-bold text-slate-800">Live Classes</span>
+        </Link>
+
+        <Link
+          href="/dashboard/tests"
+          className="p-3.5 bg-white rounded-xl border border-slate-200 hover:border-[#046BD2] hover:shadow-sm transition flex flex-col items-center text-center gap-2 group"
+        >
+          <div className="w-9 h-9 rounded-lg bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition flex items-center justify-center">
+            <CheckSquare className="w-4 h-4" />
+          </div>
+          <span className="text-xs font-bold text-slate-800">All Tests</span>
+        </Link>
+
+        <Link
+          href="/dashboard/materials"
+          className="p-3.5 bg-white rounded-xl border border-slate-200 hover:border-[#046BD2] hover:shadow-sm transition flex flex-col items-center text-center gap-2 group"
+        >
+          <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 group-hover:bg-amber-600 group-hover:text-white transition flex items-center justify-center">
+            <FileText className="w-4 h-4" />
+          </div>
+          <span className="text-xs font-bold text-slate-800">PDF Bank</span>
+        </Link>
+
+        <Link
+          href="/dashboard/doubts"
+          className="p-3.5 bg-white rounded-xl border border-slate-200 hover:border-[#046BD2] hover:shadow-sm transition flex flex-col items-center text-center gap-2 group"
+        >
+          <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition flex items-center justify-center">
+            <HelpCircle className="w-4 h-4" />
+          </div>
+          <span className="text-xs font-bold text-slate-800">Ask Doubts</span>
+        </Link>
       </div>
 
       {/* 3. Enrolled Courses Section */}
@@ -105,13 +217,21 @@ export default function DashboardOverviewPage() {
           </Link>
         </div>
 
-        {enrollments.length > 0 ? (
+        {loading ? (
+          <div className="bg-white rounded-2xl border border-slate-200 p-8 flex items-center justify-center">
+            <Loader2 className="w-6 h-6 text-[#046BD2] animate-spin" />
+          </div>
+        ) : enrollments.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {enrollments.map((enr) => {
+            {enrollments.map((enr: any) => {
               const course = enr.course;
               if (!course) return null;
 
-              const progress = db.getStudentProgressForCourse(studentId, course.id);
+              const progress = progressList.find((p: any) => p.courseId === course.id) || {
+                percent: 0,
+                completedCount: 0,
+                totalCount: 0,
+              };
 
               return (
                 <div
@@ -121,7 +241,7 @@ export default function DashboardOverviewPage() {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-bold text-[#046BD2] bg-blue-50 px-2 py-0.5 rounded">
-                        {course.target_class}
+                        {course.target_class || course.category}
                       </span>
                       <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
                         Active Access
@@ -160,13 +280,19 @@ export default function DashboardOverviewPage() {
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-slate-100">
+                  <div className="pt-4 border-t border-slate-100 flex items-center gap-2">
                     <Link
                       href={`/dashboard/courses/${course.slug}/learn`}
-                      className="w-full py-2.5 px-4 rounded-xl font-bold text-xs text-white bg-[#046BD2] hover:bg-[#0352A0] transition flex items-center justify-center gap-2 shadow-sm"
+                      className="flex-1 py-2.5 px-4 rounded-xl font-bold text-xs text-white bg-[#046BD2] hover:bg-[#0352A0] transition flex items-center justify-center gap-2 shadow-sm"
                     >
                       <PlayCircle className="w-4 h-4" />
                       <span>Continue Learning</span>
+                    </Link>
+                    <Link
+                      href="/dashboard/tests"
+                      className="py-2.5 px-3 rounded-xl font-bold text-xs text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
+                    >
+                      Tests
                     </Link>
                   </div>
                 </div>
@@ -208,43 +334,47 @@ export default function DashboardOverviewPage() {
           </div>
 
           <div className="space-y-3">
-            {liveClasses.map((lc) => (
-              <div
-                key={lc.id}
-                className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/50 hover:bg-slate-50 transition space-y-2"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse" />
-                    Scheduled Live
-                  </span>
-                  <span className="text-xs text-slate-500 font-medium">
-                    Faculty: {lc.instructor_name}
-                  </span>
+            {liveClasses.length > 0 ? (
+              liveClasses.map((lc: any) => (
+                <div
+                  key={lc.id}
+                  className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/50 hover:bg-slate-50 transition space-y-2"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse" />
+                      {lc.status === 'live' ? 'Live Now' : 'Scheduled Live'}
+                    </span>
+                    <span className="text-xs text-slate-500 font-medium">
+                      Faculty: {lc.instructor_name}
+                    </span>
+                  </div>
+
+                  <h4 className="text-sm font-bold text-slate-900 leading-snug">
+                    {lc.title}
+                  </h4>
+
+                  <p className="text-xs text-slate-600 line-clamp-1">{lc.description}</p>
+
+                  <div className="pt-2 flex items-center justify-between text-xs">
+                    <span className="text-slate-500 flex items-center gap-1 font-semibold">
+                      <Clock className="w-3.5 h-3.5 text-slate-400" />
+                      <span>{new Date(lc.scheduled_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                    </span>
+
+                    <Link
+                      href="/dashboard/live"
+                      className="text-xs font-bold text-[#046BD2] hover:underline flex items-center gap-1"
+                    >
+                      <span>Join / Stream Room</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
                 </div>
-
-                <h4 className="text-sm font-bold text-slate-900 leading-snug">
-                  {lc.title}
-                </h4>
-
-                <p className="text-xs text-slate-600 line-clamp-1">{lc.description}</p>
-
-                <div className="pt-2 flex items-center justify-between text-xs">
-                  <span className="text-slate-500 flex items-center gap-1 font-semibold">
-                    <Clock className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{new Date(lc.scheduled_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
-                  </span>
-
-                  <Link
-                    href="/dashboard/live"
-                    className="text-xs font-bold text-[#046BD2] hover:underline flex items-center gap-1"
-                  >
-                    <span>View Stream Details</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-xs text-slate-400 py-4 text-center">No upcoming live sessions scheduled at this moment.</p>
+            )}
           </div>
         </div>
 
@@ -256,32 +386,37 @@ export default function DashboardOverviewPage() {
           </h2>
 
           <div className="space-y-3">
-            {announcements.map((a) => (
-              <div
-                key={a.id}
-                className="p-4 rounded-xl border border-slate-200/80 bg-slate-50 space-y-1.5"
-              >
-                <div className="flex items-center justify-between">
-                  <span
-                    className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
-                      a.priority === 'urgent'
-                        ? 'bg-rose-100 text-rose-800'
-                        : 'bg-slate-200 text-slate-700'
-                    }`}
-                  >
-                    {a.priority}
-                  </span>
-                  <span className="text-[10px] text-slate-400">
-                    {new Date(a.published_at).toLocaleDateString('en-IN')}
-                  </span>
-                </div>
-
-                <h4 className="text-xs font-bold text-slate-900 leading-snug">
-                  {a.title}
-                </h4>
-                <p className="text-[11px] text-slate-600 leading-relaxed">{a.body}</p>
+            <div className="p-4 rounded-xl border border-slate-200/80 bg-slate-50 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-rose-100 text-rose-800">
+                  URGENT
+                </span>
+                <span className="text-[10px] text-slate-400">Today</span>
               </div>
-            ))}
+              <h4 className="text-xs font-bold text-slate-900 leading-snug">
+                Bilingual Biology Numerical & Diagram Special Session
+              </h4>
+              <p className="text-[11px] text-slate-600 leading-relaxed">
+                Shekhar Sir will cover Genetics & Reproduction numericals live today at 6:00 PM.
+                Download the PDF diagram notes before joining the class.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-xl border border-slate-200/80 bg-slate-50 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-200 text-slate-700">
+                  ANNOUNCEMENT
+                </span>
+                <span className="text-[10px] text-slate-400">Yesterday</span>
+              </div>
+              <h4 className="text-xs font-bold text-slate-900 leading-snug">
+                Weekly Mock Test 01 Available in All Tests Section
+              </h4>
+              <p className="text-[11px] text-slate-600 leading-relaxed">
+                Chapter 1 & 2 full 50 marks mock test has been published with instant scoring
+                and solution review.
+              </p>
+            </div>
           </div>
         </div>
       </div>

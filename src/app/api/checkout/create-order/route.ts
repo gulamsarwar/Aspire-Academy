@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { db } from '@/lib/data/mock-db';
+import { db, normalizeStudentId } from '@/lib/data/mock-db';
+import { createOrderInDatabase } from '@/lib/data/supabase-service';
 import { getRazorpayInstance } from '@/lib/razorpay';
+import { calculateCoursePrice } from '@/lib/pricing';
 
 const createOrderSchema = z.object({
   courseId: z.string().min(1, 'Course ID is required'),
@@ -22,9 +24,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { courseId, batchId, studentId, couponCode } = result.data;
+    const { courseId, batchId, studentId: rawStudentId, couponCode } = result.data;
+    const studentId = normalizeStudentId(rawStudentId);
 
-    // Validate course exists and is published
+    // 1. Validate course exists and is published
     const course = db.getCourseById(courseId);
     if (!course || !course.published) {
       return NextResponse.json(
@@ -33,7 +36,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate batch exists and is open
+    // 2. Validate batch exists and is open
     const batch = db.getBatchById(batchId);
     if (!batch || batch.course_id !== courseId) {
       return NextResponse.json(
@@ -49,24 +52,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Calculate coupon discounts server-side
-    let finalPrice = course.price;
-    const cleanCoupon = (couponCode || '').trim().toUpperCase();
-    if (cleanCoupon === 'TOPPER100') {
-      finalPrice = Math.max(1, finalPrice - 100);
-    } else if (cleanCoupon === 'SHEKHAR50') {
-      finalPrice = Math.max(1, finalPrice - 50);
-    } else if (cleanCoupon === 'BIHAR20') {
-      finalPrice = Math.max(1, Math.round(finalPrice * 0.8));
+    if (batch.capacity <= batch.enrolled_count) {
+      return NextResponse.json(
+        { error: 'This batch has reached maximum student capacity. Please choose another batch.' },
+        { status: 400 }
+      );
     }
 
-    // Server calculates exact amount in paise (1 INR = 100 paise)
-    const amountInPaise = Math.round(finalPrice * 100);
+    // 3. Centralized server-side pricing and discount calculation
+    const pricing = calculateCoursePrice(course, couponCode);
+    const finalPrice = pricing.finalPrice;
+    const amountInPaise = pricing.amountInPaise;
     const currency = course.currency || 'INR';
 
-    let gatewayOrderId = `order_test_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    let gatewayOrderId = `order_aspire_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
-    // Try real Razorpay order creation if keys are configured
+    // 4. Try real Razorpay order creation if live keys are configured
     const razorpay = getRazorpayInstance();
     if (razorpay && process.env.RAZORPAY_KEY_SECRET !== 'rzp_test_aspire_demo_secret') {
       try {
@@ -80,7 +81,7 @@ export async function POST(req: NextRequest) {
             batchId: batch.id,
             batchName: batch.name,
             studentId,
-            couponCode: cleanCoupon || 'NONE',
+            couponCode: pricing.couponCode || 'NONE',
           },
         });
         gatewayOrderId = rzpOrder.id;
@@ -89,8 +90,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Store in internal database orders table
-    const order = db.createOrder({
+    // 5. Store in internal database orders table
+    const order = await createOrderInDatabase({
       studentId,
       courseId,
       batchId,
@@ -108,7 +109,8 @@ export async function POST(req: NextRequest) {
       amount: amountInPaise,
       amountInRupees: finalPrice,
       originalPrice: course.price,
-      discountApplied: course.price - finalPrice,
+      discountApplied: pricing.discountAmount + pricing.couponDiscount,
+      couponApplied: pricing.couponCode,
       currency,
       keyId,
       courseTitle: course.title,

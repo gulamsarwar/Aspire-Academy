@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { db } from '@/lib/data/mock-db';
 import { LiveClass } from '@/lib/types';
+import { extractYouTubeVideoId } from '@/lib/youtube';
 import { Video, Plus, Clock, ExternalLink, Calendar, CheckCircle2 } from 'lucide-react';
 
 export default function AdminLiveClassesPage() {
@@ -25,11 +26,10 @@ export default function AdminLiveClassesPage() {
     e.preventDefault();
     if (!title.trim() || !youtubeLiveUrl.trim()) return;
 
-    let cleanVideoId = 'jfKfPfyJRdk';
-    if (youtubeLiveUrl.includes('v=')) {
-      cleanVideoId = youtubeLiveUrl.split('v=')[1].split('&')[0];
-    } else if (youtubeLiveUrl.includes('youtu.be/')) {
-      cleanVideoId = youtubeLiveUrl.split('youtu.be/')[1].split('?')[0];
+    const cleanVideoId = extractYouTubeVideoId(youtubeLiveUrl);
+    if (!cleanVideoId) {
+      alert('Please provide a valid YouTube video or live stream link.');
+      return;
     }
 
     const created = db.scheduleLiveClass({

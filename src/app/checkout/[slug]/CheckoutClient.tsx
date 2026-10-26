@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import confetti from 'canvas-confetti';
 import { Course, Batch } from '@/lib/types';
 import { useAuth } from '@/components/auth/AuthContext';
+import { calculateCoursePrice } from '@/lib/pricing';
 import {
   ShieldCheck,
   CheckCircle2,
@@ -62,25 +63,22 @@ export function CheckoutClient({
     const raw = (codeToApply || couponInput).trim().toUpperCase();
     if (!raw) return;
 
-    if (raw === 'TOPPER100') {
-      const discount = Math.min(100, course.price - 1);
-      setAppliedCoupon({ code: raw, discount, label: 'TOPPER100 (₹100 Scholarship Discount)' });
-      setCouponMessage({ type: 'success', text: '🎉 TOPPER100 applied! You saved flat ₹100.' });
-      setCouponInput('TOPPER100');
-    } else if (raw === 'SHEKHAR50') {
-      const discount = Math.min(50, course.price - 1);
-      setAppliedCoupon({ code: raw, discount, label: 'SHEKHAR50 (₹50 Shekhar Sir Mentorship Discount)' });
-      setCouponMessage({ type: 'success', text: '🎉 SHEKHAR50 applied! You saved flat ₹50.' });
-      setCouponInput('SHEKHAR50');
-    } else if (raw === 'BIHAR20') {
-      const discount = Math.round(course.price * 0.2);
-      setAppliedCoupon({ code: raw, discount, label: 'BIHAR20 (20% Target Batch Discount)' });
-      setCouponMessage({ type: 'success', text: `🎉 BIHAR20 applied! You saved ₹${discount}.` });
-      setCouponInput('BIHAR20');
+    const pricing = calculateCoursePrice(course, raw);
+    if (pricing.isValidCoupon) {
+      setAppliedCoupon({
+        code: raw,
+        discount: pricing.couponDiscount,
+        label: pricing.couponLabel || raw,
+      });
+      setCouponMessage({
+        type: 'success',
+        text: `🎉 ${raw} applied! You saved flat ₹${pricing.couponDiscount}.`,
+      });
+      setCouponInput(raw);
     } else {
       setCouponMessage({
         type: 'error',
-        text: 'Invalid promo code. Tap a verified code below: TOPPER100 or SHEKHAR50',
+        text: 'Invalid promo code. Tap a verified code below: TOPPER100, SHEKHAR50 or BIHAR20',
       });
     }
   };
@@ -91,7 +89,8 @@ export function CheckoutClient({
     setCouponMessage(null);
   };
 
-  const finalPayable = appliedCoupon ? Math.max(1, course.price - appliedCoupon.discount) : course.price;
+  const pricing = calculateCoursePrice(course, appliedCoupon?.code);
+  const finalPayable = pricing.finalPrice;
 
   const triggerCelebration = () => {
     try {

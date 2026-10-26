@@ -1,15 +1,37 @@
 'use client';
 
-import React from 'react';
-import { db } from '@/lib/data/mock-db';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { CreditCard, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { CreditCard, CheckCircle2, Clock, AlertCircle, Loader2 } from 'lucide-react';
 
 export default function PurchaseHistoryPage() {
   const { user } = useAuth();
-  const studentId = user?.id || 'u0000000-0000-0000-0000-000000000001';
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const orders = db.orders.filter((o) => o.student_id === studentId);
+  useEffect(() => {
+    async function fetchOrders() {
+      if (!user?.id) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const res = await fetch(`/api/student/dashboard?studentId=${encodeURIComponent(user.id)}`);
+        if (!res.ok) throw new Error('Failed to load orders');
+        const json = await res.json();
+        setData(json);
+      } catch (err) {
+        console.error('Failed to load student orders:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchOrders();
+  }, [user?.id]);
+
+  const orders = data?.orders || [];
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -22,7 +44,11 @@ export default function PurchaseHistoryPage() {
         </p>
       </div>
 
-      {orders.length > 0 ? (
+      {loading ? (
+        <div className="bg-white rounded-2xl border border-slate-200 p-12 flex items-center justify-center">
+          <Loader2 className="w-6 h-6 text-[#046BD2] animate-spin" />
+        </div>
+      ) : orders.length > 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
@@ -37,10 +63,7 @@ export default function PurchaseHistoryPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {orders.map((order) => {
-                  const course = db.getCourseById(order.course_id);
-                  const batch = db.getBatchById(order.batch_id);
-
+                {orders.map((order: any) => {
                   return (
                     <tr key={order.id} className="hover:bg-slate-50/60 transition">
                       <td className="px-6 py-4 font-mono font-bold text-slate-800">
@@ -48,14 +71,14 @@ export default function PurchaseHistoryPage() {
                       </td>
                       <td className="px-6 py-4">
                         <span className="font-bold text-slate-900 block">
-                          {course?.title}
+                          {order.course?.title || order.course_id || 'Enrolled Course'}
                         </span>
                         <span className="text-[11px] text-slate-500">
-                          {batch?.name}
+                          {order.batch?.name || order.batch_id || 'Batch Assigned'}
                         </span>
                       </td>
                       <td className="px-6 py-4 font-black text-slate-900 text-sm">
-                        ₹{order.amount.toLocaleString('en-IN')}
+                        ₹{(order.amount || 0).toLocaleString('en-IN')}
                       </td>
                       <td className="px-6 py-4">
                         {order.status === 'paid' ? (
@@ -73,7 +96,7 @@ export default function PurchaseHistoryPage() {
                         )}
                       </td>
                       <td className="px-6 py-4 font-mono text-[11px] text-slate-600">
-                        {order.gateway_payment_id || order.gateway_order_id}
+                        {order.gateway_payment_id || order.gateway_order_id || 'N/A'}
                       </td>
                       <td className="px-6 py-4 text-slate-500">
                         {new Date(order.created_at).toLocaleDateString('en-IN')}

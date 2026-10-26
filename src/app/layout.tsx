@@ -7,6 +7,7 @@ import { SiteSettingsProvider } from '@/components/settings/SiteSettingsContext'
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { FloatingWhatsApp } from '@/components/layout/FloatingWhatsApp';
+import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -66,9 +67,10 @@ export default function RootLayout({
             <Suspense fallback={<div className="h-20 bg-slate-900 border-b border-slate-800" />}>
               <Navbar />
             </Suspense>
-            <main className="flex-1">{children}</main>
+            <main className="flex-1 pb-16 md:pb-0">{children}</main>
             <Footer />
             <FloatingWhatsApp />
+            <MobileBottomNav />
           </SiteSettingsProvider>
         </AuthProvider>
       </body>

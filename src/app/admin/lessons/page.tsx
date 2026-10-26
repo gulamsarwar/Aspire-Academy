@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { db } from '@/lib/data/mock-db';
 import { addLessonToDatabase, updateLessonInDatabase, deleteLessonFromDatabase } from '@/lib/data/supabase-service';
-import { Lesson } from '@/lib/types';
+import { Lesson, Module } from '@/lib/types';
 import {
   FileText,
   Plus,
@@ -16,36 +17,53 @@ import {
   Edit,
   Trash2,
   Save,
-  Sparkles,
-  Link as LinkIcon,
+  ArrowLeft,
+  BookOpen,
+  Award,
+  FolderPlus,
   HelpCircle,
 } from 'lucide-react';
+
+import { extractYouTubeVideoId } from '@/lib/youtube';
+import { YouTubePlayer } from '@/components/ui/YouTubePlayer';
 
 export default function AdminLessonsPage() {
   const courses = db.courses;
   const [selectedCourseId, setSelectedCourseId] = useState(courses[0]?.id || '');
 
-  const modules = db.modules.filter((m) => m.course_id === selectedCourseId);
-  const [selectedModuleId, setSelectedModuleId] = useState(modules[0]?.id || '');
+  const [modules, setModules] = useState<Module[]>([]);
+  const [selectedModuleId, setSelectedModuleId] = useState('');
 
   const [lessons, setLessons] = useState<Lesson[]>([...db.lessons]);
   const [successToast, setSuccessToast] = useState('');
 
-  // Primary Add Video Form State (Visible on Page)
+  // Primary Add Lesson Form State
   const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [youtubeVideoId, setYoutubeVideoId] = useState('');
   const [durationMinutes, setDurationMinutes] = useState(45);
   const [materialName, setMaterialName] = useState('');
+  const [lessonOrder, setLessonOrder] = useState(1);
   const [isFreePreview, setIsFreePreview] = useState(false);
-  const [description, setDescription] = useState('');
+  const [isPublished, setIsPublished] = useState(true);
+  const [attachedQuizId, setAttachedQuizId] = useState('');
+
+  // New Chapter Inline Modal/State
+  const [showAddChapter, setShowAddChapter] = useState(false);
+  const [newChapterTitle, setNewChapterTitle] = useState('');
 
   // Edit Existing Lesson Modal State
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
   const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editModuleId, setEditModuleId] = useState('');
   const [editYoutubeLink, setEditYoutubeLink] = useState('');
   const [editDuration, setEditDuration] = useState(45);
-  const [editFreePreview, setEditFreePreview] = useState(false);
   const [editMaterialName, setEditMaterialName] = useState('');
+  const [editLessonOrder, setEditLessonOrder] = useState(1);
+  const [editFreePreview, setEditFreePreview] = useState(false);
+  const [editPublished, setEditPublished] = useState(true);
+  const [editQuizId, setEditQuizId] = useState('');
 
   // Handle URL query parameter ?courseId=...
   useEffect(() => {
@@ -54,39 +72,42 @@ export default function AdminLessonsPage() {
       const cid = params.get('courseId');
       if (cid && courses.some((c) => c.id === cid)) {
         setSelectedCourseId(cid);
-        const m = db.modules.filter((mod) => mod.course_id === cid);
-        if (m.length > 0) {
-          setSelectedModuleId(m[0].id);
-        }
       }
     }
   }, [courses]);
 
+  // Update modules and selectedModuleId when selectedCourseId changes
+  useEffect(() => {
+    const courseMods = db.modules.filter((m) => m.course_id === selectedCourseId);
+    setModules(courseMods);
+    if (courseMods.length > 0) {
+      setSelectedModuleId(courseMods[0].id);
+    } else {
+      setSelectedModuleId('');
+    }
+  }, [selectedCourseId]);
+
+  // Current selected course object
+  const currentCourse = courses.find((c) => c.id === selectedCourseId) || courses[0];
+
+  // Lessons for currently selected course
   const currentLessons = lessons.filter((l) => {
     const parentModule = db.modules.find((m) => m.id === l.module_id);
     return parentModule?.course_id === selectedCourseId;
   });
 
-  // Helper to extract 11-char video ID from any YouTube URL format
+  // Automatically update lesson order suggested for new lesson
+  useEffect(() => {
+    setLessonOrder(currentLessons.length + 1);
+  }, [currentLessons.length, selectedCourseId]);
+
+  // Available quizzes for this course
+  const availableQuizzes = db.quizzes.filter(
+    (q) => !q.course_id || q.course_id === selectedCourseId
+  );
+
   const extractVideoId = (input: string): string => {
-    const clean = input.trim();
-    if (!clean) return '';
-    if (clean.includes('v=')) {
-      return clean.split('v=')[1].split('&')[0];
-    }
-    if (clean.includes('youtu.be/')) {
-      return clean.split('youtu.be/')[1].split('?')[0];
-    }
-    if (clean.includes('embed/')) {
-      return clean.split('embed/')[1].split('?')[0];
-    }
-    if (clean.includes('live/')) {
-      return clean.split('live/')[1].split('?')[0];
-    }
-    if (clean.includes('shorts/')) {
-      return clean.split('shorts/')[1].split('?')[0];
-    }
-    return clean;
+    return extractYouTubeVideoId(input) || '';
   };
 
   const detectedVideoId = extractVideoId(youtubeVideoId);
@@ -106,6 +127,21 @@ export default function AdminLessonsPage() {
     }
   };
 
+  // Add a new Chapter / Module
+  const handleCreateChapter = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newChapterTitle.trim()) return;
+
+    const newMod = db.addModule(selectedCourseId, newChapterTitle.trim());
+    setModules([...db.modules.filter((m) => m.course_id === selectedCourseId)]);
+    setSelectedModuleId(newMod.id);
+    setNewChapterTitle('');
+    setShowAddChapter(false);
+    setSuccessToast(`Chapter "${newMod.title}" created successfully!`);
+    setTimeout(() => setSuccessToast(''), 3000);
+  };
+
+  // Create & Save Lesson with YouTube Link
   const handleCreateLesson = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanVideoId = extractVideoId(youtubeVideoId);
@@ -114,17 +150,27 @@ export default function AdminLessonsPage() {
       return;
     }
 
+    let targetModuleId = selectedModuleId;
+    if (!targetModuleId) {
+      // Auto-create a default chapter if course has none yet
+      const defMod = db.addModule(selectedCourseId, 'Chapter 1: Core Concepts & Introduction');
+      setModules([...db.modules.filter((m) => m.course_id === selectedCourseId)]);
+      targetModuleId = defMod.id;
+      setSelectedModuleId(defMod.id);
+    }
+
     const created = await addLessonToDatabase({
-      module_id: selectedModuleId || modules[0]?.id || 'a0000000-0000-0000-0000-000000000001',
-      title,
-      description,
+      module_id: targetModuleId,
+      title: title.trim(),
+      description: description.trim() || 'Conceptual lecture and practice walkthrough.',
       youtube_video_id: cleanVideoId,
-      duration_minutes: Number(durationMinutes),
+      duration_minutes: Number(durationMinutes) || 45,
       material_path: materialName ? `/notes/${materialName.toLowerCase().replace(/\s+/g, '-')}` : undefined,
-      material_name: materialName || undefined,
-      sort_order: currentLessons.length + 1,
+      material_name: materialName.trim() || undefined,
+      sort_order: Number(lessonOrder) || currentLessons.length + 1,
       is_free_preview: isFreePreview,
-      published: true,
+      published: isPublished,
+      quiz_id: attachedQuizId || undefined,
     });
 
     setLessons([...db.lessons]);
@@ -132,18 +178,25 @@ export default function AdminLessonsPage() {
     setDescription('');
     setYoutubeVideoId('');
     setMaterialName('');
+    setAttachedQuizId('');
+    setIsFreePreview(false);
 
-    setSuccessToast(`Video lecture "${created.title}" published & saved successfully!`);
-    setTimeout(() => setSuccessToast(''), 4000);
+    setSuccessToast(`Lesson "${created.title}" and YouTube video link saved successfully for ${currentCourse?.title}!`);
+    setTimeout(() => setSuccessToast(''), 4500);
   };
 
   const handleOpenEdit = (lesson: Lesson) => {
     setEditingLesson(lesson);
     setEditTitle(lesson.title);
+    setEditDescription(lesson.description || '');
+    setEditModuleId(lesson.module_id);
     setEditYoutubeLink(`https://www.youtube.com/watch?v=${lesson.youtube_video_id}`);
     setEditDuration(lesson.duration_minutes);
-    setEditFreePreview(lesson.is_free_preview);
     setEditMaterialName(lesson.material_name || '');
+    setEditLessonOrder(lesson.sort_order);
+    setEditFreePreview(lesson.is_free_preview);
+    setEditPublished(lesson.published);
+    setEditQuizId(lesson.quiz_id || '');
   };
 
   const handleSaveEdit = async (e: React.FormEvent) => {
@@ -157,17 +210,22 @@ export default function AdminLessonsPage() {
     }
 
     await updateLessonInDatabase(editingLesson.id, {
-      title: editTitle,
+      title: editTitle.trim(),
+      description: editDescription.trim(),
+      module_id: editModuleId || editingLesson.module_id,
       youtube_video_id: cleanVideoId,
-      duration_minutes: Number(editDuration),
+      duration_minutes: Number(editDuration) || 45,
+      sort_order: Number(editLessonOrder) || 1,
       is_free_preview: editFreePreview,
-      material_name: editMaterialName || undefined,
+      published: editPublished,
+      material_name: editMaterialName.trim() || undefined,
       material_path: editMaterialName ? `/notes/${editMaterialName.toLowerCase().replace(/\s+/g, '-')}` : undefined,
+      quiz_id: editQuizId || undefined,
     });
 
     setLessons([...db.lessons]);
     setEditingLesson(null);
-    setSuccessToast(`Lesson "${editTitle}" video link updated & synced!`);
+    setSuccessToast(`Lesson "${editTitle}" updated successfully!`);
     setTimeout(() => setSuccessToast(''), 4000);
   };
 
@@ -181,35 +239,41 @@ export default function AdminLessonsPage() {
   };
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto pb-12">
-      {/* Top Title Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-6">
-        <div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-[#046BD2] text-xs font-bold uppercase tracking-wider mb-2">
-            <Video className="w-3.5 h-3.5" />
-            <span>Course Content Manager</span>
+    <div className="space-y-6 max-w-7xl mx-auto pb-16">
+      {/* Navigation Breadcrumb */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
+            <Link
+              href="/admin/courses"
+              className="inline-flex items-center gap-1.5 text-[#046BD2] hover:underline font-extrabold"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Course Management</span>
+            </Link>
+            <span>/</span>
+            <span className="text-slate-800 font-extrabold truncate max-w-sm">
+              {currentCourse?.title || 'Manage Lessons'}
+            </span>
           </div>
+
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            Course Video Upload & Lesson Manager
+            Manage Lessons & Video Content
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Apne unlisted YouTube video ka link yahan paste karein aur course me publish karein. Enrolled students turant apne video player me dekh sakenge.
+          <p className="text-xs text-slate-500">
+            Add YouTube video links, study notes, and quizzes to lessons for this specific course.
           </p>
         </div>
 
-        {/* Selected Course Selector */}
-        <div className="bg-white p-2.5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-2">
+        {/* Course Switcher */}
+        <div className="bg-white p-2.5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-2 self-start sm:self-auto">
           <span className="text-xs font-bold text-slate-600 whitespace-nowrap pl-2">
-            Select Course:
+            Course:
           </span>
           <select
             value={selectedCourseId}
-            onChange={(e) => {
-              setSelectedCourseId(e.target.value);
-              const m = db.modules.filter((mod) => mod.course_id === e.target.value);
-              setSelectedModuleId(m[0]?.id || '');
-            }}
-            className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold bg-slate-50 text-slate-900 focus:outline-none focus:border-[#046BD2]"
+            onChange={(e) => setSelectedCourseId(e.target.value)}
+            className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold bg-slate-50 text-slate-900 focus:outline-none focus:border-[#046BD2] max-w-xs truncate"
           >
             {courses.map((c) => (
               <option key={c.id} value={c.id}>
@@ -227,33 +291,102 @@ export default function AdminLessonsPage() {
         </div>
       )}
 
-      {/* 🚀 PRIMARY DEDICATED "PASTE VIDEO LINK" CARD (ALWAYS VISIBLE) */}
-      <div className="bg-white rounded-3xl border-2 border-blue-500/30 p-6 sm:p-8 shadow-xl space-y-6">
+      {/* 🚀 CENTRALIZED "ADD LESSON & VIDEO LINK" FORM FOR CURRENT COURSE */}
+      <div className="bg-white rounded-3xl border-2 border-blue-500/25 p-6 sm:p-8 shadow-xl space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div className="space-y-1">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-[#046BD2] text-xs font-bold uppercase tracking-wider">
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>{currentCourse?.title}</span>
+            </div>
             <h2 className="text-lg sm:text-xl font-black text-slate-900 flex items-center gap-2">
-              <LinkIcon className="w-5 h-5 text-[#046BD2]" />
-              <span>Paste YouTube Video Link & Publish Lecture</span>
+              <Plus className="w-5 h-5 text-[#046BD2]" />
+              <span>Add New Lesson</span>
             </h2>
-            <p className="text-xs text-slate-500">
-              Paste your YouTube video URL below. Works with all standard links: <code>https://youtu.be/...</code> or <code>https://youtube.com/watch?v=...</code>
-            </p>
           </div>
-          <span className="text-xs font-bold bg-blue-50 text-[#046BD2] px-3 py-1 rounded-full uppercase tracking-wider self-start sm:self-auto">
-            Instant Publishing
+          <span className="text-xs font-bold text-slate-500">
+            Lessons will appear in student dashboard for this course
           </span>
         </div>
 
         <form onSubmit={handleCreateLesson} className="space-y-6">
-          {/* Main Video Link Input with Paste from Clipboard Button */}
+          {/* Chapter / Module & Lesson Title Row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700">
+                  Subject / Chapter (Module) <span className="text-red-500">*</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowAddChapter(!showAddChapter)}
+                  className="text-[11px] font-bold text-[#046BD2] hover:underline flex items-center gap-1"
+                >
+                  <FolderPlus className="w-3.5 h-3.5" />
+                  <span>{showAddChapter ? 'Cancel' : '+ Add New Chapter'}</span>
+                </button>
+              </div>
+
+              {showAddChapter ? (
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="text"
+                    placeholder="Enter new chapter name (e.g. Chapter 2: Electrostatics)"
+                    value={newChapterTitle}
+                    onChange={(e) => setNewChapterTitle(e.target.value)}
+                    className="flex-1 px-3 py-2 rounded-xl border border-[#046BD2] text-xs focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCreateChapter}
+                    className="px-3 py-2 rounded-xl bg-[#046BD2] text-white font-bold text-xs hover:bg-[#0352A0]"
+                  >
+                    Save Chapter
+                  </button>
+                </div>
+              ) : (
+                <select
+                  value={selectedModuleId}
+                  onChange={(e) => setSelectedModuleId(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs bg-slate-50 font-semibold text-slate-800 focus:outline-none focus:border-[#046BD2]"
+                >
+                  {modules.length === 0 ? (
+                    <option value="">No chapters created yet (will auto-create Chapter 1)</option>
+                  ) : (
+                    modules.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.title}
+                      </option>
+                    ))
+                  )}
+                </select>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700">
+                Lesson Title <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Lesson 1: Introduction & Fundamental Principles"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#046BD2]"
+              />
+            </div>
+          </div>
+
+          {/* Dedicated YouTube Video Link Field with Paste Button & Interactive Preview */}
           <div className="space-y-3 bg-slate-50 p-4 sm:p-5 rounded-2xl border-2 border-dashed border-blue-400/50">
             <label className="text-xs font-black text-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
               <span className="flex items-center gap-1.5 text-slate-900">
                 <Video className="w-4 h-4 text-rose-600" />
-                <span className="text-sm">यहाँ YouTube Video का Link Paste करें <strong className="text-red-500">*</strong></span>
+                <span className="text-sm">YouTube Video Link / URL <span className="text-red-500">*</span></span>
               </span>
               <span className="text-[11px] text-slate-500 font-normal">
-                (Unlisted ya Public YouTube Video link ya ID paste karein)
+                Paste any YouTube URL (e.g. https://www.youtube.com/watch?v=... or https://youtu.be/...)
               </span>
             </label>
 
@@ -262,27 +395,27 @@ export default function AdminLessonsPage() {
                 <input
                   type="text"
                   required
-                  placeholder="यहाँ YouTube link paste karein (e.g. https://www.youtube.com/watch?v=kJQP7kiw5Fk ya https://youtu.be/...)"
+                  placeholder="Paste YouTube Video URL here..."
                   value={youtubeVideoId}
                   onChange={(e) => setYoutubeVideoId(e.target.value)}
-                  className="w-full px-4 py-3.5 rounded-2xl border-2 border-blue-300 focus:border-[#046BD2] text-sm font-mono focus:outline-none bg-white shadow-inner font-semibold text-slate-900 placeholder:text-slate-400"
+                  className="w-full px-4 py-3 rounded-2xl border-2 border-blue-300 focus:border-[#046BD2] text-sm font-mono focus:outline-none bg-white font-semibold text-slate-900 placeholder:text-slate-400"
                 />
               </div>
 
               <button
                 type="button"
                 onClick={handlePasteClipboard}
-                className="inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl font-black text-xs bg-rose-600 hover:bg-rose-700 text-white shadow-md transition whitespace-nowrap hover:scale-105 active:scale-95"
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-black text-xs bg-rose-600 hover:bg-rose-700 text-white shadow transition whitespace-nowrap"
                 title="Paste link directly from your clipboard"
               >
                 <ClipboardPaste className="w-4 h-4 text-white" />
-                <span>📋 Paste Link (Clipboard)</span>
+                <span>📋 Paste Link</span>
               </button>
             </div>
 
-            {/* Quick Demo Fill Buttons if user doesn't have link copied yet */}
+            {/* Quick Test Links */}
             <div className="flex flex-wrap items-center gap-2 pt-1">
-              <span className="text-[11px] font-bold text-slate-500">Test Demo Link:</span>
+              <span className="text-[11px] font-bold text-slate-500">Quick Test Link:</span>
               <button
                 type="button"
                 onClick={() => setYoutubeVideoId('https://www.youtube.com/watch?v=kJQP7kiw5Fk')}
@@ -299,7 +432,7 @@ export default function AdminLessonsPage() {
               </button>
             </div>
 
-            {/* Live Video Detection & Interactive Preview */}
+            {/* Video Player Preview if valid ID */}
             {detectedVideoId && detectedVideoId.length >= 6 ? (
               <div className="p-4 sm:p-5 rounded-2xl bg-emerald-50 border-2 border-emerald-400 mt-3 animate-in fade-in space-y-4">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-emerald-200 pb-3">
@@ -307,7 +440,7 @@ export default function AdminLessonsPage() {
                     <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
                     <div>
                       <span className="text-xs sm:text-sm font-black text-emerald-900 block">
-                        ✓ YouTube Video Link Successfully Detected!
+                        ✓ Valid YouTube Video Link Detected!
                       </span>
                       <span className="text-[11px] text-emerald-700 font-mono font-semibold">
                         Video ID: {detectedVideoId}
@@ -326,63 +459,59 @@ export default function AdminLessonsPage() {
                   </a>
                 </div>
 
-                {/* Embedded Video Player */}
-                <div className="aspect-video w-full max-w-lg rounded-2xl overflow-hidden shadow-lg border border-emerald-300 bg-black">
-                  <iframe
-                    src={`https://www.youtube-nocookie.com/embed/${detectedVideoId}`}
-                    title="Video Preview"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                    className="w-full h-full"
+                <div className="w-full max-w-lg rounded-2xl overflow-hidden shadow-lg border border-emerald-300 bg-black">
+                  <YouTubePlayer
+                    url={detectedVideoId}
+                    title={title || 'Lesson Video Preview'}
+                    autoPlay={false}
                   />
                 </div>
               </div>
             ) : null}
           </div>
 
-          {/* Module & Title Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700">
-                Target Chapter / Unit Module <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={selectedModuleId}
-                onChange={(e) => setSelectedModuleId(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-xs bg-slate-50 font-semibold text-slate-800 focus:outline-none focus:border-[#046BD2]"
-              >
-                {modules.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.title}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700">
-                Lesson Title <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Lesson 4: Pollination Agents & Outbreeding Mechanisms"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#046BD2]"
-              />
-            </div>
+          {/* Description */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-700">Lesson Description</label>
+            <textarea
+              rows={2}
+              placeholder="What topics are covered in this video lecture..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full px-4 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#046BD2]"
+            />
           </div>
 
-          {/* Secondary fields: Duration, Preview mode, PDF material */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          {/* Additional details: PDF notes, Duration, Order, Free preview, Publish status, Attached Quiz */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700">PDF / Notes Attachment</label>
+              <input
+                type="text"
+                placeholder="e.g. Chapter 1 Handout & Formula Sheet.pdf"
+                value={materialName}
+                onChange={(e) => setMaterialName(e.target.value)}
+                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs"
+              />
+            </div>
+
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-700">Duration (Minutes)</label>
               <input
                 type="number"
                 value={durationMinutes}
                 onChange={(e) => setDurationMinutes(Number(e.target.value))}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs"
+                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700">Lesson Order / Number</label>
+              <input
+                type="number"
+                value={lessonOrder}
+                onChange={(e) => setLessonOrder(Number(e.target.value))}
+                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs"
               />
             </div>
 
@@ -391,164 +520,221 @@ export default function AdminLessonsPage() {
               <select
                 value={isFreePreview ? 'yes' : 'no'}
                 onChange={(e) => setIsFreePreview(e.target.value === 'yes')}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs bg-slate-50 font-medium"
+                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50 font-medium"
               >
-                <option value="no">🔒 Paid Enrolled Students Only</option>
+                <option value="no">🔒 Enrolled Students Only</option>
                 <option value="yes">⭐ Free Demo Preview Allowed</option>
               </select>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700">PDF Study Notes (Optional)</label>
-              <input
-                type="text"
-                placeholder="e.g. Lesson 4 Handout & Diagrams.pdf"
-                value={materialName}
-                onChange={(e) => setMaterialName(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs"
-              />
+              <label className="text-xs font-bold text-slate-700">Publication Status</label>
+              <select
+                value={isPublished ? 'published' : 'draft'}
+                onChange={(e) => setIsPublished(e.target.value === 'published')}
+                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50 font-medium"
+              >
+                <option value="published">✓ Published</option>
+                <option value="draft">Draft (Hidden from students)</option>
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700">Attach Quiz / Test</label>
+                <Link
+                  href="/admin/quizzes"
+                  className="text-[10px] font-bold text-[#046BD2] hover:underline"
+                >
+                  + Create Quiz
+                </Link>
+              </div>
+              <select
+                value={attachedQuizId}
+                onChange={(e) => setAttachedQuizId(e.target.value)}
+                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50 font-medium"
+              >
+                <option value="">No Quiz Attached</option>
+                {availableQuizzes.map((q) => (
+                  <option key={q.id} value={q.id}>
+                    {q.title} ({q.questions_count} Qs)
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
           <button
             type="submit"
-            className="w-full py-4 rounded-2xl font-black text-sm text-white bg-[#046BD2] hover:bg-[#0352A0] shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2 hover:scale-[1.01]"
+            className="w-full py-4 rounded-2xl font-black text-sm text-white bg-[#046BD2] hover:bg-[#0352A0] shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2"
           >
-            <Plus className="w-5 h-5" />
-            <span>Publish Video Lesson to Course</span>
+            <Save className="w-5 h-5" />
+            <span>Save Lesson to Course</span>
           </button>
         </form>
       </div>
 
-      {/* Existing Lessons Table with Edit Video Link Button on Every Row */}
+      {/* Published Lessons Table */}
       <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm space-y-4 p-6">
         <div className="flex items-center justify-between border-b border-slate-100 pb-4">
           <div>
             <h3 className="text-lg font-bold text-slate-900">
-              Published Lessons for This Course ({currentLessons.length})
+              Curriculum Lessons for {currentCourse?.title} ({currentLessons.length})
             </h3>
             <p className="text-xs text-slate-500">
-              Click <strong>"Edit Link"</strong> on any row to replace or update its YouTube video URL.
+              Lessons and YouTube links for this course. Click Edit to modify any video URL or attached quiz.
             </p>
           </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left text-xs min-w-[750px]">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold">
               <tr>
+                <th className="px-4 py-3.5">#</th>
                 <th className="px-4 py-3.5">Lesson Title</th>
-                <th className="px-4 py-3.5">Unit / Chapter</th>
+                <th className="px-4 py-3.5">Chapter</th>
                 <th className="px-4 py-3.5">YouTube Video</th>
-                <th className="px-4 py-3.5">PDF Notes</th>
-                <th className="px-4 py-3.5">Mode</th>
+                <th className="px-4 py-3.5">Study Notes</th>
+                <th className="px-4 py-3.5">Attached Quiz</th>
+                <th className="px-4 py-3.5">Status</th>
                 <th className="px-4 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {currentLessons.map((lesson) => {
-                const parentModule = db.modules.find((m) => m.id === lesson.module_id);
+              {currentLessons.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
+                    No lessons added to this course yet. Use the form above to add your first video lesson!
+                  </td>
+                </tr>
+              ) : (
+                currentLessons.map((lesson, idx) => {
+                  const parentModule = db.modules.find((m) => m.id === lesson.module_id);
+                  const attachedQuiz = db.quizzes.find((q) => q.id === lesson.quiz_id);
 
-                return (
-                  <tr key={lesson.id} className="hover:bg-slate-50 transition">
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-2.5">
-                        <PlayCircle className="w-4 h-4 text-[#046BD2] flex-shrink-0" />
-                        <div>
-                          <h4 className="font-bold text-slate-900 text-xs sm:text-sm">{lesson.title}</h4>
-                          <span className="text-[11px] text-slate-400">
-                            {lesson.duration_minutes} minutes
-                          </span>
+                  return (
+                    <tr key={lesson.id} className="hover:bg-slate-50 transition">
+                      <td className="px-4 py-4 font-mono font-bold text-slate-400">
+                        {lesson.sort_order || idx + 1}
+                      </td>
+
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-2.5">
+                          <PlayCircle className="w-4 h-4 text-[#046BD2] flex-shrink-0" />
+                          <div>
+                            <h4 className="font-bold text-slate-900 text-xs sm:text-sm">
+                              {lesson.title}
+                            </h4>
+                            <span className="text-[11px] text-slate-400">
+                              {lesson.duration_minutes} min • {lesson.is_free_preview ? '⭐ Free Preview' : '🔒 Enrolled Only'}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    <td className="px-4 py-4 font-semibold text-slate-700 max-w-xs truncate">
-                      {parentModule?.title}
-                    </td>
+                      <td className="px-4 py-4 font-semibold text-slate-700 max-w-xs truncate">
+                        {parentModule?.title || 'General'}
+                      </td>
 
-                    <td className="px-4 py-4 font-mono text-[11px]">
-                      <div className="flex items-center gap-2">
-                        <img
-                          src={`https://img.youtube.com/vi/${lesson.youtube_video_id}/mqdefault.jpg`}
-                          alt=""
-                          className="w-12 h-8 object-cover rounded border border-slate-200"
-                        />
-                        <a
-                          href={`https://www.youtube.com/watch?v=${lesson.youtube_video_id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-[#046BD2] hover:underline flex items-center gap-1 font-semibold"
-                        >
-                          <span>{lesson.youtube_video_id}</span>
-                          <ExternalLink className="w-3 h-3 text-slate-400" />
-                        </a>
-                      </div>
-                    </td>
+                      <td className="px-4 py-4 font-mono text-[11px]">
+                        <div className="flex items-center gap-2">
+                          <img
+                            src={`https://img.youtube.com/vi/${lesson.youtube_video_id}/mqdefault.jpg`}
+                            alt=""
+                            className="w-12 h-8 object-cover rounded border border-slate-200"
+                          />
+                          <a
+                            href={`https://www.youtube.com/watch?v=${lesson.youtube_video_id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[#046BD2] hover:underline flex items-center gap-1 font-semibold"
+                          >
+                            <span>{lesson.youtube_video_id}</span>
+                            <ExternalLink className="w-3 h-3 text-slate-400" />
+                          </a>
+                        </div>
+                      </td>
 
-                    <td className="px-4 py-4 text-slate-600">
-                      {lesson.material_name ? (
-                        <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[10px] font-bold">
-                          {lesson.material_name}
-                        </span>
-                      ) : (
-                        <span className="text-slate-400">No PDF</span>
-                      )}
-                    </td>
+                      <td className="px-4 py-4 text-slate-600">
+                        {lesson.material_name ? (
+                          <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[10px] font-bold">
+                            {lesson.material_name}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">None</span>
+                        )}
+                      </td>
 
-                    <td className="px-4 py-4">
-                      {lesson.is_free_preview ? (
-                        <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded text-[10px] font-bold">
-                          Free Preview
-                        </span>
-                      ) : (
-                        <span className="text-blue-700 bg-blue-50 px-2 py-0.5 rounded text-[10px] font-bold">
-                          Enrolled Only
-                        </span>
-                      )}
-                    </td>
+                      <td className="px-4 py-4">
+                        {attachedQuiz ? (
+                          <Link
+                            href={`/admin/quizzes`}
+                            className="inline-flex items-center gap-1 text-amber-700 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded text-[10px] font-bold transition border border-amber-200"
+                            title="View Quiz Details"
+                          >
+                            <Award className="w-3 h-3 text-amber-600" />
+                            <span className="truncate max-w-[100px]">{attachedQuiz.title}</span>
+                          </Link>
+                        ) : (
+                          <span className="text-slate-400">None</span>
+                        )}
+                      </td>
 
-                    <td className="px-4 py-4 text-right">
-                      <div className="inline-flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(lesson)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-blue-50 hover:border-blue-300 text-[#046BD2] font-bold text-xs transition"
-                          title="Change YouTube video link or title"
-                        >
-                          <Edit className="w-3.5 h-3.5" />
-                          <span>Edit Video Link</span>
-                        </button>
+                      <td className="px-4 py-4">
+                        {lesson.published ? (
+                          <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[10px] font-bold">
+                            Published
+                          </span>
+                        ) : (
+                          <span className="text-slate-500 bg-slate-100 px-2 py-0.5 rounded text-[10px] font-bold">
+                            Draft
+                          </span>
+                        )}
+                      </td>
 
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteLesson(lesson.id, lesson.title)}
-                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
-                          title="Delete lesson"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                      <td className="px-4 py-4 text-right">
+                        <div className="inline-flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(lesson)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-blue-50 hover:border-blue-300 text-[#046BD2] font-bold text-xs transition"
+                            title="Edit Lesson details or video URL"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                            <span>Edit</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteLesson(lesson.id, lesson.title)}
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                            title="Delete lesson"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* ✏️ MODAL: EDIT EXISTING LESSON VIDEO LINK */}
+      {/* ✏️ MODAL: EDIT EXISTING LESSON */}
       {editingLesson && (
         <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl space-y-5 my-8">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="text-lg font-bold text-slate-900">
-                  Edit Video Link for Lesson
+                  Edit Lesson & Video Link
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Update the YouTube lecture link or title.
+                  Update the YouTube video lecture, notes, or attached quiz.
                 </p>
               </div>
               <button
@@ -562,7 +748,7 @@ export default function AdminLessonsPage() {
 
             <form onSubmit={handleSaveEdit} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">Lesson Title</label>
+                <label className="text-xs font-bold text-slate-700">Lesson Title *</label>
                 <input
                   type="text"
                   required
@@ -573,13 +759,28 @@ export default function AdminLessonsPage() {
               </div>
 
               <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">Chapter / Module</label>
+                <select
+                  value={editModuleId}
+                  onChange={(e) => setEditModuleId(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50 font-medium"
+                >
+                  {modules.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-700">
-                  YouTube Video Link or URL
+                  YouTube Video Link or URL *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="Paste new YouTube link here"
+                  placeholder="Paste YouTube link here"
                   value={editYoutubeLink}
                   onChange={(e) => setEditYoutubeLink(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-mono focus:outline-none focus:border-[#046BD2]"
@@ -605,6 +806,16 @@ export default function AdminLessonsPage() {
                 )}
               </div>
 
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">Lesson Description</label>
+                <textarea
+                  rows={2}
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs"
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-700">Duration (Minutes)</label>
@@ -617,6 +828,18 @@ export default function AdminLessonsPage() {
                 </div>
 
                 <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">Sort Order</label>
+                  <input
+                    type="number"
+                    value={editLessonOrder}
+                    onChange={(e) => setEditLessonOrder(Number(e.target.value))}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-700">Free Preview?</label>
                   <select
                     value={editFreePreview ? 'yes' : 'no'}
@@ -627,16 +850,46 @@ export default function AdminLessonsPage() {
                     <option value="yes">Free Preview</option>
                   </select>
                 </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">Published?</label>
+                  <select
+                    value={editPublished ? 'yes' : 'no'}
+                    onChange={(e) => setEditPublished(e.target.value === 'yes')}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50"
+                  >
+                    <option value="yes">Published</option>
+                    <option value="no">Draft</option>
+                  </select>
+                </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">PDF Notes Name</label>
-                <input
-                  type="text"
-                  value={editMaterialName}
-                  onChange={(e) => setEditMaterialName(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">PDF Notes Name</label>
+                  <input
+                    type="text"
+                    value={editMaterialName}
+                    onChange={(e) => setEditMaterialName(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">Attach Quiz</label>
+                  <select
+                    value={editQuizId}
+                    onChange={(e) => setEditQuizId(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50"
+                  >
+                    <option value="">None</option>
+                    {availableQuizzes.map((q) => (
+                      <option key={q.id} value={q.id}>
+                        {q.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="pt-4 flex justify-end gap-3 border-t border-slate-100">
@@ -652,7 +905,7 @@ export default function AdminLessonsPage() {
                   className="px-6 py-2.5 rounded-xl font-bold text-xs text-white bg-[#046BD2] hover:bg-[#0352A0] shadow-sm flex items-center gap-1.5"
                 >
                   <Save className="w-4 h-4" />
-                  <span>Update Video Link</span>
+                  <span>Update Lesson</span>
                 </button>
               </div>
             </form>
