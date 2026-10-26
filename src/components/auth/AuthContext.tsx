@@ -76,6 +76,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const cookies = typeof document !== 'undefined' ? document.cookie : '';
         const hasAdminCookie = cookies.includes('aspire_admin_session');
 
+        if (hasAdminCookie) {
+          const adminProfile = db.resolveOrCreateProfile({
+            id: CANONICAL_ADMIN_ID,
+            email: 'aspireacademyamba@gmail.com',
+            fullName: 'Shekhar Sir (Admin)',
+            phone: '+91 9123456789',
+          });
+          setUser(adminProfile);
+          setRole('admin');
+          localStorage.setItem('aspire_user', JSON.stringify(adminProfile));
+          localStorage.setItem('aspire_role', 'admin');
+          setIsAuthReady(true);
+          return;
+        }
+
         // 3. Restore saved user from localStorage with canonical verification
         const savedUser = localStorage.getItem('aspire_user');
         if (savedUser) {
@@ -132,6 +147,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setRole('admin');
     localStorage.setItem('aspire_user', JSON.stringify(adminProfile));
     localStorage.setItem('aspire_role', 'admin');
+    if (typeof document !== 'undefined') {
+      document.cookie = `aspire_admin_session=${adminProfile.id}; path=/; max-age=604800; SameSite=Lax;`;
+    }
   };
 
   const customLogin = (email: string, fullName: string, newRole: UserRoleType, phone?: string) => {

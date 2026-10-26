@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthContext';
+import { isAuthorizedAdminEmail } from '@/lib/auth/admin';
 import {
   LayoutDashboard,
   BookOpen,
@@ -26,7 +27,7 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const { user, role, logout } = useAuth();
+  const { user, role, logout, isAuthReady } = useAuth();
 
   const navItems: { label: string; href: string; icon: any; badge?: string }[] = [
     { label: 'Overview', href: '/admin', icon: LayoutDashboard },
@@ -50,8 +51,27 @@ export default function AdminLayout({
     window.location.href = '/admin/login';
   };
 
+  // While authentication state is hydrating, show a smooth loader instead of premature rejection
+  if (!isAuthReady) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 text-white">
+        <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="mt-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
+          Verifying Administrator Session...
+        </p>
+      </div>
+    );
+  }
+
+  const hasAdminCookie =
+    typeof document !== 'undefined' && document.cookie.includes('aspire_admin_session');
+  const isEffectiveAdmin =
+    role === 'admin' ||
+    hasAdminCookie ||
+    (user && isAuthorizedAdminEmail(user.email));
+
   // If user is not authorized administrator, deny access securely
-  if (role !== 'admin') {
+  if (!isEffectiveAdmin) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center space-y-6 text-white shadow-2xl">

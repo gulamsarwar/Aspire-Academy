@@ -57,9 +57,10 @@ export default function AdminLoginPage() {
       setSuccess('Administrator access verified. Redirecting to control center...');
       setAdminSession(data.user);
 
+      // Full window navigation ensures admin session cookie is sent and state is fully refreshed
       setTimeout(() => {
-        router.push('/admin');
-      }, 500);
+        window.location.href = '/admin';
+      }, 300);
     } catch (err: any) {
       setError(err?.message || 'Access Denied: You do not have administrator privileges.');
     } finally {
@@ -68,7 +69,7 @@ export default function AdminLoginPage() {
   };
 
   const handleAutofillAdmin = () => {
-    setEmail('admin@aspireacademy.in');
+    setEmail('aspireacademyamba@gmail.com');
     setPassword('AspireAdmin@2026!');
     setError('');
   };
@@ -161,14 +162,19 @@ export default function AdminLoginPage() {
           </form>
 
           {/* Quick Fill Demo Credentials for Shekhar Sir */}
-          <div className="pt-2 border-t border-slate-800 text-center">
+          <div className="pt-2 border-t border-slate-800 space-y-2 text-center">
             <button
               type="button"
               onClick={handleAutofillAdmin}
-              className="text-[11px] font-bold text-amber-400 hover:text-amber-300 transition"
+              className="w-full py-2 px-3 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-xs font-bold text-amber-400 transition"
             >
-              ⚡ Fill Authorized Admin Credentials
+              ⚡ Click to Auto-fill Admin Credentials
             </button>
+            <p className="text-[11px] text-slate-400">
+              Email: <span className="text-white font-mono">aspireacademyamba@gmail.com</span>
+              <br />
+              Password: <span className="text-white font-mono">AspireAdmin@2026!</span> or <span className="text-white font-mono">ShekharSir@Aspire2026</span>
+            </p>
           </div>
 
           <div className="pt-2 border-t border-slate-800/80 text-center">
