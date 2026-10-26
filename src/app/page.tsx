@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { db } from '@/lib/data/mock-db';
 import { useSiteSettings } from '@/components/settings/SiteSettingsContext';
 import { CourseCard } from '@/components/ui/CourseCard';
+import { TypewriterHeadline } from '@/components/home/TypewriterHeadline';
 import {
   BookOpen,
   Sparkles,
@@ -39,14 +40,13 @@ export default function HomePage() {
             <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
               {/* Trust Badge */}
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-xs font-bold text-[#046BD2] shadow-sm">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                 <span>Bihar Board & NEET Excellence Center</span>
               </div>
 
-              {/* Headline */}
-              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-slate-900 leading-[1.12]">
-                {settings.hero_headline}
-              </h1>
+              {/* Dynamic Typewriter Headline */}
+              <TypewriterHeadline headline={settings.hero_headline} />
 
               {/* Description */}
               <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-normal">
@@ -98,7 +98,7 @@ export default function HomePage() {
 
             {/* Right Card: Modern Featured Program Card */}
             <div className="lg:col-span-5">
-              <div className="relative rounded-3xl bg-white border-2 border-blue-100 p-6 sm:p-8 shadow-xl shadow-blue-500/8 space-y-6">
+              <div className="relative rounded-3xl bg-white border-2 border-blue-100 p-6 sm:p-8 shadow-xl shadow-blue-500/8 space-y-6 transition-all duration-300 hover:shadow-2xl hover:border-blue-300 hover:-translate-y-1">
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-2 text-xs font-bold text-rose-700 bg-rose-50 px-3 py-1 rounded-full border border-rose-200">
                     <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
