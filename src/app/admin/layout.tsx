@@ -51,6 +51,11 @@ export default function AdminLayout({
     window.location.href = '/admin/login';
   };
 
+  // If user is accessing the login page itself, always allow rendering without admin session
+  if (pathname === '/admin/login') {
+    return <>{children}</>;
+  }
+
   // While authentication state is hydrating, show a smooth loader instead of premature rejection
   if (!isAuthReady) {
     return (
