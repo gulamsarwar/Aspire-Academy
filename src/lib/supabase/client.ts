@@ -1,5 +1,6 @@
 import { createBrowserClient } from '@supabase/ssr';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { CONFIG } from '@/lib/config';
 
 let cachedClient: SupabaseClient | null = null;
 let runtimeUrl: string | null = null;
@@ -14,11 +15,12 @@ export function setRuntimeSupabaseConfig(url: string, key: string) {
 }
 
 export function getSupabaseClientDiagnostic() {
-  const url = runtimeUrl || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const url = runtimeUrl || process.env.NEXT_PUBLIC_SUPABASE_URL || CONFIG.SUPABASE_URL || '';
   const key =
     runtimeKey ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    CONFIG.SUPABASE_ANON_KEY ||
     '';
 
   const hasValidUrl = Boolean(
@@ -47,11 +49,15 @@ export function createClient(): SupabaseClient | null {
     return null;
   }
 
-  const supabaseUrl = runtimeUrl || process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseUrl =
+    runtimeUrl ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    CONFIG.SUPABASE_URL;
   const supabaseKey =
     runtimeKey ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    CONFIG.SUPABASE_ANON_KEY;
 
   if (typeof window !== 'undefined') {
     if (!cachedClient) {

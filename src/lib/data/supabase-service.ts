@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/client';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { CONFIG } from '@/lib/config';
 import { db } from './mock-db';
 import {
   Course,
@@ -23,10 +24,11 @@ import {
  */
 
 export function isSupabaseConfigured(): boolean {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || CONFIG.SUPABASE_URL;
   const key =
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    CONFIG.SUPABASE_ANON_KEY;
   return Boolean(
     url &&
     key &&
@@ -38,7 +40,9 @@ export function isSupabaseConfigured(): boolean {
 
 export function isServiceRoleConfigured(): boolean {
   const serviceKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_SECRET_KEY ||
+    CONFIG.SUPABASE_SERVICE_ROLE_KEY;
   return Boolean(serviceKey && serviceKey.length > 20 && !serviceKey.includes('Your'));
 }
 
@@ -52,10 +56,12 @@ export async function testSupabaseConnection(): Promise<{
   tablesVerified: string[];
   latencyMs?: number;
 }> {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || CONFIG.SUPABASE_URL || '';
   const key =
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    CONFIG.SUPABASE_ANON_KEY ||
+    '';
   const hasAnonKey = Boolean(key && key.length > 15);
   const hasServiceRoleKey = isServiceRoleConfigured();
 

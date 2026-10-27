@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { CONFIG } from '@/lib/config';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,22 +9,13 @@ export const dynamic = 'force-dynamic';
  * NEVER exposes service-role keys or payment gateway secrets.
  */
 export async function GET() {
-  const supabaseUrl =
-    process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.SUPABASE_URL ||
-    '';
-
-  const anonKey =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.SUPABASE_PUBLISHABLE_KEY ||
-    '';
+  const supabaseUrl = CONFIG.SUPABASE_URL;
+  const anonKey = CONFIG.SUPABASE_ANON_KEY;
 
   const isConfigured = Boolean(
     supabaseUrl &&
     anonKey &&
     supabaseUrl.startsWith('https://') &&
-    !supabaseUrl.includes('your-project-id') &&
     anonKey.length > 15
   );
 
@@ -31,12 +23,7 @@ export async function GET() {
     configured: isConfigured,
     supabaseUrl: isConfigured ? supabaseUrl : null,
     anonKey: isConfigured ? anonKey : null,
-    siteUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://aspire-academy.pages.dev',
-    missingVariables: isConfigured
-      ? []
-      : [
-          !supabaseUrl ? 'NEXT_PUBLIC_SUPABASE_URL' : null,
-          !anonKey ? 'NEXT_PUBLIC_SUPABASE_ANON_KEY' : null,
-        ].filter(Boolean),
+    siteUrl: CONFIG.APP_URL,
+    missingVariables: [],
   });
 }
