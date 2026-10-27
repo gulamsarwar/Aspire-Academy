@@ -65,11 +65,6 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(true);
 
-  // Google Fallback Modal State
-  const [showGoogleModal, setShowGoogleModal] = useState(false);
-  const [googleEmail, setGoogleEmail] = useState('');
-  const [googleName, setGoogleName] = useState('');
-
   // OTP verification state for phone signup
   const [needsPhoneVerification, setNeedsPhoneVerification] = useState(false);
   const [otpToken, setOtpToken] = useState('');
@@ -96,10 +91,9 @@ export default function RegisterPage() {
     setGoogleLoading(true);
     try {
       await loginWithGoogle('/dashboard');
-    } catch {
+    } catch (err: any) {
       setGoogleLoading(false);
-      customLogin('student.google@gmail.com', 'Aspire Student (Google)', 'student');
-      router.push('/dashboard');
+      setError(err?.message || 'Google OAuth failed.');
     }
   };
 
@@ -640,108 +634,6 @@ export default function RegisterPage() {
           </div>
         </div>
       </div>
-
-      {/* Google Fast-Login Modal (When Supabase Google OAuth is pending) */}
-      {showGoogleModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-200 space-y-5 text-slate-800">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <GoogleIcon />
-                <h3 className="text-base font-black text-slate-900">Sign in with Google</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowGoogleModal(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 font-bold transition"
-              >
-                ✕
-              </button>
-            </div>
-
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Google OAuth Provider is currently pending setup in Supabase dashboard. You can sign in immediately with your Google / Gmail account below:
-            </p>
-
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const emailToUse = googleEmail.trim() || 'student@gmail.com';
-                const nameToUse = googleName.trim() || emailToUse.split('@')[0];
-                customLogin(emailToUse, nameToUse, 'student');
-                setShowGoogleModal(false);
-                router.push('/dashboard');
-              }}
-              className="space-y-4"
-            >
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700 block">
-                  Your Gmail Address
-                </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="email"
-                    required
-                    placeholder="student.name@gmail.com"
-                    value={googleEmail}
-                    onChange={(e) => setGoogleEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-[#046BD2]"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700 block">
-                  Student Full Name (Optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Priyanshu Kumari"
-                  value={googleName}
-                  onChange={(e) => setGoogleName(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-[#046BD2]"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-3 px-4 rounded-xl font-bold text-sm text-white bg-[#046BD2] hover:bg-[#0352A0] shadow-md transition flex items-center justify-center gap-2"
-              >
-                <span>Continue with this Gmail</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </form>
-
-            <div className="pt-2 border-t border-slate-100 space-y-2">
-              <button
-                type="button"
-                onClick={() => {
-                  customLogin('priyanshu.student@gmail.com', 'Priyanshu Kumari', 'student');
-                  setShowGoogleModal(false);
-                  router.push('/dashboard');
-                }}
-                className="w-full py-2.5 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 transition flex items-center justify-center gap-2"
-              >
-                <Sparkles className="w-4 h-4 text-amber-500" />
-                <span>⚡ Instant 1-Click: Sign in as Priyanshu (Gmail)</span>
-              </button>
-
-              <div className="text-center pt-1">
-                <a
-                  href="https://supabase.com/dashboard/project/bobymknzhwoyzayfamrt/auth/providers"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[11px] text-slate-400 hover:text-[#046BD2] underline inline-flex items-center gap-1"
-                >
-                  <span>Admin: Enable official Google Cloud OAuth in Supabase</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

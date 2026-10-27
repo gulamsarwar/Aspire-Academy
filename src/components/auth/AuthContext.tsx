@@ -286,29 +286,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      // Pre-check if Google provider is enabled in Supabase project
-      let isGoogleLiveInSupabase = true;
-      try {
-        const configRes = await fetch('/api/auth/config', { cache: 'no-store' });
-        if (configRes.ok) {
-          const cfg = await configRes.json();
-          if (cfg.googleEnabled === false) {
-            isGoogleLiveInSupabase = false;
-          }
-        }
-      } catch {
-        // network fallback
-      }
-
-      // If Google OAuth is not yet enabled in Supabase dashboard, seamlessly sign in as Google student
-      if (!isGoogleLiveInSupabase) {
-        customLogin('student.google@gmail.com', 'Aspire Student (Google)', 'student');
-        if (typeof window !== 'undefined') {
-          window.location.href = redirectPath;
-        }
-        return;
-      }
-
       // Resolve dynamic public origin
       const origin =
         typeof window !== 'undefined' && window.location.origin
@@ -330,11 +307,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         if (error.message.includes('not enabled') || error.message.includes('Unsupported provider')) {
-          customLogin('student.google@gmail.com', 'Aspire Student (Google)', 'student');
-          if (typeof window !== 'undefined') {
-            window.location.href = redirectPath;
-          }
-          return;
+          throw new Error(
+            'Google OAuth Provider Supabase mein Enable nahi hai. Original Google Login chalu karne ke liye Supabase Dashboard > Authentication > Providers > Google mein Google Client ID aur Secret dalein.'
+          );
         }
         throw new Error(error.message || 'Google OAuth provider error');
       }
