@@ -23,6 +23,7 @@ import {
   Play,
 } from 'lucide-react';
 import { YouTubePlayer } from '@/components/ui/YouTubePlayer';
+import { useAuth } from '@/components/auth/AuthContext';
 
 export function CourseDetailsClient({
   course,
@@ -34,6 +35,7 @@ export function CourseDetailsClient({
   curriculum: (Module & { lessons: Lesson[] })[];
 }) {
   const router = useRouter();
+  const { user } = useAuth();
 
   // Selected batch state - default to first open batch if available
   const firstOpenBatch = batches.find((b) => b.enrollment_open);
@@ -74,7 +76,13 @@ export function CourseDetailsClient({
       alert('Please select a batch schedule to continue');
       return;
     }
-    router.push(`/checkout/${course.slug}?batchId=${selectedBatchId}`);
+    const targetUrl = `/checkout/${course.slug}?batchId=${selectedBatchId}`;
+    if (!user) {
+      // Must be logged in so purchase and data persist across devices
+      router.push(`/auth/login?redirect=${encodeURIComponent(targetUrl)}`);
+      return;
+    }
+    router.push(targetUrl);
   };
 
   return (
@@ -477,14 +485,28 @@ export function CourseDetailsClient({
                 disabled={!selectedBatch?.enrollment_open}
                 className="w-full py-4 px-6 rounded-xl font-black text-sm text-white bg-[#046BD2] hover:bg-[#0352A0] disabled:bg-slate-300 disabled:cursor-not-allowed shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2 hover:scale-[1.02]"
               >
-                <span>Enroll in Course</span>
-                <ArrowRight className="w-4 h-4" />
+                {user ? (
+                  <>
+                    <span>Enroll in Course</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                ) : (
+                  <>
+                    <Lock className="w-4 h-4" />
+                    <span>Login & Enroll in Course</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </button>
 
               <div className="text-center">
                 <p className="text-[11px] text-slate-500 flex items-center justify-center gap-1.5">
                   <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                  <span>Instant enrollment after verified UPI / Card payment</span>
+                  <span>
+                    {user
+                      ? 'Instant enrollment after verified UPI / Card payment'
+                      : 'Login required to permanently link course to your student account'}
+                  </span>
                 </p>
               </div>
 
