@@ -16,6 +16,7 @@ import {
   Loader2,
   KeyRound,
   RotateCw,
+  ExternalLink,
 } from 'lucide-react';
 
 function GoogleIcon() {
@@ -127,18 +128,8 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      const res = await registerWithPhonePassword(phone.trim(), password, fullName.trim());
-
-      // If user session was immediately established, proceed to dashboard
-      if (res?.session) {
-        router.push('/dashboard');
-        return;
-      }
-
-      // Otherwise, request OTP verification to confirm mobile number
-      setNeedsPhoneVerification(true);
-      setResendCountdown(60);
-      setInfoMessage(`We sent a 6-digit confirmation OTP to +91 ${phone.replace(/\D/g, '').slice(-10)}.`);
+      await registerWithPhonePassword(phone.trim(), password, fullName.trim());
+      router.push('/dashboard');
     } catch (err: any) {
       setError(err?.message || 'Failed to create student account with this mobile number.');
     } finally {
@@ -234,12 +225,43 @@ export default function RegisterPage() {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-6 shadow-xl sm:rounded-3xl sm:px-10 border border-slate-200 space-y-5">
-          {error && (
+          {error && (error.includes('GOOGLE_NOT_ENABLED') || error.includes('not enabled') || error.includes('Unsupported provider')) ? (
+            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-2.5 animate-in fade-in">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                <span className="font-bold text-amber-800">Google Login Setup Required in Supabase</span>
+              </div>
+              <p className="text-slate-600 text-[11.5px] leading-relaxed">
+                Supabase प्रोजेक्ट (<code>bobymknzhwoyzayfamrt</code>) में Google Provider अभी चालू (Enable) नहीं है। आप नीचे <strong>Mobile Number</strong> या <strong>Email</strong> से तुरंत 2 मिनट में नया अकाउंट बना सकते हैं।
+              </p>
+              <div className="pt-1 flex flex-wrap gap-2">
+                <a
+                  href="https://supabase.com/dashboard/project/bobymknzhwoyzayfamrt/auth/providers"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] transition shadow-xs"
+                >
+                  <span>Open Supabase Providers</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError('');
+                    setActiveTab('email');
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-white border border-amber-300 hover:bg-amber-100/50 text-amber-900 font-bold text-[11px] transition"
+                >
+                  Register with Email instead
+                </button>
+              </div>
+            </div>
+          ) : error ? (
             <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2 animate-in fade-in">
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
               <span className="leading-relaxed">{error}</span>
             </div>
-          )}
+          ) : null}
 
           {infoMessage && (
             <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">

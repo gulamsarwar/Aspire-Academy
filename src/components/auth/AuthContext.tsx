@@ -282,8 +282,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!supabase || !diagnostic.isConfigured) {
         const missing = diagnostic.missing.join(', ');
         throw new Error(
-          `Supabase configuration missing in production environment: ${missing}. Please set ${missing} in Cloudflare Pages / hosting environment settings.`
+          `Supabase configuration missing in production environment: ${missing}.`
         );
+      }
+
+      // Pre-check if Google provider is enabled in Supabase project to prevent ugly 400 page
+      try {
+        const configRes = await fetch('/api/auth/config', { cache: 'no-store' });
+        if (configRes.ok) {
+          const cfg = await configRes.json();
+          if (cfg.googleEnabled === false) {
+            throw new Error(
+              'GOOGLE_NOT_ENABLED: Google OAuth is not yet enabled in your Supabase project (bobymknzhwoyzayfamrt). Please open Supabase Dashboard > Authentication > Providers > Google and enable it with your Google Client ID & Secret, or use Email / Mobile Number login below.'
+            );
+          }
+        }
+      } catch (checkErr) {
+        if (checkErr instanceof Error && checkErr.message.startsWith('GOOGLE_NOT_ENABLED')) {
+          throw checkErr;
+        }
       }
 
       // Resolve dynamic public origin
@@ -308,7 +325,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) {
         if (error.message.includes('not enabled') || error.message.includes('Unsupported provider')) {
           throw new Error(
-            'Google provider is not enabled in your Supabase project (bobymknzhwoyzayfamrt). Please open Supabase Dashboard > Authentication > Providers > Google, enable it, and configure your Google Client ID & Secret.'
+            'GOOGLE_NOT_ENABLED: Google provider is not enabled in your Supabase project (bobymknzhwoyzayfamrt). Please open Supabase Dashboard > Authentication > Providers > Google, enable it, and configure your Google Client ID & Secret.'
           );
         }
         throw new Error(error.message || 'Google OAuth provider error');
@@ -333,27 +350,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const supabase = await ensureSupabaseClient();
 
       if (supabase) {
-        const { data, error } = await supabase.auth.signInWithPassword({
+        let authRes = await supabase.auth.signInWithPassword({
           email: cleanEmail,
           password,
         });
 
-        if (error) {
-          throw new Error(error.message || 'Invalid email or password.');
+        // Automatically auto-confirm unconfirmed emails so students are never blocked
+        if (authRes.error && authRes.error.message.toLowerCase().includes('not confirmed')) {
+          try {
+            await fetch('/api/auth/confirm-user', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: cleanEmail }),
+            });
+            // Retry login immediately after confirmation
+            authRes = await supabase.auth.signInWithPassword({
+              email: cleanEmail,
+              password,
+            });
+          } catch {
+            // ignore fallback
+          }
         }
 
-        if (data.user) {
-          const isAdmin = isAuthorizedAdminEmail(cleanEmail) || isAuthorizedAdminId(data.user.id);
+        if (authRes.error) {
+          throw new Error(authRes.error.message || 'Invalid email or password.');
+        }
+
+        if (authRes.data.user) {
+          const user = authRes.data.user;
+          const isAdmin = isAuthorizedAdminEmail(cleanEmail) || isAuthorizedAdminId(user.id);
           const fullName =
-            data.user.user_metadata?.full_name ||
-            data.user.user_metadata?.name ||
+            user.user_metadata?.full_name ||
+            user.user_metadata?.name ||
             cleanEmail.split('@')[0];
 
           const canonical = db.resolveOrCreateProfile({
-            id: isAdmin ? CANONICAL_ADMIN_ID : data.user.id,
+            id: isAdmin ? CANONICAL_ADMIN_ID : user.id,
             email: cleanEmail,
             fullName,
-            phone: data.user.phone || data.user.user_metadata?.phone,
+            phone: user.phone || user.user_metadata?.phone,
           });
 
           setUser(canonical);
@@ -367,7 +403,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // If Supabase not yet configured, provide helpful diagnostic
       const diagnostic = getSupabaseClientDiagnostic();
       throw new Error(
         `Supabase authentication not configured: missing ${diagnostic.missing.join(', ')}.`
@@ -377,7 +412,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Official Supabase Student Registration
+  // Official Supabase Student Registration with Instant Auto-Confirmation
   const registerWithEmail = async (
     email: string,
     password: string,
@@ -387,48 +422,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       const cleanEmail = email.trim().toLowerCase();
-      const supabase = await ensureSupabaseClient();
 
-      if (supabase) {
-        const { data, error } = await supabase.auth.signUp({
+      // Register via server-side endpoint which pre-confirms the email in Supabase
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'email',
           email: cleanEmail,
           password,
-          options: {
-            data: {
-              full_name: fullName.trim(),
-              phone: phone ? phone.trim() : undefined,
-            },
-          },
-        });
+          fullName: fullName.trim(),
+          phone: phone ? phone.trim() : undefined,
+        }),
+      });
 
-        if (error) {
-          throw new Error(error.message || 'Failed to create student account.');
-        }
-
-        if (data.user) {
-          const canonical = db.resolveOrCreateProfile({
-            id: data.user.id,
-            email: cleanEmail,
-            fullName: fullName.trim(),
-            phone: phone ? phone.trim() : undefined,
-          });
-
-          setUser(canonical);
-          setRole('student');
-          localStorage.setItem('aspire_user', JSON.stringify(canonical));
-          localStorage.setItem('aspire_role', 'student');
-          if (typeof document !== 'undefined') {
-            document.cookie = `aspire_session_id=${canonical.id}; path=/; max-age=2592000; SameSite=Lax;`;
-          }
-        }
-
-        return data;
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to create student account.');
       }
 
-      const diagnostic = getSupabaseClientDiagnostic();
-      throw new Error(
-        `Supabase authentication not configured: missing ${diagnostic.missing.join(', ')}.`
-      );
+      // Log in immediately
+      await loginWithEmail(cleanEmail, password);
+      return data;
     } finally {
       setIsLoading(false);
     }
@@ -465,11 +480,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // 1. Mobile Phone + Password Login
+  // 1. Mobile Phone + Password Login with Resilient Fallback
   const loginWithPhonePassword = async (phone: string, password: string) => {
     setIsLoading(true);
     try {
-      const { isValid, e164, error: phoneError } = normalizeIndianPhoneNumber(phone);
+      const { isValid, e164, error: phoneError, national } = normalizeIndianPhoneNumber(phone);
       if (!isValid) throw new Error(phoneError);
 
       if (!password) throw new Error('Please enter your account password.');
@@ -477,18 +492,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const supabase = await ensureSupabaseClient();
       if (!supabase) throw new Error('Supabase client not initialized.');
 
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const phoneEmail = `${national}@phone.aspireacademyonline.in`;
+
+      let authRes = await supabase.auth.signInWithPassword({
         phone: e164,
         password,
       });
 
-      if (error) throw new Error(formatSupabasePhoneError(error));
+      if (
+        authRes.error &&
+        (authRes.error.message.includes('disabled') ||
+          authRes.error.message.includes('Unsupported') ||
+          authRes.error.message.includes('Invalid login credentials'))
+      ) {
+        // Fall back to phone-derived verified email account
+        authRes = await supabase.auth.signInWithPassword({
+          email: phoneEmail,
+          password,
+        });
+      }
 
-      if (data.user) {
+      if (authRes.error) {
+        throw new Error(authRes.error.message || 'Invalid mobile number or password.');
+      }
+
+      if (authRes.data.user) {
+        const user = authRes.data.user;
         const canonical = db.resolveOrCreateProfile({
-          id: data.user.id,
+          id: user.id,
           phone: e164,
-          fullName: data.user.user_metadata?.full_name || 'Aspire Student',
+          fullName: user.user_metadata?.full_name || 'Aspire Student',
         });
         setUser(canonical);
         setRole('student');
@@ -566,7 +599,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // 4. Register with Phone + Password
+  // 4. Register with Phone + Password with Instant Auto-Confirmation
   const registerWithPhonePassword = async (phone: string, password: string, fullName: string) => {
     setIsLoading(true);
     try {
@@ -576,36 +609,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!fullName.trim()) throw new Error('Please enter your full name.');
       if (password.length < 6) throw new Error('Password must be at least 6 characters.');
 
-      const supabase = await ensureSupabaseClient();
-      if (!supabase) throw new Error('Supabase client not initialized.');
-
-      const { data, error } = await supabase.auth.signUp({
-        phone: e164,
-        password,
-        options: {
-          data: {
-            full_name: fullName.trim(),
-          },
-        },
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'phone',
+          phone: e164,
+          password,
+          fullName: fullName.trim(),
+        }),
       });
 
-      if (error) throw new Error(formatSupabasePhoneError(error));
-
-      if (data.user) {
-        const canonical = db.resolveOrCreateProfile({
-          id: data.user.id,
-          phone: e164,
-          fullName: fullName.trim(),
-        });
-        setUser(canonical);
-        setRole('student');
-        localStorage.setItem('aspire_user', JSON.stringify(canonical));
-        localStorage.setItem('aspire_role', 'student');
-        if (typeof document !== 'undefined') {
-          document.cookie = `aspire_session_id=${canonical.id}; path=/; max-age=2592000; SameSite=Lax;`;
-        }
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to create student account.');
       }
 
+      // Log in immediately
+      await loginWithPhonePassword(phone, password);
       return data;
     } finally {
       setIsLoading(false);

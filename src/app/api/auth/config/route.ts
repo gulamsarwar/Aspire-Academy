@@ -19,11 +19,35 @@ export async function GET() {
     anonKey.length > 15
   );
 
+  let googleEnabled = false;
+  let emailEnabled = true;
+
+  if (isConfigured) {
+    try {
+      const res = await fetch(`${supabaseUrl}/auth/v1/settings`, {
+        headers: { apikey: anonKey },
+        cache: 'no-store',
+      });
+      if (res.ok) {
+        const settings = await res.json();
+        googleEnabled = Boolean(settings.external?.google);
+        emailEnabled = Boolean(settings.external?.email ?? true);
+      }
+    } catch {
+      // fallback
+    }
+  }
+
   return NextResponse.json({
     configured: isConfigured,
     supabaseUrl: isConfigured ? supabaseUrl : null,
     anonKey: isConfigured ? anonKey : null,
     siteUrl: CONFIG.APP_URL,
+    providers: {
+      google: googleEnabled,
+      email: emailEnabled,
+    },
+    googleEnabled,
     missingVariables: [],
   });
 }
