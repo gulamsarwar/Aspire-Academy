@@ -27,9 +27,20 @@ export async function POST(req: NextRequest) {
     const response = NextResponse.json({
       success: true,
       user: authResult.user,
+      token: authResult.token,
       role: 'admin',
       message: 'Administrator session authenticated successfully.',
     });
+
+    // Set cryptographically signed admin token cookie
+    if (authResult.token) {
+      response.cookies.set('aspire_admin_token', authResult.token, {
+        path: '/',
+        httpOnly: false,
+        maxAge: 7 * 24 * 60 * 60, // 7 days
+        sameSite: 'lax',
+      });
+    }
 
     // Set secure admin session cookie
     response.cookies.set('aspire_admin_session', authResult.user.id, {

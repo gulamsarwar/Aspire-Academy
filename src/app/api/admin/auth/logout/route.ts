@@ -8,8 +8,13 @@ export async function POST(req: NextRequest) {
     message: 'Administrator signed out successfully.',
   });
 
-  // Clear admin session cookie
+  // Clear admin session cookies
   response.cookies.set('aspire_admin_session', '', {
+    path: '/',
+    maxAge: 0,
+    expires: new Date(0),
+  });
+  response.cookies.set('aspire_admin_token', '', {
     path: '/',
     maxAge: 0,
     expires: new Date(0),

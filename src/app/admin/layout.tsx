@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthContext';
@@ -51,13 +51,52 @@ export default function AdminLayout({
     window.location.href = '/admin/login';
   };
 
+  const [isVerifiedAdmin, setIsVerifiedAdmin] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (pathname === '/admin/login') {
+      setIsVerifiedAdmin(true);
+      return;
+    }
+
+    let isMounted = true;
+    async function checkServerAdmin() {
+      try {
+        if (user && isAuthorizedAdminEmail(user.email)) {
+          if (isMounted) setIsVerifiedAdmin(true);
+          return;
+        }
+
+        const res = await fetch('/api/admin/auth/verify', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.authorized && isMounted) {
+            setIsVerifiedAdmin(true);
+            return;
+          }
+        }
+        if (isMounted) setIsVerifiedAdmin(false);
+      } catch {
+        if (isMounted) setIsVerifiedAdmin(false);
+      }
+    }
+
+    if (isAuthReady) {
+      checkServerAdmin();
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [pathname, isAuthReady, user]);
+
   // If user is accessing the login page itself, always allow rendering without admin session
   if (pathname === '/admin/login') {
     return <>{children}</>;
   }
 
-  // While authentication state is hydrating, show a smooth loader instead of premature rejection
-  if (!isAuthReady) {
+  // While authentication state is hydrating or verifying server-side, show loader
+  if (!isAuthReady || isVerifiedAdmin === null) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 text-white">
         <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
@@ -68,15 +107,8 @@ export default function AdminLayout({
     );
   }
 
-  const hasAdminCookie =
-    typeof document !== 'undefined' && document.cookie.includes('aspire_admin_session');
-  const isEffectiveAdmin =
-    role === 'admin' ||
-    hasAdminCookie ||
-    (user && isAuthorizedAdminEmail(user.email));
-
   // If user is not authorized administrator, deny access securely
-  if (!isEffectiveAdmin) {
+  if (!isVerifiedAdmin) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center space-y-6 text-white shadow-2xl">
