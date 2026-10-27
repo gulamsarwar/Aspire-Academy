@@ -780,15 +780,131 @@ export default function AdminCoursesPage() {
                 </div>
               </div>
 
-              {/* Video Curriculum Guidance */}
-              <div className="p-3.5 sm:p-4 rounded-2xl bg-blue-50/80 border border-blue-200 text-xs text-blue-900 space-y-1.5">
-                <div className="flex items-center gap-2 font-bold text-blue-950">
-                  <Video className="w-4 h-4 text-[#046BD2]" />
-                  <span>Curriculum & Video Lessons Management</span>
+              {/* 🌟 6. DIRECT YOUTUBE VIDEO LINK PASTING SECTION */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-rose-50/90 via-white to-blue-50/90 border-2 border-rose-300 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-rose-600 text-white flex items-center justify-center shadow-sm">
+                      <Film className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-1.5">
+                        <span>Course Video / YouTube Lecture Link</span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 uppercase">
+                          Demo Lecture
+                        </span>
+                      </h4>
+                      <p className="text-[11px] text-slate-500">
+                        Paste any YouTube video link here. It will automatically create Chapter 1 & Lesson 1!
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-[11px] text-blue-700 leading-relaxed">
-                  Video lectures, YouTube links, and chapter notes are managed inside the dedicated <strong>Lessons & Curriculum</strong> manager. After creating this course, use the <strong>"Manage Lessons & Videos"</strong> button to add video links and demo lectures.
-                </p>
+
+                {/* Paste URL Input & Paste Button */}
+                <div className="flex items-stretch gap-2">
+                  <input
+                    type="text"
+                    placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/..."
+                    value={newVideoUrl}
+                    onChange={(e) => setNewVideoUrl(e.target.value)}
+                    className="flex-1 px-3.5 py-2.5 rounded-xl border-2 border-rose-200 focus:border-rose-500 text-xs font-mono font-medium focus:outline-none bg-white text-slate-900"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handlePasteToField(setNewVideoUrl, 'Video Link')}
+                    className="px-3.5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs inline-flex items-center gap-1.5 shadow-sm transition active:scale-95 whitespace-nowrap"
+                    title="Paste from clipboard"
+                  >
+                    <ClipboardPaste className="w-3.5 h-3.5" />
+                    <span>📋 Paste Link</span>
+                  </button>
+                </div>
+
+                {/* Quick Test Sample Links */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  <span className="text-[10px] font-bold text-slate-500">Quick Test Link:</span>
+                  <button
+                    type="button"
+                    onClick={() => setNewVideoUrl('https://www.youtube.com/watch?v=jfKfPfyJRdk')}
+                    className="text-[10px] px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-600 hover:bg-rose-50 hover:text-rose-700 font-medium"
+                  >
+                    ⚡ Biology Demo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewVideoUrl('https://www.youtube.com/watch?v=kJQP7kiw5Fk')}
+                    className="text-[10px] px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-600 hover:bg-rose-50 hover:text-rose-700 font-medium"
+                  >
+                    ⚡ Physics Demo
+                  </button>
+                  <Link
+                    href="/admin/lessons"
+                    target="_blank"
+                    className="text-[10px] px-2 py-0.5 rounded-md bg-blue-50 text-[#046BD2] hover:underline font-bold ml-auto flex items-center gap-1"
+                  >
+                    <span>Full Curriculum Manager →</span>
+                  </Link>
+                </div>
+
+                {/* Video Detection Confirmation Box */}
+                {detectedNewVideoId && (
+                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-300 space-y-2 animate-in fade-in">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        <span className="text-xs font-black text-emerald-900">
+                          ✓ Valid YouTube Video Detected!
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
+                        ID: {detectedNewVideoId}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={`https://img.youtube.com/vi/${detectedNewVideoId}/mqdefault.jpg`}
+                        alt="Preview"
+                        className="w-20 h-12 object-cover rounded-lg border border-emerald-200 shadow-sm"
+                      />
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <input
+                          type="text"
+                          placeholder="Lesson Title (e.g. Chapter 1: Introduction)"
+                          value={newLessonTitle}
+                          onChange={(e) => setNewLessonTitle(e.target.value)}
+                          className="w-full px-2.5 py-1 rounded-lg border border-emerald-300 text-xs bg-white text-slate-800 font-medium"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewThumbnail(`https://img.youtube.com/vi/${detectedNewVideoId}/hqdefault.jpg`);
+                            setSuccessToast('YouTube thumbnail copied to Course Thumbnail!');
+                            setTimeout(() => setSuccessToast(''), 2500);
+                          }}
+                          className="text-[10px] font-bold text-[#046BD2] hover:underline flex items-center gap-1"
+                        >
+                          <Sparkles className="w-3 h-3" />
+                          <span>⚡ Use as Course Thumbnail Image</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <input
+                        type="checkbox"
+                        id="newIsFreePreview"
+                        checked={newIsFreePreview}
+                        onChange={(e) => setNewIsFreePreview(e.target.checked)}
+                        className="w-3.5 h-3.5 text-[#046BD2] rounded border-slate-300"
+                      />
+                      <label htmlFor="newIsFreePreview" className="text-[11px] font-bold text-slate-700 cursor-pointer">
+                        ⭐ Free Demo Preview Lecture (Students can watch before purchasing)
+                      </label>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* 7. Thumbnail URL + 1-Click Presets */}
