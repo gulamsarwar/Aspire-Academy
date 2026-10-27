@@ -723,6 +723,111 @@ class MockDatabase {
   settings: SiteSettings = { ...initialSiteSettings };
   processedWebhookEvents: Set<string> = new Set(['event_test_demo_001']);
 
+  constructor() {
+    this.loadPersistedData();
+  }
+
+  // Persistence across server restarts and browser reloads
+  loadPersistedData() {
+    if (typeof window === 'undefined') {
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        const dataDir = path.join(process.cwd(), '.aspire_data');
+        const filePath = path.join(dataDir, 'enrollments.json');
+        if (fs.existsSync(filePath)) {
+          const raw = fs.readFileSync(filePath, 'utf-8');
+          const saved = JSON.parse(raw);
+          if (Array.isArray(saved)) {
+            saved.forEach((enr: Enrollment) => {
+              if (!this.enrollments.some((e) => e.id === enr.id)) {
+                this.enrollments.unshift(enr);
+              }
+            });
+          }
+        }
+      } catch {
+        // ignore
+      }
+    } else {
+      try {
+        const saved = localStorage.getItem('aspire_student_enrollments');
+        if (saved) {
+          const list = JSON.parse(saved);
+          if (Array.isArray(list)) {
+            list.forEach((enr: Enrollment) => {
+              if (!this.enrollments.some((e) => e.id === enr.id)) {
+                this.enrollments.unshift(enr);
+              }
+            });
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  savePersistedData() {
+    if (typeof window === 'undefined') {
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        const dataDir = path.join(process.cwd(), '.aspire_data');
+        if (!fs.existsSync(dataDir)) {
+          fs.mkdirSync(dataDir, { recursive: true });
+        }
+        const filePath = path.join(dataDir, 'enrollments.json');
+        fs.writeFileSync(filePath, JSON.stringify(this.enrollments, null, 2), 'utf-8');
+      } catch {
+        // ignore
+      }
+    } else {
+      try {
+        localStorage.setItem('aspire_student_enrollments', JSON.stringify(this.enrollments));
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  // Direct student enrollment (instant access)
+  directEnrollStudent({
+    studentId,
+    courseId,
+    batchId,
+  }: {
+    studentId: string;
+    courseId: string;
+    batchId: string;
+  }): Enrollment {
+    this.loadPersistedData();
+    const sId = normalizeStudentId(studentId);
+    const existing = this.enrollments.find(
+      (e) => (e.student_id === studentId || e.student_id === sId) && e.course_id === courseId
+    );
+    if (existing) {
+      existing.status = 'active';
+      this.savePersistedData();
+      return existing;
+    }
+    const enrollment: Enrollment = {
+      id: generateUUID(),
+      student_id: sId || studentId,
+      course_id: courseId,
+      batch_id: batchId,
+      order_id: generateUUID(),
+      status: 'active',
+      enrolled_at: new Date().toISOString(),
+    };
+    this.enrollments.unshift(enrollment);
+    const batch = this.batches.find((b) => b.id === batchId);
+    if (batch) {
+      batch.enrolled_count += 1;
+    }
+    this.savePersistedData();
+    return enrollment;
+  }
 
   // Courses
   getCourses(onlyPublished = true) {
@@ -746,6 +851,10 @@ class MockDatabase {
       const match = b.course_id === courseId;
       return onlyOpen ? match && b.enrollment_open : match;
     });
+  }
+
+  getBatchesByCourseId(courseId: string, onlyOpen = false) {
+    return this.getBatchesForCourse(courseId, onlyOpen);
   }
 
   getBatchById(id: string) {
@@ -882,6 +991,7 @@ class MockDatabase {
   // Student Access & Enrollments
   isStudentEnrolled(studentId: string, courseId: string): boolean {
     if (!studentId || !studentId.trim()) return false;
+    this.loadPersistedData();
     const associatedIds = new Set(this.resolveAssociatedStudentIds(studentId));
     return this.enrollments.some(
       (e) =>
@@ -893,6 +1003,7 @@ class MockDatabase {
 
   getStudentEnrollments(studentId: string) {
     if (!studentId || !studentId.trim()) return [];
+    this.loadPersistedData();
     const associatedIds = new Set(this.resolveAssociatedStudentIds(studentId));
     return this.enrollments
       .filter(
@@ -1024,6 +1135,7 @@ class MockDatabase {
       }
     }
 
+    this.savePersistedData();
     return { success: true, enrollment, order };
   }
 

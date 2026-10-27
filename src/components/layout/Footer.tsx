@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { BrandLogo } from './BrandLogo';
 import { useSiteSettings } from '@/components/settings/SiteSettingsContext';
 import {
@@ -15,7 +16,13 @@ import {
 } from 'lucide-react';
 
 export function Footer() {
+  const pathname = usePathname();
   const { settings } = useSiteSettings();
+
+  // Hide on admin routes for clean console experience
+  if (pathname.startsWith('/admin')) {
+    return null;
+  }
 
   return (
     <footer className="bg-[#0B192C] text-slate-300 border-t border-slate-800">

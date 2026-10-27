@@ -40,7 +40,7 @@ function GoogleIcon() {
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { customLogin, loginWithGoogle } = useAuth();
+  const { registerWithEmail, loginWithGoogle } = useAuth();
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -57,26 +57,25 @@ export default function RegisterPage() {
     setError('');
     setLoading(true);
     try {
-      await loginWithGoogle();
-      router.push('/dashboard');
-    } catch {
-      setError('Unable to complete Google sign up. Please try email or mobile.');
+      await loginWithGoogle('/dashboard');
+    } catch (err: any) {
+      setError(err?.message || 'Unable to complete Google sign up. Please try email & password.');
       setLoading(false);
     }
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (!fullName.trim() || !email.trim() || !phone.trim() || !password) {
+    if (!fullName.trim() || !email.trim() || !password) {
       setError('Please fill in all required fields.');
       return;
     }
 
     const cleanPhone = phone.replace(/\D/g, '');
-    if (cleanPhone.length < 10) {
-      setError('Please enter a valid 10-digit mobile number.');
+    if (phone.trim() && cleanPhone.length < 10) {
+      setError('Please enter a valid 10-digit mobile number or leave blank.');
       return;
     }
 
@@ -96,11 +95,19 @@ export default function RegisterPage() {
     }
 
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      customLogin(email.trim(), fullName.trim(), 'student', `+91 ${cleanPhone.slice(-10)}`);
+    try {
+      await registerWithEmail(
+        email.trim(),
+        password,
+        fullName.trim(),
+        cleanPhone ? `+91 ${cleanPhone.slice(-10)}` : undefined
+      );
       router.push('/dashboard');
-    }, 600);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to create student account. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

@@ -6,7 +6,8 @@ import { verifyWebhookSignature } from '../src/lib/razorpay';
 import { Course, Batch } from '../src/lib/types';
 
 describe('Aspire Academy — Comprehensive Platform Test Suite', () => {
-  const testStudentId = 'student_test_101';
+  const testRunTimestamp = Date.now();
+  const testStudentId = `student_test_${testRunTimestamp}`;
   const testAdminId = 'u0000000-0000-0000-0000-000000000002';
   const testCourseSlug = 'class-12-biology';
   let targetCourse: Course;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { db } from '@/lib/data/mock-db';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { isAuthorizedAdminEmail, isAuthorizedAdminId, CANONICAL_ADMIN_ID } from '@/lib/auth/admin';
 
 export const dynamic = 'force-dynamic';
@@ -17,7 +18,11 @@ function getPublicOrigin(req: NextRequest): string {
     const proto = host.includes('localhost') ? 'http' : 'https';
     return `${proto}://${host}`;
   }
-  return req.nextUrl.origin || process.env.NEXT_PUBLIC_APP_URL || 'https://aspire-academy-pi.vercel.app';
+  return (
+    req.nextUrl.origin ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    'https://aspire-academy.pages.dev'
+  );
 }
 
 export async function GET(req: NextRequest) {
@@ -33,7 +38,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(
       new URL(
         `/auth/login?error=${encodeURIComponent(
-          errorDescription || 'Google authentication was cancelled or encountered an error.'
+          errorDescription || 'Authentication was cancelled or encountered an error.'
         )}`,
         publicOrigin
       )
@@ -42,26 +47,35 @@ export async function GET(req: NextRequest) {
 
   if (code) {
     const cookieStore = await cookies();
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const supabaseUrl =
+      process.env.NEXT_PUBLIC_SUPABASE_URL ||
+      process.env.SUPABASE_URL ||
+      '';
     const supabaseKey =
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+      process.env.SUPABASE_PUBLISHABLE_KEY ||
       '';
 
     if (supabaseUrl && supabaseKey) {
+      // Prepare response early so cookies are written directly to it
+      const tempDestination = new URL(redirectPath, publicOrigin);
+      const response = NextResponse.redirect(tempDestination);
+
       const supabase = createServerClient(supabaseUrl, supabaseKey, {
         cookies: {
           getAll() {
             return cookieStore.getAll();
           },
           setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              );
-            } catch {
-              // Ignore in server component context
-            }
+            cookiesToSet.forEach(({ name, value, options }) => {
+              try {
+                cookieStore.set(name, value, options);
+              } catch {
+                // Server Component context
+              }
+              response.cookies.set(name, value, options);
+            });
           },
         },
       });
@@ -70,18 +84,44 @@ export async function GET(req: NextRequest) {
 
       if (!exchangeError && data.user) {
         const user = data.user;
-        const email = user.email || '';
+        const email = (user.email || '').trim().toLowerCase();
         const fullName =
           user.user_metadata?.full_name ||
           user.user_metadata?.name ||
-          email.split('@')[0] ||
-          'Google Student';
+          (email ? email.split('@')[0] : 'Google Student');
         const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture;
 
         // Check if user is an authorized admin
         const isAdmin = isAuthorizedAdminEmail(email) || isAuthorizedAdminId(user.id);
 
-        // Resolve or create persistent canonical student/admin profile
+        // Sync or persist student profile to Supabase database
+        const admin = createAdminClient();
+        if (admin) {
+          try {
+            await admin.from('profiles').upsert(
+              {
+                id: user.id,
+                email,
+                full_name: isAdmin ? 'Shekhar Sir (Admin)' : fullName,
+                avatar_url: avatarUrl,
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: 'id' }
+            );
+
+            await admin.from('user_roles').upsert(
+              {
+                user_id: user.id,
+                role: isAdmin ? 'admin' : 'student',
+              },
+              { onConflict: 'user_id,role' }
+            );
+          } catch (syncErr) {
+            console.warn('Could not sync authenticated profile to Supabase PostgreSQL:', syncErr);
+          }
+        }
+
+        // Also sync to local memory for instant fallback availability
         const profile = db.resolveOrCreateProfile({
           id: isAdmin ? CANONICAL_ADMIN_ID : user.id,
           email,
@@ -90,10 +130,16 @@ export async function GET(req: NextRequest) {
         });
 
         const targetDestination = isAdmin ? '/admin' : redirectPath;
-        const response = NextResponse.redirect(new URL(targetDestination, publicOrigin));
+        const finalRedirectUrl = new URL(targetDestination, publicOrigin);
+        const finalResponse = NextResponse.redirect(finalRedirectUrl);
 
-        // Set persistent session cookies
-        response.cookies.set('aspire_session_id', profile.id, {
+        // Copy all Supabase auth cookies over to the final response
+        response.cookies.getAll().forEach((c) => {
+          finalResponse.cookies.set(c.name, c.value);
+        });
+
+        // Set persistent application session cookies
+        finalResponse.cookies.set('aspire_session_id', profile.id, {
           path: '/',
           httpOnly: false,
           maxAge: 30 * 24 * 60 * 60, // 30 days
@@ -101,7 +147,7 @@ export async function GET(req: NextRequest) {
         });
 
         if (isAdmin) {
-          response.cookies.set('aspire_admin_session', profile.id, {
+          finalResponse.cookies.set('aspire_admin_session', profile.id, {
             path: '/',
             httpOnly: false,
             maxAge: 7 * 24 * 60 * 60,
@@ -109,13 +155,13 @@ export async function GET(req: NextRequest) {
           });
         }
 
-        return response;
+        return finalResponse;
       } else {
         console.error('Failed to exchange code for session:', exchangeError);
         return NextResponse.redirect(
           new URL(
             `/auth/login?error=${encodeURIComponent(
-              exchangeError?.message || 'Google OAuth failed to exchange code for session.'
+              exchangeError?.message || 'Authentication failed to complete session exchange.'
             )}`,
             publicOrigin
           )

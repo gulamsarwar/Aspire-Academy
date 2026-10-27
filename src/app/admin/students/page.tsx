@@ -80,10 +80,10 @@ export default function AdminStudentsPage() {
     <div className="space-y-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight leading-snug">
             Student Management & Access Audits
           </h1>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
             Search registered students, inspect enrollments, and manually grant/revoke access.
           </p>
         </div>
@@ -101,10 +101,87 @@ export default function AdminStudentsPage() {
         </div>
       </div>
 
-      {/* Students List */}
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+      {/* Mobile Students Cards (< 768px) */}
+      <div className="md:hidden space-y-3">
+        {filteredStudents.length === 0 ? (
+          <div className="p-8 text-center text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
+            No students found matching your search.
+          </div>
+        ) : (
+          filteredStudents.map((student) => {
+            const enrollments = db.getStudentEnrollments(student.id);
+            const orders = db.orders.filter((o) => o.student_id === student.id);
+
+            return (
+              <div
+                key={student.id}
+                className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center flex-shrink-0">
+                      {student.full_name.charAt(0)}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-sm">
+                        {student.full_name}
+                      </h4>
+                      <p className="text-[11px] text-slate-500 font-medium">
+                        {student.email}
+                      </p>
+                      {student.phone && (
+                        <p className="text-[10px] text-slate-400 font-medium">
+                          {student.phone}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <span className="text-[10px] font-mono text-slate-400">
+                    ID: {student.id.slice(0, 6)}
+                  </span>
+                </div>
+
+                <div className="bg-slate-50 p-2.5 rounded-xl space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-slate-700">Enrolled Courses:</span>
+                    <span className="font-bold text-[#046BD2]">{enrollments.length}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {enrollments.map((enr) => (
+                      <span
+                        key={enr.id}
+                        className="text-[10px] font-bold bg-blue-50 text-[#046BD2] px-2 py-0.5 rounded-md border border-blue-200"
+                      >
+                        {enr.course?.title || enr.course?.target_class}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                  <span className="text-slate-500">
+                    Orders: <strong className="text-slate-800">{orders.length}</strong>
+                  </span>
+
+                  <button
+                    onClick={() => handleOpenOverride(student)}
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 transition inline-flex items-center gap-1 border border-amber-200"
+                  >
+                    <Shield className="w-3.5 h-3.5" />
+                    <span>Override Access</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop Students Table (>= 768px) */}
+      <div className="hidden md:block bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left text-xs min-w-[750px]">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold">
               <tr>
                 <th className="px-6 py-4">Student</th>

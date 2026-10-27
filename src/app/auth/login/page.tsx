@@ -47,7 +47,7 @@ function LoginForm() {
   const urlError = searchParams.get('error');
   const urlMessage = searchParams.get('message');
 
-  const { customLogin, loginWithGoogle } = useAuth();
+  const { customLogin, loginWithGoogle, loginWithEmail, loginAsStudent } = useAuth();
 
   // Form states
   const [email, setEmail] = useState('');
@@ -78,7 +78,7 @@ function LoginForm() {
     } catch (err: any) {
       setError(
         err?.message ||
-          'Unable to initiate Google sign-in. Please ensure Google OAuth is configured or use email & password.'
+          'Unable to initiate Google sign-in. Please ensure Google OAuth is configured in Supabase.'
       );
       setGoogleLoading(false);
     }
@@ -106,13 +106,14 @@ function LoginForm() {
     }
 
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      const userName = cleanEmail.split('@')[0].replace(/[._-]/g, ' ');
-      const formattedName = userName.charAt(0).toUpperCase() + userName.slice(1);
-      customLogin(cleanEmail, formattedName, 'student');
+    try {
+      await loginWithEmail(cleanEmail, password);
       router.push(redirectUrl);
-    }, 400);
+    } catch (err: any) {
+      setError(err?.message || 'Invalid email or password. Please verify your credentials or click "Forgot password?".');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -233,13 +234,25 @@ function LoginForm() {
             </button>
           </form>
 
-          {/* Quick Demo Credentials */}
-          <div className="p-3 bg-blue-50/70 rounded-xl border border-blue-100 text-[11px] text-slate-600 flex items-start gap-2">
-            <Sparkles className="w-3.5 h-3.5 text-[#046BD2] flex-shrink-0 mt-0.5" />
-            <div>
-              <span className="font-bold text-[#046BD2]">Student Sign-in: </span>
-              Use one-click Google Sign-in above, or enter your registered student email and password.
+          {/* Quick Demo Credentials & 1-Click Fast Login */}
+          <div className="p-3.5 bg-blue-50/70 rounded-xl border border-blue-100 text-[11px] text-slate-600 space-y-2.5">
+            <div className="flex items-start gap-2">
+              <Sparkles className="w-3.5 h-3.5 text-[#046BD2] flex-shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold text-[#046BD2]">Student Sign-in: </span>
+                Sign in with Google, enter your email & password, or test instantly with one click:
+              </div>
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                loginAsStudent();
+                router.push(redirectUrl);
+              }}
+              className="w-full py-2 px-3 rounded-lg bg-[#046BD2] hover:bg-[#0352A0] text-white font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-sm"
+            >
+              <span>⚡ 1-Click Student Login (Pre-Enrolled Class 12 Demo)</span>
+            </button>
           </div>
 
           <div className="text-center pt-1 text-xs text-slate-600">

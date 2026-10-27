@@ -3,20 +3,37 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { BrandLogo } from '@/components/layout/BrandLogo';
-import { Mail, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { useAuth } from '@/components/auth/AuthContext';
+import { Mail, ArrowRight, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 
 export default function ForgotPasswordPage() {
+  const { resetPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+
+    if (!email.trim()) {
+      setError('Please enter your registered email address.');
+      return;
+    }
+
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      await resetPassword(email.trim());
       setSent(true);
-    }, 600);
+    } catch (err: any) {
+      setError(
+        err?.message ||
+          'Failed to send password reset email. Please ensure your email is registered or contact academy support.'
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -33,6 +50,13 @@ export default function ForgotPasswordPage() {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-6 shadow-xl sm:rounded-3xl sm:px-10 border border-slate-200 space-y-6">
+          {error && (
+            <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span>{error}</span>
+            </div>
+          )}
+
           {sent ? (
             <div className="p-6 rounded-2xl bg-emerald-50 border border-emerald-200 text-center space-y-3">
               <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
@@ -41,7 +65,7 @@ export default function ForgotPasswordPage() {
               </h3>
               <p className="text-xs text-emerald-700 leading-relaxed">
                 We have sent instructions to <strong>{email}</strong>. Check your inbox or
-                spam folder.
+                spam folder to create a new password.
               </p>
               <Link
                 href="/auth/login"
@@ -54,14 +78,14 @@ export default function ForgotPasswordPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-700 block">
-                  Registered Email Address or Mobile Number
+                  Registered Email Address / Gmail ID
                 </label>
                 <div className="relative">
                   <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
-                    type="text"
+                    type="email"
                     required
-                    placeholder="student@gmail.com or 9876543210"
+                    placeholder="student@gmail.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#046BD2]"
@@ -74,7 +98,17 @@ export default function ForgotPasswordPage() {
                 disabled={loading}
                 className="w-full py-3.5 px-4 rounded-xl font-bold text-sm text-white bg-[#046BD2] hover:bg-[#0352A0] disabled:bg-slate-300 shadow-md transition-all flex items-center justify-center gap-2"
               >
-                {loading ? 'Sending verification link / OTP...' : 'Send Reset Link or OTP'}
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Sending reset instructions...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Send Password Reset Link</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </button>
 
               <div className="text-center pt-2">

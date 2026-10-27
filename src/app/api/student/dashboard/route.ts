@@ -119,6 +119,7 @@ export async function GET(req: NextRequest) {
       downloads,
       attempts,
       quiz_attempts: attempts,
+      allCourses: db.getCourses(true),
     });
   } catch (error: any) {
     console.error('Student dashboard API error:', error);

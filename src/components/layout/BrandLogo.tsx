@@ -16,23 +16,23 @@ export function BrandLogo({
 
   // Sizing for the circular crest emblem
   const sealSizes = {
-    sm: 'w-9 h-9 sm:w-10 sm:h-10',
-    md: 'w-11 h-11 sm:w-13 sm:h-13',
-    lg: 'w-14 h-14 sm:w-16 sm:h-16',
+    sm: 'w-8 h-8 sm:w-9 sm:h-9',
+    md: 'w-9 h-9 sm:w-11 sm:h-11',
+    lg: 'w-12 h-12 sm:w-15 sm:h-15',
   }[size];
 
   // Sizing for main title typography
   const titleSizes = {
-    sm: 'text-sm sm:text-base',
-    md: 'text-base sm:text-lg lg:text-xl',
-    lg: 'text-xl sm:text-2xl',
+    sm: 'text-xs sm:text-sm',
+    md: 'text-sm sm:text-base lg:text-lg',
+    lg: 'text-lg sm:text-xl',
   }[size];
 
   // Sizing for motto subtitle
   const subtitleSizes = {
-    sm: 'text-[8px] sm:text-[9px]',
-    md: 'text-[9.5px] sm:text-[10.5px]',
-    lg: 'text-[11px] sm:text-xs',
+    sm: 'text-[7.5px] sm:text-[8.5px]',
+    md: 'text-[8.5px] sm:text-[9.5px]',
+    lg: 'text-[10px] sm:text-xs',
   }[size];
 
   return (
@@ -64,13 +64,13 @@ export function BrandLogo({
 
         {showTagline && (
           <div
-            className={`font-bold tracking-wider mt-1 flex items-center gap-1.5 whitespace-nowrap ${subtitleSizes} ${
+            className={`font-bold tracking-wider mt-0.5 flex items-center gap-1.5 whitespace-nowrap ${subtitleSizes} ${
               isLight ? 'text-amber-400' : 'text-amber-600'
             }`}
           >
             <span className="font-semibold">विद्या यशः</span>
             <span className="opacity-50 text-[8px]">•</span>
-            <span className="tracking-wider uppercase text-[8.5px] sm:text-[9.5px]">
+            <span className="tracking-wider uppercase text-[0.9em]">
               Accelerate Your Success
             </span>
           </div>

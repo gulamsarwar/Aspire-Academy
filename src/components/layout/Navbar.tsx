@@ -41,6 +41,48 @@ export function Navbar() {
     return pathname.startsWith(path);
   };
 
+  // Dedicated streamlined header for Admin Console (no public clutter or announcement bars)
+  if (pathname.startsWith('/admin')) {
+    return (
+      <header className="sticky top-0 z-50 w-full bg-slate-900 border-b border-slate-800 text-white shadow-md">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14 sm:h-16 gap-3">
+            {/* Logo + Admin Badge */}
+            <div className="flex items-center gap-2.5">
+              <BrandLogo variant="light" size="sm" showTagline={false} />
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] sm:text-xs font-bold uppercase tracking-wider">
+                <Shield className="w-3 h-3 text-amber-400" />
+                <span>Admin Console</span>
+              </span>
+            </div>
+
+            {/* Right Actions */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              <a
+                href="/"
+                target="_blank"
+                rel="noreferrer"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 transition border border-slate-700"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span>View Public Site ↗</span>
+              </a>
+
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-sky-400 hover:text-sky-300 bg-sky-950/60 hover:bg-sky-900/60 transition border border-sky-800/60"
+              >
+                <UserCheck className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Student Dashboard</span>
+                <span className="sm:hidden">Student Portal</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </header>
+    );
+  }
+
   return (
     <header className="sticky top-0 z-50 w-full">
       {/* Top Announcement Bar - PhysicsWallah / Unacademy Style */}

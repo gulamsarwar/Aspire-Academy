@@ -36,6 +36,7 @@ export interface Course {
   instructor_title: string;
   instructor_avatar?: string;
   features: string[];
+  total_lectures?: number;
   created_at: string;
   updated_at: string;
 }

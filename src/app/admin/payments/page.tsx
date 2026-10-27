@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
+  XCircle,
   Filter,
   Download,
   Search,
@@ -37,10 +38,10 @@ export default function AdminPaymentsPage() {
     <div className="space-y-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight leading-snug">
             Orders & Payment Management
           </h1>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
             Audit Razorpay transaction references, inspect UPI payments, and verify reconciliation.
           </p>
         </div>
@@ -141,10 +142,75 @@ export default function AdminPaymentsPage() {
         </div>
       </div>
 
-      {/* Orders Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+      {/* Mobile Orders Cards (< 768px) */}
+      <div className="md:hidden space-y-3">
+        {filteredOrders.length === 0 ? (
+          <div className="p-8 text-center text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
+            No orders found for this status.
+          </div>
+        ) : (
+          filteredOrders.map((order) => {
+            const course = db.getCourseById(order.course_id);
+            const batch = db.getBatchById(order.batch_id);
+
+            return (
+              <div
+                key={order.id}
+                className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2.5"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-sm leading-snug">
+                      {course?.title}
+                    </h4>
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      {batch?.name}
+                    </p>
+                  </div>
+
+                  <span className="font-black text-slate-900 text-base flex-shrink-0">
+                    ₹{order.amount.toLocaleString('en-IN')}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-xs pt-1">
+                  <span className="font-mono text-[10px] text-slate-500">
+                    ID: {order.id.slice(0, 12)}...
+                  </span>
+
+                  {order.status === 'paid' ? (
+                    <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-bold text-[10px]">
+                      <CheckCircle2 className="w-3 h-3" /> Paid
+                    </span>
+                  ) : order.status === 'created' ? (
+                    <span className="inline-flex items-center gap-1 text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full font-bold text-[10px]">
+                      <Clock className="w-3 h-3" /> Pending
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-red-700 bg-red-50 px-2 py-0.5 rounded-full font-bold text-[10px]">
+                      <XCircle className="w-3 h-3" /> Failed
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] text-slate-400">
+                  <span className="font-mono truncate max-w-[180px]">
+                    Ref: {order.gateway_payment_id || order.gateway_order_id}
+                  </span>
+                  <span>
+                    {new Date(order.created_at).toLocaleDateString('en-IN')}
+                  </span>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop Orders Table (>= 768px) */}
+      <div className="hidden md:block bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left text-xs min-w-[750px]">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold">
               <tr>
                 <th className="px-6 py-4">Internal Order ID</th>

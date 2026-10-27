@@ -113,17 +113,38 @@ export default function AdminLessonsPage() {
   const detectedVideoId = extractVideoId(youtubeVideoId);
   const editDetectedVideoId = extractVideoId(editYoutubeLink);
 
-  // Paste from clipboard handler
+  // Paste from clipboard handlers with mobile touch awareness
   const handlePasteClipboard = async () => {
     try {
-      if (navigator.clipboard) {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.readText) {
         const text = await navigator.clipboard.readText();
-        if (text) {
+        if (text && text.trim()) {
           setYoutubeVideoId(text.trim());
+          setSuccessToast('YouTube video link pasted from clipboard!');
+          setTimeout(() => setSuccessToast(''), 2500);
+          return;
         }
       }
+      throw new Error('Clipboard restricted');
     } catch {
-      alert('Clipboard access restricted. Please right-click inside the box and click Paste (Ctrl+V).');
+      alert('Clipboard access restricted by browser. Please tap and hold inside the YouTube URL box and select "Paste".');
+    }
+  };
+
+  const handlePasteEditClipboard = async () => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.readText) {
+        const text = await navigator.clipboard.readText();
+        if (text && text.trim()) {
+          setEditYoutubeLink(text.trim());
+          setSuccessToast('YouTube video link pasted from clipboard!');
+          setTimeout(() => setSuccessToast(''), 2500);
+          return;
+        }
+      }
+      throw new Error('Clipboard restricted');
+    } catch {
+      alert('Clipboard access restricted by browser. Please tap and hold inside the YouTube URL box and select "Paste".');
     }
   };
 
@@ -257,10 +278,10 @@ export default function AdminLessonsPage() {
             </span>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight leading-snug">
             Manage Lessons & Video Content
           </h1>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
             Add YouTube video links, study notes, and quizzes to lessons for this specific course.
           </p>
         </div>
@@ -587,7 +608,97 @@ export default function AdminLessonsPage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* Mobile Lessons List (< 768px) */}
+        <div className="md:hidden space-y-3">
+          {currentLessons.length === 0 ? (
+            <div className="p-8 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+              No lessons added to this course yet. Use the form above to add your first video lesson!
+            </div>
+          ) : (
+            currentLessons.map((lesson, idx) => {
+              const parentModule = db.modules.find((m) => m.id === lesson.module_id);
+
+              return (
+                <div
+                  key={lesson.id}
+                  className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3"
+                >
+                  <div className="flex items-start gap-3">
+                    <img
+                      src={`https://img.youtube.com/vi/${lesson.youtube_video_id}/mqdefault.jpg`}
+                      alt=""
+                      className="w-20 h-14 object-cover rounded-xl border border-slate-200 flex-shrink-0 bg-slate-100"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+                          #{lesson.sort_order || idx + 1}
+                        </span>
+                        {lesson.is_free_preview ? (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">
+                            ⭐ Free Demo
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+                            🔒 Enrolled
+                          </span>
+                        )}
+                        {lesson.published ? (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-[#046BD2]">
+                            ✓ Published
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700">
+                            Draft
+                          </span>
+                        )}
+                      </div>
+                      <h4 className="font-bold text-slate-900 text-xs sm:text-sm mt-1 leading-snug line-clamp-2">
+                        {lesson.title}
+                      </h4>
+                      <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+                        {parentModule?.title || 'Chapter'} • {lesson.duration_minutes} min
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                    <a
+                      href={`https://www.youtube.com/watch?v=${lesson.youtube_video_id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 text-rose-600 font-bold hover:underline"
+                    >
+                      <PlayCircle className="w-4 h-4" />
+                      <span>Watch Video</span>
+                    </a>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEdit(lesson)}
+                        className="px-3 py-1.5 rounded-lg border border-slate-200 text-[#046BD2] font-bold text-xs hover:bg-blue-50 flex items-center gap-1"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteLesson(lesson.id, lesson.title)}
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Desktop Table (>= 768px) */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs min-w-[750px]">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold">
               <tr>
@@ -774,17 +885,37 @@ export default function AdminLessonsPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">
-                  YouTube Video Link or URL *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Paste YouTube link here"
-                  value={editYoutubeLink}
-                  onChange={(e) => setEditYoutubeLink(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-mono focus:outline-none focus:border-[#046BD2]"
-                />
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700">
+                    YouTube Video Link or URL *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handlePasteEditClipboard}
+                    className="text-[11px] font-bold text-rose-600 hover:underline flex items-center gap-1"
+                  >
+                    <ClipboardPaste className="w-3 h-3" />
+                    <span>Paste Link</span>
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    required
+                    placeholder="Paste YouTube link here"
+                    value={editYoutubeLink}
+                    onChange={(e) => setEditYoutubeLink(e.target.value)}
+                    className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-mono focus:outline-none focus:border-[#046BD2]"
+                  />
+                  <button
+                    type="button"
+                    onClick={handlePasteEditClipboard}
+                    className="px-3 py-2.5 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 font-bold text-xs flex items-center gap-1 border border-rose-200 flex-shrink-0"
+                  >
+                    <ClipboardPaste className="w-3.5 h-3.5" />
+                    <span>Paste</span>
+                  </button>
+                </div>
 
                 {editDetectedVideoId && (
                   <div className="flex items-center gap-3 p-2 bg-slate-50 rounded-xl border border-slate-200 mt-2">

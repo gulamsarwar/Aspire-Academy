@@ -2,8 +2,12 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Profile, UserRoleType } from '@/lib/types';
-import { createClient } from '@/lib/supabase/client';
-import { db, normalizeStudentId } from '@/lib/data/mock-db';
+import {
+  createClient,
+  setRuntimeSupabaseConfig,
+  getSupabaseClientDiagnostic,
+} from '@/lib/supabase/client';
+import { db } from '@/lib/data/mock-db';
 import {
   isAuthorizedAdminEmail,
   isAuthorizedAdminId,
@@ -20,6 +24,14 @@ interface AuthContextType {
   logout: () => Promise<void>;
   customLogin: (email: string, fullName: string, role: UserRoleType, phone?: string) => void;
   loginWithGoogle: (redirectPath?: string) => Promise<void>;
+  loginWithEmail: (email: string, password: string) => Promise<void>;
+  registerWithEmail: (
+    email: string,
+    password: string,
+    fullName: string,
+    phone?: string
+  ) => Promise<{ user: any; session: any }>;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -32,6 +44,9 @@ const AuthContext = createContext<AuthContextType>({
   logout: async () => {},
   customLogin: () => {},
   loginWithGoogle: async () => {},
+  loginWithEmail: async () => {},
+  registerWithEmail: async () => ({ user: null, session: null }),
+  resetPassword: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -40,26 +55,80 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const [isAuthReady, setIsAuthReady] = useState(false);
 
+  // Helper to ensure Supabase client is ready, checking runtime /api/auth/config if needed
+  const ensureSupabaseClient = async () => {
+    let client = createClient();
+    if (!client && typeof window !== 'undefined') {
+      try {
+        const res = await fetch('/api/auth/config', { cache: 'no-store' });
+        if (res.ok) {
+          const cfg = await res.json();
+          if (cfg.configured && cfg.supabaseUrl && cfg.anonKey) {
+            setRuntimeSupabaseConfig(cfg.supabaseUrl, cfg.anonKey);
+            client = createClient();
+          }
+        }
+      } catch {
+        // network error, fallback
+      }
+    }
+    return client;
+  };
+
   useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+
     async function restoreSession() {
       try {
-        // 1. Check active Supabase cloud session first
-        const supabase = createClient();
+        const supabase = await ensureSupabaseClient();
+
         if (supabase) {
-          const { data: { session } } = await supabase.auth.getSession();
+          // Listen to live auth state changes from Supabase
+          const {
+            data: { subscription },
+          } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            if (session?.user) {
+              const email = (session.user.email || '').trim().toLowerCase();
+              const isAdmin = isAuthorizedAdminEmail(email) || isAuthorizedAdminId(session.user.id);
+
+              const canonical = db.resolveOrCreateProfile({
+                id: isAdmin ? CANONICAL_ADMIN_ID : session.user.id,
+                email,
+                fullName:
+                  session.user.user_metadata?.full_name ||
+                  session.user.user_metadata?.name ||
+                  (isAdmin ? 'Shekhar Sir (Admin)' : email.split('@')[0] || 'Student'),
+                phone: session.user.phone || session.user.user_metadata?.phone,
+                avatarUrl: session.user.user_metadata?.avatar_url,
+              });
+
+              setUser(canonical);
+              setRole(isAdmin ? 'admin' : 'student');
+              localStorage.setItem('aspire_user', JSON.stringify(canonical));
+              localStorage.setItem('aspire_role', isAdmin ? 'admin' : 'student');
+              if (typeof document !== 'undefined') {
+                document.cookie = `aspire_session_id=${canonical.id}; path=/; max-age=2592000; SameSite=Lax;`;
+              }
+            }
+          });
+          unsubscribe = () => subscription.unsubscribe();
+
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+
           if (session?.user) {
-            const isAdmin =
-              isAuthorizedAdminEmail(session.user.email) ||
-              isAuthorizedAdminId(session.user.id);
+            const email = (session.user.email || '').trim().toLowerCase();
+            const isAdmin = isAuthorizedAdminEmail(email) || isAuthorizedAdminId(session.user.id);
 
             const canonical = db.resolveOrCreateProfile({
               id: isAdmin ? CANONICAL_ADMIN_ID : session.user.id,
-              email: session.user.email,
+              email,
               fullName:
                 session.user.user_metadata?.full_name ||
                 session.user.user_metadata?.name ||
-                (isAdmin ? 'Shekhar Sir (Admin)' : session.user.email?.split('@')[0]),
-              phone: session.user.phone,
+                (isAdmin ? 'Shekhar Sir (Admin)' : email.split('@')[0] || 'Student'),
+              phone: session.user.phone || session.user.user_metadata?.phone,
               avatarUrl: session.user.user_metadata?.avatar_url,
             });
 
@@ -67,6 +136,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setRole(isAdmin ? 'admin' : 'student');
             localStorage.setItem('aspire_user', JSON.stringify(canonical));
             localStorage.setItem('aspire_role', isAdmin ? 'admin' : 'student');
+            if (typeof document !== 'undefined') {
+              document.cookie = `aspire_session_id=${canonical.id}; path=/; max-age=2592000; SameSite=Lax;`;
+            }
             setIsAuthReady(true);
             return;
           }
@@ -104,12 +176,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           });
 
           const isUserAuthorizedAdmin =
-            isAuthorizedAdminEmail(canonical.email) ||
-            isAuthorizedAdminId(canonical.id);
-
+            isAuthorizedAdminEmail(canonical.email) || isAuthorizedAdminId(canonical.id);
           const savedRole = localStorage.getItem('aspire_role') as UserRoleType;
 
-          // Strictly enforce allowlist: NEVER grant admin role if not authorized
           if (savedRole === 'admin' && (isUserAuthorizedAdmin || hasAdminCookie)) {
             setUser(canonical);
             setRole('admin');
@@ -127,6 +196,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     restoreSession();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
   const loginAsStudent = () => {
@@ -140,6 +213,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setRole('student');
     localStorage.setItem('aspire_user', JSON.stringify(studentUser));
     localStorage.setItem('aspire_role', 'student');
+    if (typeof document !== 'undefined') {
+      document.cookie = `aspire_session_id=${studentUser.id}; path=/; max-age=2592000; SameSite=Lax;`;
+    }
   };
 
   const setAdminSession = (adminProfile: Profile) => {
@@ -155,8 +231,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const customLogin = (email: string, fullName: string, newRole: UserRoleType, phone?: string) => {
     const cleanEmail = email.trim().toLowerCase();
     const isAdmin = isAuthorizedAdminEmail(cleanEmail);
-
-    // If student tries to declare themselves admin without being on the allowlist, deny
     const effectiveRole: UserRoleType = newRole === 'admin' && isAdmin ? 'admin' : 'student';
 
     const profile = db.resolveOrCreateProfile({
@@ -170,56 +244,205 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('aspire_user', JSON.stringify(profile));
     localStorage.setItem('aspire_role', effectiveRole);
 
-    // Sync cookie
     if (typeof document !== 'undefined') {
       document.cookie = `aspire_session_id=${profile.id}; path=/; max-age=2592000; SameSite=Lax;`;
     }
   };
 
-  // Real Google OAuth integration with Supabase
+  // Official Google OAuth integration with Supabase
   const loginWithGoogle = async (redirectPath: string = '/dashboard') => {
     setIsLoading(true);
     try {
-      const supabase = createClient();
-      if (supabase) {
-        // Resolve dynamic public origin (supports localhost, vercel preview, and custom domain)
-        const origin =
-          typeof window !== 'undefined' && window.location.origin
-            ? window.location.origin
-            : 'https://aspire-academy-pi.vercel.app';
+      const supabase = await ensureSupabaseClient();
+      const diagnostic = getSupabaseClientDiagnostic();
 
-        const redirectUrl = `${origin}/auth/callback?redirect=${encodeURIComponent(redirectPath)}`;
+      if (!supabase || !diagnostic.isConfigured) {
+        const missing = diagnostic.missing.join(', ');
+        throw new Error(
+          `Supabase configuration missing in production environment: ${missing}. Please set ${missing} in Cloudflare Pages / hosting environment settings.`
+        );
+      }
 
-        const { data, error } = await supabase.auth.signInWithOAuth({
-          provider: 'google',
-          options: {
-            redirectTo: redirectUrl,
-            queryParams: {
-              access_type: 'offline',
-              prompt: 'select_account',
-            },
+      // Resolve dynamic public origin
+      const origin =
+        typeof window !== 'undefined' && window.location.origin
+          ? window.location.origin
+          : 'https://aspire-academy.pages.dev';
+
+      const redirectUrl = `${origin}/auth/callback?redirect=${encodeURIComponent(redirectPath)}`;
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'select_account',
           },
+        },
+      });
+
+      if (error) {
+        if (error.message.includes('not enabled') || error.message.includes('Unsupported provider')) {
+          throw new Error(
+            'Google provider is not enabled in your Supabase project (bobymknzhwoyzayfamrt). Please open Supabase Dashboard > Authentication > Providers > Google, enable it, and configure your Google Client ID & Secret.'
+          );
+        }
+        throw new Error(error.message || 'Google OAuth provider error');
+      }
+
+      if (data?.url) {
+        window.location.href = data.url;
+        return;
+      }
+
+      throw new Error('Supabase did not return an OAuth authorization URL.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Official Supabase Email / Password Sign In
+  const loginWithEmail = async (email: string, password: string) => {
+    setIsLoading(true);
+    try {
+      const cleanEmail = email.trim().toLowerCase();
+      const supabase = await ensureSupabaseClient();
+
+      if (supabase) {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password,
         });
 
         if (error) {
-          throw new Error(error.message || 'Google OAuth provider error');
+          throw new Error(error.message || 'Invalid email or password.');
         }
 
-        if (data?.url) {
-          window.location.href = data.url;
+        if (data.user) {
+          const isAdmin = isAuthorizedAdminEmail(cleanEmail) || isAuthorizedAdminId(data.user.id);
+          const fullName =
+            data.user.user_metadata?.full_name ||
+            data.user.user_metadata?.name ||
+            cleanEmail.split('@')[0];
+
+          const canonical = db.resolveOrCreateProfile({
+            id: isAdmin ? CANONICAL_ADMIN_ID : data.user.id,
+            email: cleanEmail,
+            fullName,
+            phone: data.user.phone || data.user.user_metadata?.phone,
+          });
+
+          setUser(canonical);
+          setRole(isAdmin ? 'admin' : 'student');
+          localStorage.setItem('aspire_user', JSON.stringify(canonical));
+          localStorage.setItem('aspire_role', isAdmin ? 'admin' : 'student');
+          if (typeof document !== 'undefined') {
+            document.cookie = `aspire_session_id=${canonical.id}; path=/; max-age=2592000; SameSite=Lax;`;
+          }
           return;
         }
       }
 
+      // If Supabase not yet configured, provide helpful diagnostic
+      const diagnostic = getSupabaseClientDiagnostic();
       throw new Error(
-        'Google OAuth requires Supabase authentication configuration. Please verify NEXT_PUBLIC_SUPABASE_URL and Google Provider settings in Supabase Dashboard.'
+        `Supabase authentication not configured: missing ${diagnostic.missing.join(', ')}.`
       );
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Safe Logout: Clears session credentials without deleting persistent database records
+  // Official Supabase Student Registration
+  const registerWithEmail = async (
+    email: string,
+    password: string,
+    fullName: string,
+    phone?: string
+  ) => {
+    setIsLoading(true);
+    try {
+      const cleanEmail = email.trim().toLowerCase();
+      const supabase = await ensureSupabaseClient();
+
+      if (supabase) {
+        const { data, error } = await supabase.auth.signUp({
+          email: cleanEmail,
+          password,
+          options: {
+            data: {
+              full_name: fullName.trim(),
+              phone: phone ? phone.trim() : undefined,
+            },
+          },
+        });
+
+        if (error) {
+          throw new Error(error.message || 'Failed to create student account.');
+        }
+
+        if (data.user) {
+          const canonical = db.resolveOrCreateProfile({
+            id: data.user.id,
+            email: cleanEmail,
+            fullName: fullName.trim(),
+            phone: phone ? phone.trim() : undefined,
+          });
+
+          setUser(canonical);
+          setRole('student');
+          localStorage.setItem('aspire_user', JSON.stringify(canonical));
+          localStorage.setItem('aspire_role', 'student');
+          if (typeof document !== 'undefined') {
+            document.cookie = `aspire_session_id=${canonical.id}; path=/; max-age=2592000; SameSite=Lax;`;
+          }
+        }
+
+        return data;
+      }
+
+      const diagnostic = getSupabaseClientDiagnostic();
+      throw new Error(
+        `Supabase authentication not configured: missing ${diagnostic.missing.join(', ')}.`
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Official Password Reset
+  const resetPassword = async (email: string) => {
+    setIsLoading(true);
+    try {
+      const cleanEmail = email.trim().toLowerCase();
+      const supabase = await ensureSupabaseClient();
+
+      if (!supabase) {
+        const diagnostic = getSupabaseClientDiagnostic();
+        throw new Error(
+          `Supabase is not configured: missing ${diagnostic.missing.join(', ')}.`
+        );
+      }
+
+      const origin =
+        typeof window !== 'undefined' && window.location.origin
+          ? window.location.origin
+          : 'https://aspire-academy.pages.dev';
+
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+        redirectTo: `${origin}/auth/callback?redirect=/auth/update-password`,
+      });
+
+      if (error) {
+        throw new Error(error.message || 'Failed to send password reset email.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Safe Logout: Clears Supabase session and client cookies
   const logout = async () => {
     try {
       const supabase = createClient();
@@ -255,6 +478,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         logout,
         customLogin,
         loginWithGoogle,
+        loginWithEmail,
+        registerWithEmail,
+        resetPassword,
       }}
     >
       {children}

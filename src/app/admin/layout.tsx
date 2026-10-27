@@ -125,8 +125,8 @@ export default function AdminLayout({
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition ${
-                  active ? 'bg-amber-500 text-slate-950' : 'text-slate-300 hover:bg-slate-800'
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${
+                  active ? 'bg-[#046BD2] text-white shadow-sm' : 'text-slate-300 hover:bg-slate-800'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -178,7 +178,7 @@ export default function AdminLayout({
                 href={item.href}
                 className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
                   active
-                    ? 'bg-amber-500 text-slate-950 shadow-md font-black'
+                    ? 'bg-[#046BD2] text-white shadow-md font-bold'
                     : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                 }`}
               >

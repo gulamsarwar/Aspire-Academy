@@ -382,6 +382,17 @@ export async function createOrderInDatabase(orderData: {
     const admin = createAdminClient() || createClient();
     if (admin) {
       try {
+        // Ensure student profile exists in Supabase profiles table to prevent foreign key constraint violations
+        await admin.from('profiles').upsert(
+          {
+            id: order.student_id,
+            email: `student_${order.student_id.slice(0, 8)}@aspireacademyonline.in`,
+            full_name: 'Aspire Student',
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'id', ignoreDuplicates: true }
+        );
+
         await admin.from('orders').insert({
           id: order.id,
           student_id: order.student_id,
@@ -426,6 +437,17 @@ export async function verifyAndActivateEnrollmentInDatabase({
     const admin = createAdminClient() || createClient();
     if (admin) {
       try {
+        // Ensure profile exists before inserting orders/enrollments
+        await admin.from('profiles').upsert(
+          {
+            id: localResult.enrollment.student_id,
+            email: `student_${localResult.enrollment.student_id.slice(0, 8)}@aspireacademyonline.in`,
+            full_name: 'Aspire Student',
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'id', ignoreDuplicates: true }
+        );
+
         if (localResult.order) {
           await admin
             .from('orders')
@@ -436,7 +458,6 @@ export async function verifyAndActivateEnrollmentInDatabase({
             .eq('gateway_order_id', gatewayOrderId);
 
           await admin.from('payments').insert({
-            id: db.payments[0]?.id || undefined,
             order_id: localResult.order.id,
             gateway_payment_id: gatewayPaymentId,
             amount: localResult.order.amount,
@@ -447,15 +468,18 @@ export async function verifyAndActivateEnrollmentInDatabase({
           });
         }
 
-        await admin.from('enrollments').upsert({
-          id: localResult.enrollment.id,
-          student_id: localResult.enrollment.student_id,
-          course_id: localResult.enrollment.course_id,
-          batch_id: localResult.enrollment.batch_id,
-          order_id: localResult.order?.id,
-          status: 'active',
-          enrolled_at: localResult.enrollment.enrolled_at,
-        });
+        await admin.from('enrollments').upsert(
+          {
+            id: localResult.enrollment.id,
+            student_id: localResult.enrollment.student_id,
+            course_id: localResult.enrollment.course_id,
+            batch_id: localResult.enrollment.batch_id,
+            order_id: localResult.order?.id,
+            status: 'active',
+            enrolled_at: localResult.enrollment.enrolled_at,
+          },
+          { onConflict: 'student_id,course_id,batch_id' }
+        );
       } catch (err) {
         console.warn('Could not sync payment/enrollment to Supabase:', err);
       }
@@ -465,59 +489,132 @@ export async function verifyAndActivateEnrollmentInDatabase({
   return localResult;
 }
 
+export async function directEnrollStudentInDatabase({
+  studentId,
+  courseId,
+  batchId,
+}: {
+  studentId: string;
+  courseId: string;
+  batchId: string;
+}): Promise<Enrollment> {
+  const localEnr = db.directEnrollStudent({ studentId, courseId, batchId });
+  if (isSupabaseConfigured()) {
+    const admin = createAdminClient() || createClient();
+    if (admin) {
+      try {
+        await admin.from('profiles').upsert(
+          {
+            id: localEnr.student_id,
+            email: `student_${localEnr.student_id.slice(0, 8)}@aspireacademyonline.in`,
+            full_name: 'Aspire Student',
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'id', ignoreDuplicates: true }
+        );
+
+        await admin.from('enrollments').upsert({
+          id: localEnr.id,
+          student_id: localEnr.student_id,
+          course_id: localEnr.course_id,
+          batch_id: localEnr.batch_id,
+          order_id: localEnr.order_id,
+          status: 'active',
+          enrolled_at: localEnr.enrolled_at,
+        });
+      } catch {
+        // fallback to local
+      }
+    }
+  }
+  return localEnr;
+}
+
 export async function getStudentEnrollmentsFromDatabase(studentId: string): Promise<Enrollment[]> {
+  const localEnrs = db.getStudentEnrollments(studentId);
   const associatedIds = db.resolveAssociatedStudentIds(studentId);
   if (isSupabaseConfigured()) {
-    const client = createClient();
-    if (client) {
+    const admin = createAdminClient() || createClient();
+    if (admin) {
       try {
-        const { data, error } = await client
+        const { data, error } = await admin
           .from('enrollments')
           .select('*, course:courses(*), batch:batches(*)')
           .in('student_id', associatedIds)
           .eq('status', 'active');
 
-        if (!error && data && data.length > 0) {
-          return data as unknown as Enrollment[];
+        if (!error && data) {
+          const supabaseEnrs = (data as unknown as Enrollment[]).map((e) => {
+            const course = e.course || db.getCourseById(e.course_id);
+            const batch = e.batch || db.getBatchById(e.batch_id);
+            return {
+              ...e,
+              course,
+              batch,
+            };
+          });
+          const combined = [...supabaseEnrs];
+          for (const le of localEnrs) {
+            if (!combined.some((e) => e.course_id === le.course_id)) {
+              combined.push(le);
+            }
+          }
+          return combined;
         }
       } catch {
         // Fallback to local
       }
     }
   }
-  return db.getStudentEnrollments(studentId);
+  return localEnrs;
 }
 
 export async function getStudentOrdersFromDatabase(studentId: string): Promise<Order[]> {
+  const localOrders = db.getStudentOrders(studentId);
   const associatedIds = db.resolveAssociatedStudentIds(studentId);
   if (isSupabaseConfigured()) {
-    const client = createClient();
-    if (client) {
+    const admin = createAdminClient() || createClient();
+    if (admin) {
       try {
-        const { data, error } = await client
+        const { data, error } = await admin
           .from('orders')
           .select('*, course:courses(*), batch:batches(*)')
           .in('student_id', associatedIds)
           .order('created_at', { ascending: false });
 
-        if (!error && data && data.length > 0) {
-          return data as unknown as Order[];
+        if (!error && data) {
+          const supabaseOrders = (data as unknown as Order[]).map((o) => {
+            const course = o.course || db.getCourseById(o.course_id);
+            const batch = o.batch || db.getBatchById(o.batch_id);
+            return {
+              ...o,
+              course,
+              batch,
+            };
+          });
+          const combined = [...supabaseOrders];
+          for (const lo of localOrders) {
+            if (!combined.some((o) => o.id === lo.id || (o.course_id === lo.course_id && o.status === lo.status))) {
+              combined.push(lo);
+            }
+          }
+          return combined;
         }
       } catch {
         // Fallback to local
       }
     }
   }
-  return db.getStudentOrders(studentId);
+  return localOrders;
 }
 
 export async function isStudentEnrolledInDatabase(studentId: string, courseId: string): Promise<boolean> {
   const associatedIds = db.resolveAssociatedStudentIds(studentId);
   if (isSupabaseConfigured()) {
-    const client = createClient();
-    if (client) {
+    const admin = createAdminClient() || createClient();
+    if (admin) {
       try {
-        const { data, error } = await client
+        const { data, error } = await admin
           .from('enrollments')
           .select('id')
           .in('student_id', associatedIds)

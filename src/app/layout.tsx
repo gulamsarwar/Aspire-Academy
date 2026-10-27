@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import { Suspense } from 'react';
 import './globals.css';
 import { AuthProvider } from '@/components/auth/AuthContext';
@@ -9,10 +9,11 @@ import { Footer } from '@/components/layout/Footer';
 import { FloatingWhatsApp } from '@/components/layout/FloatingWhatsApp';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 
-const inter = Inter({
+const fontSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-sans',
+  weight: ['400', '500', '600', '700', '800'],
 });
 
 export const metadata: Metadata = {
@@ -54,7 +55,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} h-full scroll-smooth`}
+      className={`${fontSans.variable} h-full scroll-smooth`}
       data-scroll-behavior="smooth"
     >
       <head>

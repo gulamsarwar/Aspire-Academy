@@ -26,10 +26,10 @@ export default function AdminOverviewPage() {
     <div className="space-y-8 max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight leading-snug">
             Academy Administration & Control Center
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500">
+          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
             Live statistics, enrollment trends, order verifications, and student access audits.
           </p>
         </div>
@@ -190,8 +190,53 @@ export default function AdminOverviewPage() {
             </Link>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+          {/* Mobile Orders List (< 768px) */}
+          <div className="md:hidden space-y-2.5">
+            {recentOrders.map((order) => {
+              const course = db.getCourseById(order.course_id);
+              const batch = db.getBatchById(order.batch_id);
+
+              return (
+                <div
+                  key={order.id}
+                  className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-xs sm:text-sm">
+                        {course?.title}
+                      </h4>
+                      <p className="text-[11px] text-slate-500 font-medium">
+                        {batch?.name}
+                      </p>
+                    </div>
+                    <span className="font-black text-slate-900 text-sm">
+                      ₹{order.amount}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-200">
+                    <span className="font-mono text-slate-400">
+                      ID: {order.id.slice(0, 8)}...
+                    </span>
+                    {order.status === 'paid' ? (
+                      <span className="text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                        PAID
+                      </span>
+                    ) : (
+                      <span className="text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                        {order.status.toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop Table (>= 768px) */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-left text-xs min-w-[650px]">
               <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider font-bold">
                 <tr>
                   <th className="px-4 py-3">Order ID</th>

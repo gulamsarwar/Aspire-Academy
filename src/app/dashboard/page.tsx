@@ -43,6 +43,25 @@ export default function DashboardOverviewPage() {
         const res = await fetch(`/api/student/dashboard?studentId=${encodeURIComponent(user!.id)}`);
         if (!res.ok) throw new Error('Failed to load dashboard data');
         const json = await res.json();
+
+        // Merge with local client storage cache for instant sync
+        try {
+          const cached = localStorage.getItem('aspire_student_enrollments');
+          if (cached) {
+            const cachedList = JSON.parse(cached);
+            const serverEnrs = json.enrollments || [];
+            const merged = [...serverEnrs];
+            for (const c of cachedList) {
+              if (!merged.some((m: any) => m.course_id === c.course_id)) {
+                merged.unshift(c);
+              }
+            }
+            json.enrollments = merged;
+          }
+        } catch {
+          // ignore cache read error
+        }
+
         setData(json);
       } catch (err: any) {
         console.error('Dashboard load error:', err);
@@ -300,18 +319,64 @@ export default function DashboardOverviewPage() {
             })}
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center space-y-3">
-            <BookOpen className="w-10 h-10 text-slate-400 mx-auto" />
-            <h3 className="font-bold text-slate-800 text-base">No active enrollments yet</h3>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              Explore our Bihar Board & NEET courses, pick a batch timing, and start learning.
-            </p>
-            <Link
-              href="/courses"
-              className="inline-block py-2 px-4 rounded-xl bg-[#046BD2] text-white font-bold text-xs shadow-sm"
-            >
-              Browse Course Catalog
-            </Link>
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <span>Choose Your Target Class & Start Learning</span>
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Select a course below to view batch timings and enroll with instant access.
+                </p>
+              </div>
+              <Link
+                href="/dashboard/courses"
+                className="px-4 py-2 rounded-xl bg-[#046BD2] hover:bg-[#0352A0] text-white font-bold text-xs shadow-sm self-start sm:self-auto transition"
+              >
+                View All Courses
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {(data?.allCourses || []).slice(0, 3).map((course: any) => (
+                <div
+                  key={course.id}
+                  className="rounded-xl border border-slate-200 p-4 hover:border-[#046BD2] hover:shadow-md transition flex flex-col justify-between space-y-3 bg-slate-50/50"
+                >
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-bold text-[#046BD2] bg-blue-50 px-2 py-0.5 rounded">
+                      {course.target_class || course.category}
+                    </span>
+                    <h4 className="font-bold text-slate-900 text-sm leading-snug line-clamp-1">
+                      {course.title}
+                    </h4>
+                    <p className="text-[11px] text-slate-500 line-clamp-2">
+                      {course.subtitle || course.description}
+                    </p>
+                    <div className="flex items-center justify-between text-xs pt-1">
+                      <span className="font-black text-slate-900">₹{course.price}</span>
+                      <span className="text-slate-500 text-[11px]">{course.instructor_name}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2">
+                    <Link
+                      href={`/checkout/${course.slug}`}
+                      className="flex-1 py-2 px-3 rounded-lg font-bold text-xs text-white bg-[#046BD2] hover:bg-[#0352A0] transition text-center shadow-sm"
+                    >
+                      Enroll Now
+                    </Link>
+                    <Link
+                      href={`/courses/${course.slug}`}
+                      className="py-2 px-2.5 rounded-lg font-bold text-xs text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition"
+                    >
+                      Details
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>

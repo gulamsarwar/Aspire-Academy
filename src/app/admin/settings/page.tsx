@@ -192,10 +192,10 @@ export default function AdminSettingsPage() {
             <Building2 className="w-3.5 h-3.5" />
             <span>Global CMS Controls</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight leading-snug">
             Academy Branding & Contact Settings
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
             Edit your academy name, mobile numbers, address, announcement bar, and marketing headlines. All edits reflect live instantly across the entire platform.
           </p>
         </div>

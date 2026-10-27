@@ -69,7 +69,15 @@ export async function POST(req: NextRequest) {
 
     // 4. Try real Razorpay order creation if live keys are configured
     const razorpay = getRazorpayInstance();
-    if (razorpay && process.env.RAZORPAY_KEY_SECRET !== 'rzp_test_aspire_demo_secret') {
+    const isRealRazorpay = Boolean(
+      razorpay &&
+      process.env.RAZORPAY_KEY_SECRET &&
+      process.env.RAZORPAY_KEY_SECRET !== 'rzp_test_aspire_demo_secret' &&
+      process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID &&
+      !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID.includes('demo')
+    );
+
+    if (isRealRazorpay && razorpay) {
       try {
         const rzpOrder = await razorpay.orders.create({
           amount: amountInPaise,
@@ -113,6 +121,8 @@ export async function POST(req: NextRequest) {
       couponApplied: pricing.couponCode,
       currency,
       keyId,
+      isRealRazorpay,
+      isSandbox: !isRealRazorpay,
       courseTitle: course.title,
       batchName: batch.name,
     });

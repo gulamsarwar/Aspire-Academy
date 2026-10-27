@@ -46,3 +46,5 @@ supabase/.temp/
 
 
 .vercel
+
+.aspire_data/

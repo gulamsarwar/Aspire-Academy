@@ -45,8 +45,23 @@ export function CoursePlayerClient({
   const rawPhone = (settings.whatsapp || settings.phone || '9939598284').replace(/[^0-9]/g, '');
   const cleanPhone = rawPhone.startsWith('91') ? rawPhone : `91${rawPhone}`;
 
-  // Check enrollment
-  const isEnrolled = Boolean(user && (db.isStudentEnrolled(user.id, course.id) || role === 'admin'));
+  // Check enrollment with dynamic server/cache synchronization
+  const [isEnrolled, setIsEnrolled] = useState<boolean>(() => {
+    if (role === 'admin') return true;
+    if (user && db.isStudentEnrolled(user.id, course.id)) return true;
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('aspire_student_enrollments');
+        if (stored) {
+          const list = JSON.parse(stored);
+          if (list.some((e: any) => e.course_id === course.id && e.status === 'active')) return true;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return false;
+  });
 
   // All lessons flat array for navigation
   const allLessons = curriculum.flatMap((m) => m.lessons);
@@ -63,6 +78,45 @@ export function CoursePlayerClient({
 
   const activeLesson = allLessons.find((l) => l.id === activeLessonId) || allLessons[0];
   const activeLessonIndex = allLessons.findIndex((l) => l.id === activeLessonId);
+
+  // Sync real enrollment status from server / database
+  React.useEffect(() => {
+    if (role === 'admin') {
+      setIsEnrolled(true);
+      return;
+    }
+    if (!studentId) return;
+
+    try {
+      const stored = localStorage.getItem('aspire_student_enrollments');
+      if (stored) {
+        const list = JSON.parse(stored);
+        if (list.some((e: any) => e.course_id === course.id && e.status === 'active')) {
+          setIsEnrolled(true);
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    async function checkServerEnrollment() {
+      try {
+        const res = await fetch(`/api/student/dashboard?studentId=${encodeURIComponent(studentId)}`);
+        if (res.ok) {
+          const data = await res.json();
+          const hasCourse = (data.enrollments || []).some(
+            (e: any) => e.course_id === course.id && e.status === 'active'
+          );
+          if (hasCourse) {
+            setIsEnrolled(true);
+          }
+        }
+      } catch {
+        // network fallback
+      }
+    }
+    checkServerEnrollment();
+  }, [studentId, course.id, role]);
 
   // Student progress tracker
   const [completedLessons, setCompletedLessons] = useState<Record<string, boolean>>(() => {
@@ -107,48 +161,8 @@ export function CoursePlayerClient({
     }
   };
 
-  // 1. BLOCKED ACCESS LOCK SCREEN (If not enrolled and not free preview)
-  if (!isEnrolled && !activeLesson?.is_free_preview) {
-    return (
-      <div className="max-w-2xl mx-auto py-16 px-4 text-center space-y-6">
-        <div className="w-20 h-20 rounded-3xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto shadow-md">
-          <Lock className="w-10 h-10" />
-        </div>
-
-        <div className="space-y-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-3 py-1 rounded-full">
-            Enrollment Verification Required
-          </span>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900">
-            Course Content is Protected
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-md mx-auto">
-            You do not have an active enrollment for <strong>{course.title}</strong>. Paid
-            video lessons, batch discussions, and handwritten PDF notes are restricted to
-            verified enrolled students.
-          </p>
-        </div>
-
-        <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
-          <Link
-            href={`/courses/${course.slug}#enroll`}
-            className="w-full sm:w-auto py-3.5 px-6 rounded-xl font-bold text-xs sm:text-sm text-white bg-[#046BD2] hover:bg-[#0352A0] shadow-md transition flex items-center justify-center gap-2"
-          >
-            <span>Select Batch & Enroll Now (₹{course.price})</span>
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-          <Link
-            href="/dashboard"
-            className="w-full sm:w-auto py-3.5 px-6 rounded-xl font-bold text-xs text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
-          >
-            Back to Dashboard
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   const isCompleted = !!completedLessons[activeLesson?.id || ''];
+  const canAccessActiveLesson = isEnrolled || Boolean(activeLesson?.is_free_preview);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -231,17 +245,52 @@ export function CoursePlayerClient({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Column: Video Embed, Tabs, Notes */}
         <div className="lg:col-span-8 space-y-6">
-          {/* 1. Responsive YouTube Video Player */}
-          {activeLesson?.youtube_video_id ? (
-            <YouTubePlayer
-              videoIdOrUrl={activeLesson.youtube_video_id}
-              title={activeLesson.title}
-              autoPlay={false}
-            />
+          {/* 1. Responsive YouTube Video Player or In-Player Lock Card */}
+          {canAccessActiveLesson ? (
+            activeLesson?.youtube_video_id ? (
+              <YouTubePlayer
+                videoIdOrUrl={activeLesson.youtube_video_id}
+                title={activeLesson.title}
+                autoPlay={false}
+              />
+            ) : (
+              <div className="aspect-video w-full rounded-2xl bg-slate-950 flex flex-col items-center justify-center text-slate-400 space-y-2">
+                <Video className="w-12 h-12 text-slate-600" />
+                <p className="text-xs">Video content loading...</p>
+              </div>
+            )
           ) : (
-            <div className="aspect-video w-full rounded-2xl bg-slate-950 flex flex-col items-center justify-center text-slate-400 space-y-2">
-              <Video className="w-12 h-12 text-slate-600" />
-              <p className="text-xs">Video content loading...</p>
+            <div className="aspect-video w-full rounded-2xl bg-gradient-to-br from-slate-950 via-[#0B192C] to-slate-950 border border-slate-800 p-6 sm:p-8 flex flex-col items-center justify-center text-center text-white space-y-4 shadow-2xl">
+              <div className="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30 shadow-lg shadow-amber-500/10">
+                <Lock className="w-7 h-7" />
+              </div>
+              <div className="space-y-1.5 max-w-md">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-2.5 py-0.5 rounded-full border border-amber-400/20">
+                  Paid Course Lecture
+                </span>
+                <h3 className="text-lg font-bold text-white">Enroll to Unlock This Lecture</h3>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  This lecture is part of the complete {course.title} board exam syllabus. Enroll to access all recorded lectures, handwritten PDF notes, and live doubt solving.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                <Link
+                  href={`/courses/${course.slug}#enroll`}
+                  className="px-5 py-2.5 rounded-xl font-bold text-xs bg-[#046BD2] hover:bg-[#0352A0] text-white transition shadow-md flex items-center gap-1.5"
+                >
+                  <span>Enroll in Course (₹{course.price})</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+                {firstAvailableLesson?.is_free_preview && (
+                  <button
+                    onClick={() => setActiveLessonId(firstAvailableLesson.id)}
+                    className="px-4 py-2.5 rounded-xl font-bold text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 transition flex items-center gap-1.5"
+                  >
+                    <PlayCircle className="w-3.5 h-3.5" />
+                    <span>Watch Free Demo Lecture</span>
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
@@ -547,6 +596,15 @@ export function CoursePlayerClient({
                         </div>
 
                         <div className="flex items-center gap-1.5 flex-shrink-0">
+                          {lesson.is_free_preview ? (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              Free Demo
+                            </span>
+                          ) : !isEnrolled ? (
+                            <span title="Enrollment required to unlock">
+                              <Lock className="w-3.5 h-3.5 text-slate-400" />
+                            </span>
+                          ) : null}
                           {lesson.quiz_id && (
                             <span title="Attached Quiz Available">
                               <Award className="w-3.5 h-3.5 text-amber-500" />

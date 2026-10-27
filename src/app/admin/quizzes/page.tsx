@@ -332,10 +332,10 @@ Explanation: \\sqrt{16} = 4, and \\frac{1}{2}(4) = 2. 4 + 2 = 6.`;
             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
             <span>Word (.docx) & LaTeX Math MCQ Importer</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight leading-snug">
             Quiz & Question Bank Management
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
             Microsoft Word (.docx) documents import karein, Hindi Devanagari aur KaTeX formula preview karein, answer keys verify karein aur student exam portal me publish karein.
           </p>
         </div>
