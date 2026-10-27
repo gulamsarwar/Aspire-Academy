@@ -3,7 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { db } from '@/lib/data/mock-db';
-import { getCourses, addCourseToDatabase, updateCourseInDatabase, addLessonToDatabase } from '@/lib/data/supabase-service';
+import {
+  getCourses,
+  addCourseToDatabase,
+  updateCourseInDatabase,
+  addLessonToDatabase,
+  addModuleToDatabase,
+  addBatchToDatabase,
+} from '@/lib/data/supabase-service';
 import { Course } from '@/lib/types';
 import { extractYouTubeVideoId } from '@/lib/youtube';
 import {
@@ -179,7 +186,7 @@ export default function AdminCoursesPage() {
     // If YouTube video link was provided, auto-create Chapter 1 and Lesson 1!
     if (detectedNewVideoId) {
       try {
-        const mod = db.addModule(created.id, 'Chapter 1: Foundation & Core Concepts');
+        const mod = await addModuleToDatabase(created.id, 'Chapter 1: Foundation & Core Concepts');
         savedVideoTitle = newLessonTitle.trim() || `${created.title} - Intro & Demo Lecture`;
 
         await addLessonToDatabase({
@@ -201,7 +208,7 @@ export default function AdminCoursesPage() {
 
     // Auto-create a default active Batch so course is ready for student enrollment!
     try {
-      db.addBatch({
+      await addBatchToDatabase({
         course_id: created.id,
         name: 'Target 2026-27 Batch',
         schedule_description: 'Mon, Wed, Fri — 05:00 PM to 06:30 PM',

@@ -4,6 +4,8 @@ import { CONFIG } from '@/lib/config';
 import { db } from './mock-db';
 import {
   Course,
+  Batch,
+  Module,
   Lesson,
   SiteSettings,
   Order,
@@ -370,6 +372,118 @@ export async function deleteLessonFromDatabase(id: string): Promise<boolean> {
 
   return success;
 }
+
+/**
+ * Module & Batch Operations
+ */
+export async function addModuleToDatabase(courseId: string, title: string): Promise<Module> {
+  const created = db.addModule(courseId, title);
+  if (isSupabaseConfigured()) {
+    const admin = createAdminClient() || createClient();
+    if (admin) {
+      try {
+        await admin.from('modules').insert({
+          id: created.id,
+          course_id: created.course_id,
+          title: created.title,
+          sort_order: created.sort_order,
+        });
+      } catch (err) {
+        console.warn('Could not persist module to Supabase:', err);
+      }
+    }
+  }
+  return created;
+}
+
+export async function addBatchToDatabase(
+  batchData: Omit<Batch, 'id' | 'enrolled_count' | 'created_at'>
+): Promise<Batch> {
+  const created = db.addBatch(batchData);
+  if (isSupabaseConfigured()) {
+    const admin = createAdminClient() || createClient();
+    if (admin) {
+      try {
+        await admin.from('batches').insert({
+          id: created.id,
+          course_id: created.course_id,
+          name: created.name,
+          schedule_description: created.schedule_description,
+          start_at: created.start_at,
+          end_at: created.end_at,
+          capacity: created.capacity,
+          enrolled_count: created.enrolled_count,
+          enrollment_open: created.enrollment_open,
+          instructor_name: created.instructor_name,
+        });
+      } catch (err) {
+        console.warn('Could not persist batch to Supabase:', err);
+      }
+    }
+  }
+  return created;
+}
+
+export async function getBatchesForCourseFromDatabase(courseId: string): Promise<Batch[]> {
+  const localBatches = db.getBatchesForCourse(courseId);
+  if (isSupabaseConfigured()) {
+    const client = createClient();
+    if (client) {
+      try {
+        const { data, error } = await client
+          .from('batches')
+          .select('*')
+          .eq('course_id', courseId)
+          .order('start_at', { ascending: true });
+
+        if (!error && data && data.length > 0) {
+          return data as Batch[];
+        }
+      } catch {
+        // Fallback to local
+      }
+    }
+  }
+  return localBatches;
+}
+
+export async function getCurriculumForCourseFromDatabase(
+  courseId: string
+): Promise<(Module & { lessons: Lesson[] })[]> {
+  const localCurriculum = db.getCurriculumForCourse(courseId);
+  if (isSupabaseConfigured()) {
+    const client = createClient();
+    if (client) {
+      try {
+        const { data: modules, error: modErr } = await client
+          .from('modules')
+          .select('*')
+          .eq('course_id', courseId)
+          .order('sort_order', { ascending: true });
+
+        if (!modErr && modules && modules.length > 0) {
+          const moduleIds = modules.map((m) => m.id);
+          const { data: lessons, error: lessErr } = await client
+            .from('lessons')
+            .select('*')
+            .in('module_id', moduleIds)
+            .order('sort_order', { ascending: true });
+
+          const lessonList = !lessErr && lessons ? (lessons as Lesson[]) : [];
+
+          return modules.map((mod) => ({
+            ...mod,
+            lessons: lessonList.filter((l) => l.module_id === mod.id),
+          })) as (Module & { lessons: Lesson[] })[];
+        }
+      } catch (err) {
+        console.warn('Could not load curriculum from Supabase:', err);
+      }
+    }
+  }
+  return localCurriculum;
+}
+
 
 /**
  * Orders & Payment Operations

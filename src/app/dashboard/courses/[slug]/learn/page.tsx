@@ -2,7 +2,10 @@ import React from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { db } from '@/lib/data/mock-db';
-import { getCourseBySlug } from '@/lib/data/supabase-service';
+import {
+  getCourseBySlug,
+  getCurriculumForCourseFromDatabase,
+} from '@/lib/data/supabase-service';
 import { CoursePlayerClient } from './CoursePlayerClient';
 
 export const dynamic = 'force-dynamic';
@@ -19,7 +22,7 @@ export default async function CourseLearnPage({
     notFound();
   }
 
-  const curriculum = db.getCurriculumForCourse(course.id);
+  const curriculum = await getCurriculumForCourseFromDatabase(course.id);
   const liveClasses = db.liveClasses.filter((lc) => lc.course_id === course.id);
   const announcements = db.announcements.filter(
     (a) => a.course_id === course.id || !a.course_id

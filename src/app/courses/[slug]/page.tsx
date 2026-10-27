@@ -2,7 +2,11 @@ import React from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { db } from '@/lib/data/mock-db';
-import { getCourseBySlug } from '@/lib/data/supabase-service';
+import {
+  getCourseBySlug,
+  getBatchesForCourseFromDatabase,
+  getCurriculumForCourseFromDatabase,
+} from '@/lib/data/supabase-service';
 import { CourseDetailsClient } from './CourseDetailsClient';
 
 export function generateStaticParams() {
@@ -25,8 +29,8 @@ export default async function CourseDetailPage({
     notFound();
   }
 
-  const batches = db.getBatchesForCourse(course.id);
-  const curriculum = db.getCurriculumForCourse(course.id);
+  const batches = await getBatchesForCourseFromDatabase(course.id);
+  const curriculum = await getCurriculumForCourseFromDatabase(course.id);
 
   return (
     <CourseDetailsClient
