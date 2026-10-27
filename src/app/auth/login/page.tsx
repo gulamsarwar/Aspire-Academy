@@ -9,12 +9,15 @@ import { isAuthorizedAdminEmail } from '@/lib/auth/admin';
 import {
   Lock,
   Mail,
+  Phone,
   ArrowRight,
   AlertCircle,
   CheckCircle2,
   Loader2,
   Sparkles,
   Shield,
+  KeyRound,
+  RotateCw,
 } from 'lucide-react';
 
 function GoogleIcon() {
@@ -47,16 +50,44 @@ function LoginForm() {
   const urlError = searchParams.get('error');
   const urlMessage = searchParams.get('message');
 
-  const { customLogin, loginWithGoogle, loginWithEmail, loginAsStudent } = useAuth();
+  const {
+    loginWithGoogle,
+    loginWithEmail,
+    loginWithPhonePassword,
+    sendPhoneOtp,
+    verifyPhoneOtp,
+    loginAsStudent,
+  } = useAuth();
+
+  // Tab: 'phone' or 'email'
+  const [activeTab, setActiveTab] = useState<'phone' | 'email'>('phone');
+
+  // Phone sub-mode: 'password' or 'otp'
+  const [phoneMode, setPhoneMode] = useState<'password' | 'otp'>('password');
 
   // Form states
+  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [otpToken, setOtpToken] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [resendCountdown, setResendCountdown] = useState(0);
 
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
+
+  // Countdown timer for OTP resend
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (resendCountdown > 0) {
+      timer = setTimeout(() => {
+        setResendCountdown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [resendCountdown]);
 
   // Handle URL errors or messages from OAuth callback or redirects
   useEffect(() => {
@@ -68,7 +99,7 @@ function LoginForm() {
     }
   }, [urlError, urlMessage]);
 
-  // Handle Google / Gmail OAuth Login
+  // Google OAuth Login
   const handleGoogleLogin = async () => {
     setError('');
     setInfoMessage('');
@@ -84,8 +115,8 @@ function LoginForm() {
     }
   };
 
-  // Handle Email / Password Login Submit
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Handle Email / Password Login
+  const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setInfoMessage('');
@@ -116,6 +147,73 @@ function LoginForm() {
     }
   };
 
+  // Handle Mobile + Password Login
+  const handlePhonePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setInfoMessage('');
+
+    if (!phone.trim() || !password) {
+      setError('Please enter your 10-digit mobile number and password.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await loginWithPhonePassword(phone.trim(), password);
+      router.push(redirectUrl);
+    } catch (err: any) {
+      setError(err?.message || 'Invalid mobile number or password.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Send Mobile OTP
+  const handleSendOtp = async () => {
+    setError('');
+    setInfoMessage('');
+
+    if (!phone.trim()) {
+      setError('Please enter your 10-digit mobile number first.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await sendPhoneOtp(phone.trim(), false);
+      setOtpSent(true);
+      setResendCountdown(60);
+      setInfoMessage(`6-digit OTP code sent to +91 ${phone.replace(/\D/g, '').slice(-10)}.`);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to send OTP. Please check the mobile number.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Verify Mobile OTP & Sign In
+  const handleVerifyOtpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setInfoMessage('');
+
+    if (!phone.trim() || !otpToken.trim()) {
+      setError('Please enter your mobile number and the 6-digit OTP code.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await verifyPhoneOtp(phone.trim(), otpToken.trim());
+      router.push(redirectUrl);
+    } catch (err: any) {
+      setError(err?.message || 'Invalid or expired OTP. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center space-y-3">
@@ -133,7 +231,7 @@ function LoginForm() {
           {error && (
             <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2 animate-in fade-in">
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-              <span>{error}</span>
+              <span className="leading-relaxed">{error}</span>
             </div>
           )}
 
@@ -144,16 +242,16 @@ function LoginForm() {
             </div>
           )}
 
-          {/* 1. Google (Gmail) One-Click Sign In */}
+          {/* 1. Google One-Click Sign In */}
           <button
             type="button"
             onClick={handleGoogleLogin}
             disabled={googleLoading || loading}
-            className="w-full py-3.5 px-4 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 font-bold text-sm text-slate-700 transition shadow-sm flex items-center justify-center gap-3 group disabled:opacity-60"
+            className="w-full py-3 px-4 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 font-bold text-sm text-slate-700 transition shadow-sm flex items-center justify-center gap-3 disabled:opacity-60"
           >
             {googleLoading ? (
               <>
-                <Loader2 className="w-5 h-5 text-[#046BD2] animate-spin" />
+                <Loader2 className="w-4 h-4 text-[#046BD2] animate-spin" />
                 <span>Connecting to Google...</span>
               </>
             ) : (
@@ -164,75 +262,328 @@ function LoginForm() {
             )}
           </button>
 
-          {/* Clean Divider */}
+          {/* Divider */}
           <div className="relative flex items-center justify-center">
             <div className="border-t border-slate-200 w-full" />
             <span className="bg-white px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">
-              Or sign in with email
+              Or sign in with
             </span>
             <div className="border-t border-slate-200 w-full" />
           </div>
 
-          {/* Form Content: Email & Password */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 block">
-                Email Address / Gmail ID
-              </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="email"
-                  required
-                  placeholder="student@gmail.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#046BD2]"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-slate-700">Password</label>
-                <Link
-                  href="/auth/forgot-password"
-                  className="text-[11px] font-bold text-[#046BD2] hover:underline"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="password"
-                  required
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#046BD2]"
-                />
-              </div>
-            </div>
+          {/* Auth Method Navigation Tabs */}
+          <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-2xl text-xs font-bold text-slate-600">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('phone');
+                setError('');
+              }}
+              className={`py-2 rounded-xl transition flex items-center justify-center gap-1.5 ${
+                activeTab === 'phone'
+                  ? 'bg-white text-slate-900 shadow-sm font-black'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <Phone className="w-3.5 h-3.5 text-[#046BD2]" />
+              <span>Mobile Number</span>
+            </button>
 
             <button
-              type="submit"
-              disabled={loading || googleLoading}
-              className="w-full py-3.5 px-4 rounded-xl font-bold text-sm text-white bg-[#046BD2] hover:bg-[#0352A0] disabled:bg-slate-300 shadow-md transition-all flex items-center justify-center gap-2"
+              type="button"
+              onClick={() => {
+                setActiveTab('email');
+                setError('');
+              }}
+              className={`py-2 rounded-xl transition flex items-center justify-center gap-1.5 ${
+                activeTab === 'email'
+                  ? 'bg-white text-slate-900 shadow-sm font-black'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
             >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Signing in...</span>
-                </>
-              ) : (
-                <>
-                  <span>Sign In to Dashboard</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
+              <Mail className="w-3.5 h-3.5 text-[#046BD2]" />
+              <span>Email Address</span>
             </button>
-          </form>
+          </div>
+
+          {/* TAB 1: Mobile Phone Authentication */}
+          {activeTab === 'phone' && (
+            <div className="space-y-4">
+              {/* Phone Sub-mode toggle: Password vs OTP */}
+              <div className="flex items-center justify-center gap-4 text-xs font-semibold pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPhoneMode('password');
+                    setError('');
+                  }}
+                  className={`pb-1 border-b-2 transition ${
+                    phoneMode === 'password'
+                      ? 'border-[#046BD2] text-[#046BD2] font-black'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Password Login
+                </button>
+                <span className="text-slate-300">•</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPhoneMode('otp');
+                    setError('');
+                  }}
+                  className={`pb-1 border-b-2 transition ${
+                    phoneMode === 'otp'
+                      ? 'border-[#046BD2] text-[#046BD2] font-black'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  SMS OTP Login
+                </button>
+              </div>
+
+              {/* Mode A: Phone + Password */}
+              {phoneMode === 'password' && (
+                <form onSubmit={handlePhonePasswordSubmit} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 block">
+                      Mobile Number
+                    </label>
+                    <div className="relative flex items-center">
+                      <div className="absolute left-3 flex items-center gap-1 text-xs font-bold text-slate-500 pointer-events-none">
+                        <span>🇮🇳 +91</span>
+                        <span className="text-slate-300">|</span>
+                      </div>
+                      <input
+                        type="tel"
+                        required
+                        placeholder="98765 43210"
+                        maxLength={10}
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+                        className="w-full pl-20 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#046BD2] font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-700">Password</label>
+                      <Link
+                        href="/auth/forgot-password"
+                        className="text-[11px] font-bold text-[#046BD2] hover:underline"
+                      >
+                        Forgot password?
+                      </Link>
+                    </div>
+                    <div className="relative">
+                      <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="password"
+                        required
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#046BD2]"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading || googleLoading}
+                    className="w-full py-3 px-4 rounded-xl font-bold text-sm text-white bg-[#046BD2] hover:bg-[#0352A0] disabled:bg-slate-300 shadow-md transition-all flex items-center justify-center gap-2"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Signing in...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Sign In with Mobile</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                </form>
+              )}
+
+              {/* Mode B: Phone + SMS OTP */}
+              {phoneMode === 'otp' && (
+                <form onSubmit={handleVerifyOtpSubmit} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 block">
+                      Mobile Number
+                    </label>
+                    <div className="relative flex items-center">
+                      <div className="absolute left-3 flex items-center gap-1 text-xs font-bold text-slate-500 pointer-events-none">
+                        <span>🇮🇳 +91</span>
+                        <span className="text-slate-300">|</span>
+                      </div>
+                      <input
+                        type="tel"
+                        required
+                        disabled={otpSent}
+                        placeholder="98765 43210"
+                        maxLength={10}
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+                        className="w-full pl-20 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#046BD2] font-medium disabled:bg-slate-50"
+                      />
+                    </div>
+                  </div>
+
+                  {!otpSent ? (
+                    <button
+                      type="button"
+                      onClick={handleSendOtp}
+                      disabled={loading || phone.length < 10}
+                      className="w-full py-3 px-4 rounded-xl font-bold text-sm text-white bg-[#046BD2] hover:bg-[#0352A0] disabled:bg-slate-300 shadow-md transition-all flex items-center justify-center gap-2"
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Sending OTP...</span>
+                        </>
+                      ) : (
+                        <>
+                          <KeyRound className="w-4 h-4" />
+                          <span>Send 6-Digit OTP</span>
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-slate-700">Enter 6-Digit OTP</label>
+                          {resendCountdown > 0 ? (
+                            <span className="text-[11px] font-bold text-slate-400">
+                              Resend in {resendCountdown}s
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={handleSendOtp}
+                              disabled={loading}
+                              className="text-[11px] font-bold text-[#046BD2] hover:underline flex items-center gap-1"
+                            >
+                              <RotateCw className="w-3 h-3" />
+                              <span>Resend OTP</span>
+                            </button>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          required
+                          maxLength={6}
+                          placeholder="123456"
+                          value={otpToken}
+                          onChange={(e) => setOtpToken(e.target.value.replace(/\D/g, ''))}
+                          className="w-full text-center tracking-widest text-lg font-black py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-[#046BD2]"
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={loading || otpToken.length !== 6}
+                        className="w-full py-3 px-4 rounded-xl font-bold text-sm text-white bg-[#046BD2] hover:bg-[#0352A0] disabled:bg-slate-300 shadow-md transition-all flex items-center justify-center gap-2"
+                      >
+                        {loading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Verifying OTP...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>Verify & Sign In</span>
+                            <ArrowRight className="w-4 h-4" />
+                          </>
+                        )}
+                      </button>
+
+                      <div className="text-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOtpSent(false);
+                            setOtpToken('');
+                          }}
+                          className="text-[11px] font-bold text-slate-500 hover:text-slate-800"
+                        >
+                          Change mobile number
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </form>
+              )}
+            </div>
+          )}
+
+          {/* TAB 2: Email & Password Authentication */}
+          {activeTab === 'email' && (
+            <form onSubmit={handleEmailSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 block">
+                  Email Address / Gmail ID
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="email"
+                    required
+                    placeholder="student@gmail.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#046BD2]"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700">Password</label>
+                  <Link
+                    href="/auth/forgot-password"
+                    className="text-[11px] font-bold text-[#046BD2] hover:underline"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#046BD2]"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || googleLoading}
+                className="w-full py-3 px-4 rounded-xl font-bold text-sm text-white bg-[#046BD2] hover:bg-[#0352A0] disabled:bg-slate-300 shadow-md transition-all flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Signing in...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Sign In with Email</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </form>
+          )}
 
           {/* Quick Demo Credentials & 1-Click Fast Login */}
           <div className="p-3.5 bg-blue-50/70 rounded-xl border border-blue-100 text-[11px] text-slate-600 space-y-2.5">
@@ -240,7 +591,7 @@ function LoginForm() {
               <Sparkles className="w-3.5 h-3.5 text-[#046BD2] flex-shrink-0 mt-0.5" />
               <div>
                 <span className="font-bold text-[#046BD2]">Student Sign-in: </span>
-                Sign in with Google, enter your email & password, or test instantly with one click:
+                Sign in with Google, enter your mobile/email, or test instantly with 1-click:
               </div>
             </div>
             <button

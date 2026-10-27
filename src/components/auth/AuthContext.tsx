@@ -13,6 +13,10 @@ import {
   isAuthorizedAdminId,
   CANONICAL_ADMIN_ID,
 } from '@/lib/auth/admin';
+import {
+  normalizeIndianPhoneNumber,
+  formatSupabasePhoneError,
+} from '@/lib/auth/phone';
 
 interface AuthContextType {
   user: Profile | null;
@@ -32,6 +36,20 @@ interface AuthContextType {
     phone?: string
   ) => Promise<{ user: any; session: any }>;
   resetPassword: (email: string) => Promise<void>;
+  // Mobile Phone Authentication
+  loginWithPhonePassword: (phone: string, password: string) => Promise<void>;
+  sendPhoneOtp: (phone: string, shouldCreateUser?: boolean) => Promise<void>;
+  verifyPhoneOtp: (phone: string, token: string) => Promise<void>;
+  registerWithPhonePassword: (
+    phone: string,
+    password: string,
+    fullName: string
+  ) => Promise<{ user: any; session: any }>;
+  resetPasswordWithPhoneOtp: (
+    phone: string,
+    token: string,
+    newPassword: string
+  ) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -47,6 +65,11 @@ const AuthContext = createContext<AuthContextType>({
   loginWithEmail: async () => {},
   registerWithEmail: async () => ({ user: null, session: null }),
   resetPassword: async () => {},
+  loginWithPhonePassword: async () => {},
+  sendPhoneOtp: async () => {},
+  verifyPhoneOtp: async () => {},
+  registerWithPhonePassword: async () => ({ user: null, session: null }),
+  resetPasswordWithPhoneOtp: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -442,6 +465,185 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // 1. Mobile Phone + Password Login
+  const loginWithPhonePassword = async (phone: string, password: string) => {
+    setIsLoading(true);
+    try {
+      const { isValid, e164, error: phoneError } = normalizeIndianPhoneNumber(phone);
+      if (!isValid) throw new Error(phoneError);
+
+      if (!password) throw new Error('Please enter your account password.');
+
+      const supabase = await ensureSupabaseClient();
+      if (!supabase) throw new Error('Supabase client not initialized.');
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        phone: e164,
+        password,
+      });
+
+      if (error) throw new Error(formatSupabasePhoneError(error));
+
+      if (data.user) {
+        const canonical = db.resolveOrCreateProfile({
+          id: data.user.id,
+          phone: e164,
+          fullName: data.user.user_metadata?.full_name || 'Aspire Student',
+        });
+        setUser(canonical);
+        setRole('student');
+        localStorage.setItem('aspire_user', JSON.stringify(canonical));
+        localStorage.setItem('aspire_role', 'student');
+        if (typeof document !== 'undefined') {
+          document.cookie = `aspire_session_id=${canonical.id}; path=/; max-age=2592000; SameSite=Lax;`;
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 2. Send SMS OTP via Supabase Auth
+  const sendPhoneOtp = async (phone: string, shouldCreateUser: boolean = false) => {
+    setIsLoading(true);
+    try {
+      const { isValid, e164, error: phoneError } = normalizeIndianPhoneNumber(phone);
+      if (!isValid) throw new Error(phoneError);
+
+      const supabase = await ensureSupabaseClient();
+      if (!supabase) throw new Error('Supabase client not initialized.');
+
+      const { error } = await supabase.auth.signInWithOtp({
+        phone: e164,
+        options: {
+          shouldCreateUser,
+        },
+      });
+
+      if (error) throw new Error(formatSupabasePhoneError(error));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 3. Verify SMS OTP via Supabase Auth
+  const verifyPhoneOtp = async (phone: string, token: string) => {
+    setIsLoading(true);
+    try {
+      const { isValid, e164, error: phoneError } = normalizeIndianPhoneNumber(phone);
+      if (!isValid) throw new Error(phoneError);
+
+      const cleanToken = token.trim().replace(/\D/g, '');
+      if (cleanToken.length !== 6) throw new Error('Please enter the 6-digit OTP code.');
+
+      const supabase = await ensureSupabaseClient();
+      if (!supabase) throw new Error('Supabase client not initialized.');
+
+      const { data, error } = await supabase.auth.verifyOtp({
+        phone: e164,
+        token: cleanToken,
+        type: 'sms',
+      });
+
+      if (error) throw new Error(formatSupabasePhoneError(error));
+
+      if (data.user) {
+        const canonical = db.resolveOrCreateProfile({
+          id: data.user.id,
+          phone: e164,
+          fullName: data.user.user_metadata?.full_name || 'Aspire Student',
+        });
+        setUser(canonical);
+        setRole('student');
+        localStorage.setItem('aspire_user', JSON.stringify(canonical));
+        localStorage.setItem('aspire_role', 'student');
+        if (typeof document !== 'undefined') {
+          document.cookie = `aspire_session_id=${canonical.id}; path=/; max-age=2592000; SameSite=Lax;`;
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 4. Register with Phone + Password
+  const registerWithPhonePassword = async (phone: string, password: string, fullName: string) => {
+    setIsLoading(true);
+    try {
+      const { isValid, e164, error: phoneError } = normalizeIndianPhoneNumber(phone);
+      if (!isValid) throw new Error(phoneError);
+
+      if (!fullName.trim()) throw new Error('Please enter your full name.');
+      if (password.length < 6) throw new Error('Password must be at least 6 characters.');
+
+      const supabase = await ensureSupabaseClient();
+      if (!supabase) throw new Error('Supabase client not initialized.');
+
+      const { data, error } = await supabase.auth.signUp({
+        phone: e164,
+        password,
+        options: {
+          data: {
+            full_name: fullName.trim(),
+          },
+        },
+      });
+
+      if (error) throw new Error(formatSupabasePhoneError(error));
+
+      if (data.user) {
+        const canonical = db.resolveOrCreateProfile({
+          id: data.user.id,
+          phone: e164,
+          fullName: fullName.trim(),
+        });
+        setUser(canonical);
+        setRole('student');
+        localStorage.setItem('aspire_user', JSON.stringify(canonical));
+        localStorage.setItem('aspire_role', 'student');
+        if (typeof document !== 'undefined') {
+          document.cookie = `aspire_session_id=${canonical.id}; path=/; max-age=2592000; SameSite=Lax;`;
+        }
+      }
+
+      return data;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 5. Reset Password using Phone OTP
+  const resetPasswordWithPhoneOtp = async (phone: string, token: string, newPassword: string) => {
+    setIsLoading(true);
+    try {
+      const { isValid, e164, error: phoneError } = normalizeIndianPhoneNumber(phone);
+      if (!isValid) throw new Error(phoneError);
+
+      const cleanToken = token.trim().replace(/\D/g, '');
+      if (cleanToken.length !== 6) throw new Error('Please enter the 6-digit OTP code.');
+      if (newPassword.length < 6) throw new Error('New password must be at least 6 characters.');
+
+      const supabase = await ensureSupabaseClient();
+      if (!supabase) throw new Error('Supabase client not initialized.');
+
+      const { data, error } = await supabase.auth.verifyOtp({
+        phone: e164,
+        token: cleanToken,
+        type: 'sms',
+      });
+
+      if (error) throw new Error(formatSupabasePhoneError(error));
+
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (updateError) throw new Error(updateError.message || 'Failed to update password.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Safe Logout: Clears Supabase session and client cookies
   const logout = async () => {
     try {
@@ -463,6 +665,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (typeof document !== 'undefined') {
       document.cookie = 'aspire_session_id=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
       document.cookie = 'aspire_admin_session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+      document.cookie = 'aspire_admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
     }
   };
 
@@ -481,6 +684,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loginWithEmail,
         registerWithEmail,
         resetPassword,
+        loginWithPhonePassword,
+        sendPhoneOtp,
+        verifyPhoneOtp,
+        registerWithPhonePassword,
+        resetPasswordWithPhoneOtp,
       }}
     >
       {children}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthContext';
@@ -12,7 +12,10 @@ import {
   Lock,
   ArrowRight,
   AlertCircle,
-  GraduationCap,
+  CheckCircle2,
+  Loader2,
+  KeyRound,
+  RotateCw,
 } from 'lucide-react';
 
 function GoogleIcon() {
@@ -40,42 +43,70 @@ function GoogleIcon() {
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { registerWithEmail, loginWithGoogle } = useAuth();
+  const {
+    registerWithEmail,
+    registerWithPhonePassword,
+    verifyPhoneOtp,
+    sendPhoneOtp,
+    loginWithGoogle,
+  } = useAuth();
 
+  // Active tab: 'phone' or 'email'
+  const [activeTab, setActiveTab] = useState<'phone' | 'email'>('phone');
+
+  // Form states
   const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [targetClass, setTargetClass] = useState('Class 12 Bihar Board');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(true);
 
+  // OTP verification state for phone signup
+  const [needsPhoneVerification, setNeedsPhoneVerification] = useState(false);
+  const [otpToken, setOtpToken] = useState('');
+  const [resendCountdown, setResendCountdown] = useState(0);
+
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
+  const [infoMessage, setInfoMessage] = useState('');
+
+  // Countdown timer for OTP resend
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (resendCountdown > 0) {
+      timer = setTimeout(() => {
+        setResendCountdown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [resendCountdown]);
 
   const handleGoogleSignup = async () => {
     setError('');
-    setLoading(true);
+    setGoogleLoading(true);
     try {
       await loginWithGoogle('/dashboard');
     } catch (err: any) {
-      setError(err?.message || 'Unable to complete Google sign up. Please try email & password.');
-      setLoading(false);
+      setError(err?.message || 'Unable to complete Google sign up. Please try email or mobile.');
+      setGoogleLoading(false);
     }
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
+  // Submit Mobile Number Signup
+  const handlePhoneRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setInfoMessage('');
 
-    if (!fullName.trim() || !email.trim() || !password) {
+    if (!fullName.trim() || !phone.trim() || !password) {
       setError('Please fill in all required fields.');
       return;
     }
 
-    const cleanPhone = phone.replace(/\D/g, '');
-    if (phone.trim() && cleanPhone.length < 10) {
-      setError('Please enter a valid 10-digit mobile number or leave blank.');
+    if (phone.replace(/\D/g, '').length !== 10) {
+      setError('Please enter a valid 10-digit Indian mobile number.');
       return;
     }
 
@@ -96,15 +127,94 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      await registerWithEmail(
-        email.trim(),
-        password,
-        fullName.trim(),
-        cleanPhone ? `+91 ${cleanPhone.slice(-10)}` : undefined
-      );
+      const res = await registerWithPhonePassword(phone.trim(), password, fullName.trim());
+
+      // If user session was immediately established, proceed to dashboard
+      if (res?.session) {
+        router.push('/dashboard');
+        return;
+      }
+
+      // Otherwise, request OTP verification to confirm mobile number
+      setNeedsPhoneVerification(true);
+      setResendCountdown(60);
+      setInfoMessage(`We sent a 6-digit confirmation OTP to +91 ${phone.replace(/\D/g, '').slice(-10)}.`);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to create student account with this mobile number.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Verify Phone OTP after signup
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setInfoMessage('');
+
+    if (!otpToken.trim() || otpToken.length !== 6) {
+      setError('Please enter the 6-digit verification code.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await verifyPhoneOtp(phone.trim(), otpToken.trim());
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err?.message || 'Failed to create student account. Please try again.');
+      setError(err?.message || 'Invalid or expired OTP code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Resend Phone Signup OTP
+  const handleResendOtp = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      await sendPhoneOtp(phone.trim(), true);
+      setResendCountdown(60);
+      setInfoMessage('New verification code sent to your mobile number.');
+    } catch (err: any) {
+      setError(err?.message || 'Could not resend OTP. Please wait a moment.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Submit Email Signup
+  const handleEmailRegisterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setInfoMessage('');
+
+    if (!fullName.trim() || !email.trim() || !password) {
+      setError('Please fill in all required fields.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    if (!agreeTerms) {
+      setError('Please accept the Terms and Privacy Policy to continue.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await registerWithEmail(email.trim(), password, fullName.trim());
+      router.push('/dashboard');
+    } catch (err: any) {
+      setError(err?.message || 'Failed to create account with this email address.');
     } finally {
       setLoading(false);
     }
@@ -118,192 +228,384 @@ export default function RegisterPage() {
           Create Student Account
         </h2>
         <p className="text-xs text-slate-500">
-          Join Aspire Academy to access live classes, tests, and study notes.
+          Join 10,000+ Bihar Board and CBSE students learning under Shekhar Sir.
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-6 shadow-xl sm:rounded-3xl sm:px-10 border border-slate-200 space-y-5">
           {error && (
-            <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              <span>{error}</span>
+            <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2 animate-in fade-in">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span className="leading-relaxed">{error}</span>
             </div>
           )}
 
-          {/* Google (Gmail) One-Click Sign Up */}
-          <button
-            type="button"
-            onClick={handleGoogleSignup}
-            disabled={loading}
-            className="w-full py-3 px-4 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 font-bold text-sm text-slate-700 transition shadow-sm flex items-center justify-center gap-3 group"
-          >
-            <GoogleIcon />
-            <span>Continue with Google / Gmail</span>
-          </button>
+          {infoMessage && (
+            <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600" />
+              <span>{infoMessage}</span>
+            </div>
+          )}
 
-          {/* Clean Divider */}
-          <div className="relative flex items-center justify-center">
-            <div className="border-t border-slate-200 w-full" />
-            <span className="bg-white px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">
-              Or register with Email & Mobile
-            </span>
-            <div className="border-t border-slate-200 w-full" />
-          </div>
+          {/* If currently verifying Phone OTP */}
+          {needsPhoneVerification ? (
+            <form onSubmit={handleVerifyOtp} className="space-y-4">
+              <div className="text-center space-y-1">
+                <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#046BD2] flex items-center justify-center mx-auto mb-2">
+                  <KeyRound className="w-6 h-6" />
+                </div>
+                <h3 className="text-base font-black text-slate-900">
+                  Verify Mobile Number
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Enter the 6-digit OTP sent to <strong>+91 {phone.replace(/\D/g, '').slice(-10)}</strong>
+                </p>
+              </div>
 
-          <form onSubmit={handleRegister} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 block">
-                Full Name <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700">6-Digit Code</label>
+                  {resendCountdown > 0 ? (
+                    <span className="text-[11px] font-bold text-slate-400">
+                      Resend in {resendCountdown}s
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleResendOtp}
+                      disabled={loading}
+                      className="text-[11px] font-bold text-[#046BD2] hover:underline flex items-center gap-1"
+                    >
+                      <RotateCw className="w-3 h-3" />
+                      <span>Resend OTP</span>
+                    </button>
+                  )}
+                </div>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Rahul Kumar"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#046BD2]"
+                  maxLength={6}
+                  autoFocus
+                  placeholder="123456"
+                  value={otpToken}
+                  onChange={(e) => setOtpToken(e.target.value.replace(/\D/g, ''))}
+                  className="w-full text-center tracking-widest text-xl font-black py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-[#046BD2]"
                 />
               </div>
-            </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 block">
-                Email Address / Gmail <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="email"
-                  required
-                  placeholder="student@gmail.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#046BD2]"
-                />
-              </div>
-            </div>
+              <button
+                type="submit"
+                disabled={loading || otpToken.length !== 6}
+                className="w-full py-3 px-4 rounded-xl font-bold text-sm text-white bg-[#046BD2] hover:bg-[#0352A0] disabled:bg-slate-300 shadow-md transition-all flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Verifying...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Verify & Enter Dashboard</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700 block">
-                  Mobile Number <span className="text-red-500">*</span>
-                </label>
-                <div className="flex rounded-xl border border-slate-200 overflow-hidden focus-within:border-[#046BD2]">
-                  <span className="bg-slate-100 px-3 py-2.5 text-xs font-bold text-slate-600 flex items-center border-r border-slate-200">
-                    🇮🇳 +91
-                  </span>
-                  <input
-                    type="tel"
-                    required
-                    maxLength={10}
-                    placeholder="98765 43210"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
-                    className="w-full px-3 py-2.5 text-sm focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700 block">
-                  Target Class / Exam <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={targetClass}
-                  onChange={(e) => setTargetClass(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#046BD2] bg-white font-medium"
+              <div className="text-center pt-2">
+                <button
+                  type="button"
+                  onClick={() => setNeedsPhoneVerification(false)}
+                  className="text-xs font-bold text-slate-500 hover:text-slate-800"
                 >
-                  <option value="Class 12 (Bihar Board)">Class 12 (Bihar Board)</option>
-                  <option value="Class 12 (CBSE)">Class 12 (CBSE)</option>
-                  <option value="Class 11 (Foundation)">Class 11 (Foundation)</option>
-                  <option value="NEET Target Batch">NEET Target Batch</option>
-                  <option value="Class 10 Board">Class 10 Board</option>
-                  <option value="Class 9 Foundation">Class 9 Foundation</option>
-                </select>
+                  ← Edit registration details
+                </button>
               </div>
-            </div>
+            </form>
+          ) : (
+            <>
+              {/* Google One-Click Signup */}
+              <button
+                type="button"
+                onClick={handleGoogleSignup}
+                disabled={googleLoading || loading}
+                className="w-full py-3 px-4 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 font-bold text-sm text-slate-700 transition shadow-sm flex items-center justify-center gap-3 disabled:opacity-60"
+              >
+                {googleLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 text-[#046BD2] animate-spin" />
+                    <span>Connecting to Google...</span>
+                  </>
+                ) : (
+                  <>
+                    <GoogleIcon />
+                    <span>Sign up with Google / Gmail</span>
+                  </>
+                )}
+              </button>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 block">
-                Create Password <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="password"
-                  required
-                  placeholder="At least 6 characters"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#046BD2]"
-                />
+              {/* Divider */}
+              <div className="relative flex items-center justify-center">
+                <div className="border-t border-slate-200 w-full" />
+                <span className="bg-white px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">
+                  Or register with
+                </span>
+                <div className="border-t border-slate-200 w-full" />
               </div>
-            </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 block">
-                Confirm Password <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="password"
-                  required
-                  placeholder="Repeat your password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#046BD2]"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-start gap-2 pt-1">
-              <input
-                type="checkbox"
-                id="terms"
-                checked={agreeTerms}
-                onChange={(e) => setAgreeTerms(e.target.checked)}
-                className="mt-1 h-4 w-4 text-[#046BD2] focus:ring-[#046BD2] rounded"
-              />
-              <label htmlFor="terms" className="text-xs text-slate-600 leading-normal">
-                I agree to the{' '}
-                <Link href="/terms" className="text-[#046BD2] font-semibold hover:underline">
-                  Terms of Service
-                </Link>{' '}
-                and{' '}
-                <Link
-                  href="/privacy-policy"
-                  className="text-[#046BD2] font-semibold hover:underline"
+              {/* Navigation Tabs */}
+              <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-2xl text-xs font-bold text-slate-600">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('phone');
+                    setError('');
+                  }}
+                  className={`py-2 rounded-xl transition flex items-center justify-center gap-1.5 ${
+                    activeTab === 'phone'
+                      ? 'bg-white text-slate-900 shadow-sm font-black'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
                 >
-                  Privacy Policy
-                </Link>
-                .
-              </label>
-            </div>
+                  <Phone className="w-3.5 h-3.5 text-[#046BD2]" />
+                  <span>Mobile Number</span>
+                </button>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3.5 px-4 rounded-xl font-bold text-sm text-white bg-[#046BD2] hover:bg-[#0352A0] disabled:bg-slate-300 shadow-md transition-all flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <span>Creating Account...</span>
-              ) : (
-                <>
-                  <span>Create Account & Start Learning</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('email');
+                    setError('');
+                  }}
+                  className={`py-2 rounded-xl transition flex items-center justify-center gap-1.5 ${
+                    activeTab === 'email'
+                      ? 'bg-white text-slate-900 shadow-sm font-black'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Mail className="w-3.5 h-3.5 text-[#046BD2]" />
+                  <span>Email Address</span>
+                </button>
+              </div>
+
+              {/* TAB 1: Mobile Number Registration */}
+              {activeTab === 'phone' && (
+                <form onSubmit={handlePhoneRegisterSubmit} className="space-y-3.5">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700 block">Full Name</label>
+                    <div className="relative">
+                      <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Priyanshu Kumar"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#046BD2]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700 block">Mobile Number</label>
+                    <div className="relative flex items-center">
+                      <div className="absolute left-3 flex items-center gap-1 text-xs font-bold text-slate-500 pointer-events-none">
+                        <span>🇮🇳 +91</span>
+                        <span className="text-slate-300">|</span>
+                      </div>
+                      <input
+                        type="tel"
+                        required
+                        placeholder="98765 43210"
+                        maxLength={10}
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+                        className="w-full pl-20 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#046BD2] font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700 block">Create Password</label>
+                    <div className="relative">
+                      <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="password"
+                        required
+                        placeholder="At least 6 characters"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#046BD2]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700 block">Confirm Password</label>
+                    <div className="relative">
+                      <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="password"
+                        required
+                        placeholder="Re-enter password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#046BD2]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2 pt-1">
+                    <input
+                      type="checkbox"
+                      id="agreeTermsPhone"
+                      checked={agreeTerms}
+                      onChange={(e) => setAgreeTerms(e.target.checked)}
+                      className="mt-0.5 rounded border-slate-300 text-[#046BD2] focus:ring-[#046BD2]"
+                    />
+                    <label htmlFor="agreeTermsPhone" className="text-xs text-slate-500 leading-tight">
+                      I agree to the{' '}
+                      <Link href="/terms" className="text-[#046BD2] underline">
+                        Terms of Service
+                      </Link>{' '}
+                      and{' '}
+                      <Link href="/privacy-policy" className="text-[#046BD2] underline">
+                        Privacy Policy
+                      </Link>
+                      .
+                    </label>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading || googleLoading}
+                    className="w-full py-3 px-4 rounded-xl font-bold text-sm text-white bg-[#046BD2] hover:bg-[#0352A0] disabled:bg-slate-300 shadow-md transition-all flex items-center justify-center gap-2"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Creating account...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Register with Mobile</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                </form>
               )}
-            </button>
-          </form>
+
+              {/* TAB 2: Email Registration */}
+              {activeTab === 'email' && (
+                <form onSubmit={handleEmailRegisterSubmit} className="space-y-3.5">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700 block">Full Name</label>
+                    <div className="relative">
+                      <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Priyanshu Kumar"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#046BD2]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700 block">Email Address</label>
+                    <div className="relative">
+                      <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="email"
+                        required
+                        placeholder="student@gmail.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#046BD2]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700 block">Create Password</label>
+                    <div className="relative">
+                      <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="password"
+                        required
+                        placeholder="At least 6 characters"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#046BD2]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700 block">Confirm Password</label>
+                    <div className="relative">
+                      <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="password"
+                        required
+                        placeholder="Re-enter password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#046BD2]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2 pt-1">
+                    <input
+                      type="checkbox"
+                      id="agreeTermsEmail"
+                      checked={agreeTerms}
+                      onChange={(e) => setAgreeTerms(e.target.checked)}
+                      className="mt-0.5 rounded border-slate-300 text-[#046BD2] focus:ring-[#046BD2]"
+                    />
+                    <label htmlFor="agreeTermsEmail" className="text-xs text-slate-500 leading-tight">
+                      I agree to the{' '}
+                      <Link href="/terms" className="text-[#046BD2] underline">
+                        Terms of Service
+                      </Link>{' '}
+                      and{' '}
+                      <Link href="/privacy-policy" className="text-[#046BD2] underline">
+                        Privacy Policy
+                      </Link>
+                      .
+                    </label>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading || googleLoading}
+                    className="w-full py-3 px-4 rounded-xl font-bold text-sm text-white bg-[#046BD2] hover:bg-[#0352A0] disabled:bg-slate-300 shadow-md transition-all flex items-center justify-center gap-2"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Creating account...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Register with Email</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                </form>
+              )}
+            </>
+          )}
 
           <div className="text-center pt-2 text-xs text-slate-600">
             <span>Already have an account? </span>
             <Link href="/auth/login" className="font-bold text-[#046BD2] hover:underline">
-              Sign In
+              Sign in here
             </Link>
           </div>
         </div>
