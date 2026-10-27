@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { db } from '@/lib/data/mock-db';
-import { Batch } from '@/lib/types';
+import { getCourses } from '@/lib/data/supabase-service';
+import { Course, Batch } from '@/lib/types';
 import {
   Calendar,
   Plus,
@@ -17,14 +18,33 @@ import {
 } from 'lucide-react';
 
 export default function AdminBatchesPage() {
-  const courses = db.courses;
+  const [courses, setCourses] = useState<Course[]>([...db.courses]);
   const [batches, setBatches] = useState<Batch[]>([...db.batches]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [filterCourseId, setFilterCourseId] = useState<string>('all');
   const [successToast, setSuccessToast] = useState('');
 
+  // Fetch live courses
+  useEffect(() => {
+    let isMounted = true;
+    async function loadLiveCourses() {
+      try {
+        const liveCourses = await getCourses();
+        if (liveCourses && liveCourses.length > 0 && isMounted) {
+          setCourses(liveCourses);
+        }
+      } catch (err) {
+        console.warn('Could not load courses from database:', err);
+      }
+    }
+    loadLiveCourses();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   // New Batch Form State
-  const [selectedCourseId, setSelectedCourseId] = useState(courses[0]?.id || '');
+  const [selectedCourseId, setSelectedCourseId] = useState(db.courses[0]?.id || '');
   const [name, setName] = useState('');
   const [scheduleDescription, setScheduleDescription] = useState('Mon, Wed, Fri — 05:00 PM to 06:30 PM');
   const [capacity, setCapacity] = useState(150);

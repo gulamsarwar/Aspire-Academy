@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { db } from '@/lib/data/mock-db';
+import { getCourseBySlug } from '@/lib/data/supabase-service';
 import { CourseDetailsClient } from './CourseDetailsClient';
 
 export function generateStaticParams() {
@@ -10,13 +11,15 @@ export function generateStaticParams() {
   }));
 }
 
+export const dynamicParams = true;
+
 export default async function CourseDetailPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const course = db.getCourseBySlug(slug);
+  const course = await getCourseBySlug(slug);
 
   if (!course) {
     notFound();

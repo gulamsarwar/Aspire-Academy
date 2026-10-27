@@ -1,7 +1,8 @@
 import React from 'react';
 import Link from 'next/link';
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { db } from '@/lib/data/mock-db';
+import { getCourseBySlug } from '@/lib/data/supabase-service';
 import { CoursePlayerClient } from './CoursePlayerClient';
 
 export const dynamic = 'force-dynamic';
@@ -12,7 +13,7 @@ export default async function CourseLearnPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const course = db.getCourseBySlug(slug);
+  const course = await getCourseBySlug(slug);
 
   if (!course) {
     notFound();

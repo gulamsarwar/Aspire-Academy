@@ -32,6 +32,11 @@ export function YouTubePlayer({
   useEffect(() => {
     setIsLoading(true);
     setHasError(false);
+    // Safety timer: ensure loading overlay never gets stuck or blocks iframe interaction
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1500);
+    return () => clearTimeout(timer);
   }, [rawInput]);
 
   if (!videoId || !info) {
@@ -54,11 +59,11 @@ export function YouTubePlayer({
 
   return (
     <div className={`relative aspect-video w-full rounded-2xl overflow-hidden bg-slate-950 shadow-2xl border border-slate-800 group ${className}`}>
-      {/* Loading Skeleton */}
+      {/* Loading Skeleton (pointer-events-none ensures user clicks always reach YouTube iframe) */}
       {isLoading && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-950 text-slate-400 space-y-3">
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-950 text-slate-400 space-y-3 pointer-events-none transition-opacity duration-300">
           <div className="w-10 h-10 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs font-semibold text-slate-300">Loading secure video player...</p>
+          <p className="text-xs font-semibold text-slate-300">Loading video player...</p>
         </div>
       )}
 

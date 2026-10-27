@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { db } from '@/lib/data/mock-db';
-import { addLessonToDatabase, updateLessonInDatabase, deleteLessonFromDatabase } from '@/lib/data/supabase-service';
-import { Lesson, Module } from '@/lib/types';
+import { getCourses, addLessonToDatabase, updateLessonInDatabase, deleteLessonFromDatabase } from '@/lib/data/supabase-service';
+import { Course, Lesson, Module } from '@/lib/types';
 import {
   FileText,
   Plus,
@@ -28,8 +28,8 @@ import { extractYouTubeVideoId } from '@/lib/youtube';
 import { YouTubePlayer } from '@/components/ui/YouTubePlayer';
 
 export default function AdminLessonsPage() {
-  const courses = db.courses;
-  const [selectedCourseId, setSelectedCourseId] = useState(courses[0]?.id || '');
+  const [courses, setCourses] = useState<Course[]>([...db.courses]);
+  const [selectedCourseId, setSelectedCourseId] = useState(db.courses[0]?.id || '');
 
   const [modules, setModules] = useState<Module[]>([]);
   const [selectedModuleId, setSelectedModuleId] = useState('');
@@ -64,6 +64,25 @@ export default function AdminLessonsPage() {
   const [editFreePreview, setEditFreePreview] = useState(false);
   const [editPublished, setEditPublished] = useState(true);
   const [editQuizId, setEditQuizId] = useState('');
+
+  // Load live courses from Supabase
+  useEffect(() => {
+    let isMounted = true;
+    async function loadLiveCourses() {
+      try {
+        const liveCourses = await getCourses();
+        if (liveCourses && liveCourses.length > 0 && isMounted) {
+          setCourses(liveCourses);
+        }
+      } catch (err) {
+        console.warn('Could not load courses from database:', err);
+      }
+    }
+    loadLiveCourses();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Handle URL query parameter ?courseId=...
   useEffect(() => {

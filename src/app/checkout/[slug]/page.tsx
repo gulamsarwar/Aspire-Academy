@@ -1,6 +1,7 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
 import { db } from '@/lib/data/mock-db';
+import { getCourseBySlug } from '@/lib/data/supabase-service';
 import { CheckoutClient } from './CheckoutClient';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +16,7 @@ export default async function CheckoutPage({
   const { slug } = await params;
   const { batchId } = await searchParams;
 
-  const course = db.getCourseBySlug(slug);
+  const course = await getCourseBySlug(slug);
   if (!course) {
     notFound();
   }

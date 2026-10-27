@@ -1,12 +1,32 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { db } from '@/lib/data/mock-db';
+import { getCourses } from '@/lib/data/supabase-service';
+import { Course } from '@/lib/types';
 import { CourseCard } from '@/components/ui/CourseCard';
 import { Search, Filter, BookOpen, Sparkles, SlidersHorizontal } from 'lucide-react';
 
 export default function CoursesPage() {
-  const allCourses = db.getCourses(true);
+  const [coursesList, setCoursesList] = useState<Course[]>(() => db.getCourses(true));
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadLive() {
+      try {
+        const live = await getCourses();
+        if (isMounted && live && live.length > 0) {
+          setCoursesList(live.filter((c) => c.published));
+        }
+      } catch (err) {
+        console.warn('Could not load live courses:', err);
+      }
+    }
+    loadLive();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -17,7 +37,7 @@ export default function CoursesPage() {
   const targetClasses = ['All', 'Class 12', 'Class 11', 'Class 10', 'Class 9', 'Repeater/Dropper'];
 
   const filteredCourses = useMemo(() => {
-    return allCourses
+    return coursesList
       .filter((c) => {
         const matchesSearch =
           c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -37,7 +57,7 @@ export default function CoursesPage() {
         if (sortBy === 'price-high') return b.price - a.price;
         return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
       });
-  }, [allCourses, searchQuery, selectedCategory, selectedClass, sortBy]);
+  }, [coursesList, searchQuery, selectedCategory, selectedClass, sortBy]);
 
   return (
     <div className="min-h-screen bg-slate-50 py-12">

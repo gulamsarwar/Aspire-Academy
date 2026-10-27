@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, normalizeStudentId } from '@/lib/data/mock-db';
 import {
+  getCourses,
   getStudentEnrollmentsFromDatabase,
   getStudentOrdersFromDatabase,
   getStudentBookmarksFromDatabase,
@@ -119,7 +120,7 @@ export async function GET(req: NextRequest) {
       downloads,
       attempts,
       quiz_attempts: attempts,
-      allCourses: db.getCourses(true),
+      allCourses: (await getCourses()).filter((c) => c.published),
     });
   } catch (error: any) {
     console.error('Student dashboard API error:', error);

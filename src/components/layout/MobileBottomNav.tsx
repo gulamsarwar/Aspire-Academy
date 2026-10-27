@@ -14,9 +14,12 @@ import {
 export function MobileBottomNav() {
   const pathname = usePathname();
 
-  // Hide mobile bottom nav during full-screen video learn sessions or admin routes
-  const isLearnPlayer = pathname.includes('/learn') || pathname.startsWith('/admin');
-  if (isLearnPlayer) {
+  // Hide mobile bottom nav during full-screen video learn sessions, admin routes, or auth screens
+  const shouldHide =
+    pathname.includes('/learn') ||
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/auth');
+  if (shouldHide) {
     return null;
   }
 
