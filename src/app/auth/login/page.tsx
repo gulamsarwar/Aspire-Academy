@@ -82,6 +82,19 @@ function LoginForm() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
+  const [currentOrigin, setCurrentOrigin] = useState('');
+  const [isNetworkHost, setIsNetworkHost] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrentOrigin(window.location.origin);
+      setIsNetworkHost(
+        window.location.hostname !== 'localhost' &&
+        window.location.hostname !== '127.0.0.1' &&
+        !window.location.hostname.endsWith('.localhost')
+      );
+    }
+  }, []);
 
   // Countdown timer for OTP resend
   useEffect(() => {
@@ -293,6 +306,20 @@ function LoginForm() {
               </>
             )}
           </button>
+
+          {isNetworkHost && (
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200/80 text-[11px] text-amber-900 space-y-1">
+              <p className="font-bold flex items-center gap-1.5 text-amber-950">
+                <span>📱 Mobile Google Login Tip:</span>
+              </p>
+              <p className="leading-relaxed text-amber-800">
+                Agar Google select karne ke baad <code className="font-mono bg-amber-100 px-1 rounded font-bold">localhost</code> error aaye, to Supabase Dashboard &gt; Auth &gt; URL Configuration me Redirect URLs me <code className="font-mono font-bold bg-amber-100 px-1 rounded">{currentOrigin}/**</code> add karein.
+              </p>
+              <p className="font-semibold text-amber-950 pt-0.5">
+                ⚡ Ya turant access ke liye niche diye <strong>Mobile Number</strong> ya <strong>1-Click Student Login</strong> se sign-in karein!
+              </p>
+            </div>
+          )}
 
           {/* Divider */}
           <div className="relative flex items-center justify-center">

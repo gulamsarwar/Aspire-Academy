@@ -462,22 +462,20 @@ export default function AdminLessonsPage() {
                 <button
                   type="button"
                   onClick={() => setVideoSourceType('youtube')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                    videoSourceType === 'youtube'
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${videoSourceType === 'youtube'
                       ? 'bg-rose-600 text-white shadow-sm'
                       : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                    }`}
                 >
                   Option A — 🎬 YouTube Link
                 </button>
                 <button
                   type="button"
                   onClick={() => setVideoSourceType('r2')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                    videoSourceType === 'r2'
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${videoSourceType === 'r2'
                       ? 'bg-[#046BD2] text-white shadow-sm'
                       : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                    }`}
                 >
                   Option B — ☁️ Cloudflare R2
                 </button>
@@ -1074,22 +1072,20 @@ export default function AdminLessonsPage() {
                     <button
                       type="button"
                       onClick={() => setEditVideoSourceType('youtube')}
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition ${
-                        editVideoSourceType === 'youtube'
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition ${editVideoSourceType === 'youtube'
                           ? 'bg-rose-600 text-white'
                           : 'text-slate-600 hover:text-slate-900'
-                      }`}
+                        }`}
                     >
                       Option A: YouTube
                     </button>
                     <button
                       type="button"
                       onClick={() => setEditVideoSourceType('r2')}
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition ${
-                        editVideoSourceType === 'r2'
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition ${editVideoSourceType === 'r2'
                           ? 'bg-[#046BD2] text-white'
                           : 'text-slate-600 hover:text-slate-900'
-                      }`}
+                        }`}
                     >
                       Option B: R2 Video
                     </button>
