@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth/AuthContext';
+import { useSiteSettings } from '@/components/settings/SiteSettingsContext';
 import { MathRenderer } from '@/components/ui/MathRenderer';
 import {
   Sparkles,
@@ -52,6 +53,7 @@ const FAQ_PROMPTS = [
 
 export default function PiAssistantPage() {
   const { user } = useAuth();
+  const { settings } = useSiteSettings();
   const [inputQuery, setInputQuery] = useState('');
   const [isTyping, setIsTyping] = useState(false);
 
@@ -93,7 +95,7 @@ export default function PiAssistantPage() {
       } else if (qLower.includes('dna') || qLower.includes('pitch') || qLower.includes('watson')) {
         reply = `**B-DNA की द्विकुंडली संरचना (Watson & Crick Model, 1953):**\n\n1. प्रत्येक पूर्ण घुमाव (Pitch) की लंबाई **$3.4\\text{ nm}$ ($34\\text{ \\AA}$)** होती है।\n2. प्रत्येक घुमाव में **10 बेस पेयर्स ($10\\text{ bp}$)** उपस्थित होते हैं।\n3. दो निकटतम बेस पेयर्स के बीच की दूरी: $$\\frac{3.4\\text{ nm}}{10} = 0.34\\text{ nm} = 3.4\\text{ \\AA}$$\n4. DNA के रज्जुक प्रतिसमांतर (Antiparallel, $5' \\to 3'$ एवं $3' \\to 5'$) होते हैं।`;
       } else {
-        reply = `आपके प्रश्न का विश्लेषण:\n\n"${query}"\n\nयह संकल्पना Bihar Board एवं CBSE Class 12th के लिए बहुत महत्वपूर्ण है।\n\n- **मुख्य बिंदु**: इस विषय से संबंधित मुख्य NCERT सारांश और महत्वपूर्ण सूत्र को याद रखें।\n- यदि आपको विस्तृत हस्तलिखित समाधान चाहिए, तो आप नीचे **"Ask Shekhar Sir Directly"** पर क्लिक करके सीधे फैकल्टी से भी मार्गदर्शन प्राप्त कर सकते हैं!`;
+        reply = `आपके प्रश्न का विश्लेषण:\n\n"${query}"\n\nयह संकल्पना Bihar Board एवं CBSE Class 12th के लिए बहुत महत्वपूर्ण है।\n\n- **मुख्य बिंदु**: इस विषय से संबंधित मुख्य NCERT सारांश और महत्वपूर्ण सूत्र को याद रखें।\n- यदि आपको विस्तृत हस्तलिखित समाधान चाहिए, तो आप नीचे **"Ask ${settings.lead_faculty || 'Shekhar Sir'} Directly"** पर क्लिक करके सीधे फैकल्टी से भी मार्गदर्शन प्राप्त कर सकते हैं!`;
       }
 
       const botMsg: ChatMessage = {
@@ -246,7 +248,7 @@ export default function PiAssistantPage() {
           </div>
           <div>
             <span className="font-bold text-indigo-950 block">Need Personalized Faculty Mentoring?</span>
-            <span className="text-slate-600">Submit complex board numericals directly to Shekhar Sir and senior faculty.</span>
+            <span className="text-slate-600">Submit complex board numericals directly to {settings.lead_faculty || 'Shekhar Sir'} and senior faculty.</span>
           </div>
         </div>
 

@@ -3,9 +3,11 @@
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { db } from '@/lib/data/mock-db';
+import { useSiteSettings } from '@/components/settings/SiteSettingsContext';
 import { Calendar, Users, Clock, ArrowRight, CheckCircle2, Sparkles, Filter, Flame } from 'lucide-react';
 
 export default function BatchesPage() {
+  const { settings } = useSiteSettings();
   const batches = db.batches;
   const courses = db.courses;
 
@@ -52,7 +54,7 @@ export default function BatchesPage() {
             </h1>
             <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
               Find the perfect batch schedule for your school and self-study hours.
-              Morning and evening slots available with personal mentorship by <strong>Shekhar Sir</strong>.
+              Morning and evening slots available with personal mentorship by <strong>{settings.lead_faculty || 'Shekhar Sir'}</strong>.
             </p>
           </div>
         </div>

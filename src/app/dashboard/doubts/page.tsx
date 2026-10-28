@@ -24,7 +24,7 @@ export default function StudentDoubtsPage() {
   const rawPhone = (settings.whatsapp || settings.phone || '9123456789').replace(/[^0-9]/g, '');
   const cleanPhone = rawPhone.startsWith('91') ? rawPhone : `91${rawPhone}`;
   const doubtWhatsAppUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(
-    'Hello Shekhar Sir, I am a student of Aspire Academy and have an urgent academic doubt.'
+    `Hello ${settings.lead_faculty || 'Shekhar Sir'}, I am a student of ${settings.academy_name} and have an urgent academic doubt.`
   )}`;
 
   // Doubt submission form
@@ -62,7 +62,7 @@ export default function StudentDoubtsPage() {
     if (!questionText.trim()) return;
 
     if (!user?.id) {
-      setMessage({ type: 'error', text: 'Please sign in to submit a doubt to Shekhar Sir.' });
+      setMessage({ type: 'error', text: `Please sign in to submit a doubt to ${settings.lead_faculty || 'Shekhar Sir'}.` });
       return;
     }
 
@@ -82,7 +82,7 @@ export default function StudentDoubtsPage() {
 
       if (!res.ok) throw new Error('Failed to submit doubt');
       setQuestionText('');
-      setMessage({ type: 'success', text: 'Your doubt has been submitted to Shekhar Sir!' });
+      setMessage({ type: 'success', text: `Your doubt has been submitted to ${settings.lead_faculty || 'Shekhar Sir'}!` });
 
       // Refresh doubts
       const dashRes = await fetch(`/api/student/dashboard?studentId=${encodeURIComponent(studentId)}`);
@@ -102,7 +102,7 @@ export default function StudentDoubtsPage() {
     <div className="space-y-6 max-w-7xl mx-auto">
       <div>
         <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-          Ask Shekhar Sir — Doubt Resolution Desk
+          Ask {settings.lead_faculty || 'Shekhar Sir'} — Doubt Resolution Desk
         </h1>
         <p className="text-xs text-slate-500">
           Have questions on Biology diagrams, genetics numericals, or NCERT concepts? Submit below.
@@ -118,7 +118,7 @@ export default function StudentDoubtsPage() {
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900">Submit a New Doubt</h2>
-              <p className="text-xs text-slate-500">Directly reviewed by Shekhar Sir</p>
+              <p className="text-xs text-slate-500">Directly reviewed by {settings.lead_faculty || 'Shekhar Sir'}</p>
             </div>
           </div>
 
@@ -203,7 +203,7 @@ export default function StudentDoubtsPage() {
               className="w-full py-2.5 px-4 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center justify-center gap-2 shadow-sm"
             >
               <MessageCircle className="w-4 h-4" />
-              <span>Connect on Shekhar Sir WhatsApp</span>
+              <span>Connect on {settings.lead_faculty || 'Shekhar Sir'} WhatsApp</span>
             </a>
           </div>
         </div>
@@ -236,7 +236,7 @@ export default function StudentDoubtsPage() {
                           : 'bg-amber-100 text-amber-800'
                       }`}
                     >
-                      {d.status === 'resolved' ? 'Resolved by Shekhar Sir' : 'Pending Faculty Review'}
+                      {d.status === 'resolved' ? `Resolved by ${settings.lead_faculty || 'Shekhar Sir'}` : 'Pending Faculty Review'}
                     </span>
                     <span className="text-slate-400 text-[11px]">
                       {new Date(d.created_at).toLocaleDateString('en-IN')}
@@ -251,13 +251,13 @@ export default function StudentDoubtsPage() {
                     <div className="bg-white p-3.5 rounded-xl border border-emerald-200 text-xs text-slate-700 space-y-1">
                       <div className="flex items-center gap-1.5 font-bold text-emerald-700">
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Faculty Explanation ({d.faculty_name || 'Shekhar Sir'}):</span>
+                        <span>Faculty Explanation ({d.faculty_name || settings.lead_faculty || 'Shekhar Sir'}):</span>
                       </div>
                       <p className="leading-relaxed pl-5">{d.answer_text}</p>
                     </div>
                   ) : (
                     <p className="text-[11px] text-slate-400 italic">
-                      Under evaluation. Shekhar Sir typically responds within 24 hours.
+                      Under evaluation. {settings.lead_faculty || 'Shekhar Sir'} typically responds within 24 hours.
                     </p>
                   )}
                 </div>

@@ -29,7 +29,7 @@ export default function LiveClassesPage() {
   const rawPhone = (settings.whatsapp || settings.phone || '9123456789').replace(/[^0-9]/g, '');
   const cleanPhone = rawPhone.startsWith('91') ? rawPhone : `91${rawPhone}`;
   const liveWhatsAppUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(
-    'Hello Shekhar Sir, I have a doubt during the live class'
+    `Hello ${settings.lead_faculty || 'Shekhar Sir'}, I have a doubt during the live class`
   )}`;
 
   useEffect(() => {
@@ -71,7 +71,7 @@ export default function LiveClassesPage() {
           Live Classes & Interactive Doubt Sessions
         </h1>
         <p className="text-xs text-slate-500">
-          Live stream doubt sessions, model paper solutions, and numerical workshops with Shekhar Sir.
+          Live stream doubt sessions, model paper solutions, and numerical workshops with {settings.lead_faculty || 'Shekhar Sir'}.
         </p>
       </div>
 

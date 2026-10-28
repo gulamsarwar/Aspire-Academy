@@ -2,9 +2,11 @@
 
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
+import { useSiteSettings } from '@/components/settings/SiteSettingsContext';
 import { Download, ArrowRight, CheckCircle2, Search, Filter, BookOpen, Sparkles, FileText, Star } from 'lucide-react';
 
 export default function NotesPage() {
+  const { settings } = useSiteSettings();
   const [downloadToast, setDownloadToast] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('All');
@@ -99,7 +101,7 @@ export default function NotesPage() {
 
   const handleDownload = (note: (typeof freeNotes)[0]) => {
     setDownloadToast(`Downloading: "${note.title}"... File ready!`);
-    const content = `ASPIRE ACADEMY ONLINE — HIGH-YIELD STUDY NOTES & PYQ BANK
+    const content = `${settings.academy_name.toUpperCase()} — HIGH-YIELD STUDY NOTES & PYQ BANK
 ======================================================================
 Topic / Course: ${note.title}
 Subject: ${note.subject} (${note.category})
@@ -113,11 +115,11 @@ NCERT & BIHAR BOARD HIGHLIGHTS:
 3. Solved previous 10-year examination questions with marking schemes.
 4. 50% Objective pattern multiple choice questions with bilingual explanation.
 ----------------------------------------------------------------------
-Academic Leadership: Shekhar Sir & Aspire Academy Faculty
-Website: https://aspireacademyonline.in
-Student Login: https://aspireacademyonline.in/auth/login
-WhatsApp Admissions & Doubt Desk: +91 9123456789
-© 2026 Aspire Academy. All rights reserved. Free for student study use.`;
+Academic Leadership: ${settings.lead_faculty || 'Shekhar Sir'} & Aspire Academy Faculty
+WhatsApp Admissions & Doubt Desk: ${settings.whatsapp || settings.phone}
+Email: ${settings.email}
+Address: ${settings.address}
+© 2026 ${settings.academy_name}. All rights reserved. Free for student study use.`;
 
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -145,7 +147,7 @@ WhatsApp Admissions & Doubt Desk: +91 9123456789
               Handwritten PDF Notes, Formula Sheets & Solved PYQs
             </h1>
             <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
-              Download chapter-wise high-yield study materials prepared by <strong>Shekhar Sir</strong> and our senior faculty team.
+              Download chapter-wise high-yield study materials prepared by <strong>{settings.lead_faculty || 'Shekhar Sir'}</strong> and our senior faculty team.
               Complete NCERT coverage, color diagrams, and 50% objective question bank.
             </p>
           </div>
@@ -269,7 +271,7 @@ WhatsApp Admissions & Doubt Desk: +91 9123456789
               Want Interactive Video Lectures & Daily Practice Problems (DPP)?
             </h3>
             <p className="text-xs text-slate-600">
-              Enroll in our target batches to get complete NCERT line-by-line video classes and weekly live doubt resolution with Shekhar Sir.
+              Enroll in our target batches to get complete NCERT line-by-line video classes and weekly live doubt resolution with {settings.lead_faculty || 'Shekhar Sir'}.
             </p>
           </div>
 
