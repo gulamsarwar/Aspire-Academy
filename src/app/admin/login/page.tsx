@@ -8,20 +8,24 @@ import { BrandLogo } from '@/components/layout/BrandLogo';
 import {
   Shield,
   Lock,
-  Mail,
+  User,
   ArrowRight,
   AlertCircle,
   CheckCircle2,
   Loader2,
   KeyRound,
+  Eye,
+  EyeOff,
+  Sparkles,
 } from 'lucide-react';
 
 export default function AdminLoginPage() {
   const router = useRouter();
   const { setAdminSession } = useAuth();
 
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -31,8 +35,8 @@ export default function AdminLoginPage() {
     setError('');
     setSuccess('');
 
-    if (!email.trim() || !password) {
-      setError('Please provide your administrator email and security password.');
+    if (!identifier.trim() || !password) {
+      setError('Please provide your administrator username / email and secret password.');
       return;
     }
 
@@ -43,7 +47,7 @@ export default function AdminLoginPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: email.trim(),
+          identifier: identifier.trim(),
           password,
         }),
       });
@@ -69,16 +73,21 @@ export default function AdminLoginPage() {
   };
 
   const handleAutofillAdmin = () => {
-    setEmail('aspireacademyamba@gmail.com');
-    setPassword('AspireAdmin@2026!');
+    setIdentifier('admin');
+    setPassword('ShekharSir@Aspire2026');
     setError('');
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 text-white">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center space-y-4">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-3xl bg-amber-500/20 text-amber-400 border border-amber-500/30 mx-auto shadow-xl shadow-amber-500/10">
-          <Shield className="w-8 h-8" />
+    <div className="min-h-screen bg-[#070D18] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 text-white relative overflow-hidden selection:bg-amber-500 selection:text-slate-950">
+      {/* Background Ambient Glows */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gradient-to-tr from-amber-500/10 via-blue-600/10 to-transparent rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center space-y-4 relative z-10">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-bold tracking-wide shadow-lg shadow-amber-500/10">
+          <Shield className="w-3.5 h-3.5 text-amber-400" />
+          <span>ACADEMY FACULTY & CONTROL CENTER</span>
         </div>
 
         <div className="space-y-1.5">
@@ -86,22 +95,22 @@ export default function AdminLoginPage() {
             Aspire Academy — Admin Portal
           </h1>
           <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
-            Strictly restricted area. Authorized faculty and administrator credentials are required.
+            Secure admin access for Shekhar Sir & authorized faculty. Direct login with Username or Email & Secret Password — no Google OAuth required.
           </p>
         </div>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-slate-900 py-8 px-6 sm:px-10 shadow-2xl rounded-3xl border border-slate-800 space-y-6">
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
+        <div className="bg-slate-900/90 backdrop-blur-xl py-8 px-6 sm:px-10 shadow-2xl rounded-3xl border border-slate-800 space-y-6">
           {error && (
-            <div className="p-4 rounded-2xl bg-red-950/60 border border-red-500/40 text-red-200 text-xs flex items-start gap-2.5 animate-in fade-in">
+            <div className="p-4 rounded-2xl bg-red-950/70 border border-red-500/40 text-red-200 text-xs flex items-start gap-2.5 animate-in fade-in">
               <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
           )}
 
           {success && (
-            <div className="p-4 rounded-2xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-200 text-xs flex items-center gap-2.5 animate-in fade-in">
+            <div className="p-4 rounded-2xl bg-emerald-950/70 border border-emerald-500/40 text-emerald-200 text-xs flex items-center gap-2.5 animate-in fade-in">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
               <span>{success}</span>
             </div>
@@ -110,42 +119,53 @@ export default function AdminLoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-300 block">
-                Administrator Email Address <span className="text-red-400">*</span>
+                Admin Username, Email, or Mobile <span className="text-amber-400">*</span>
               </label>
               <div className="relative">
-                <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
-                  type="email"
+                  type="text"
                   required
-                  placeholder="admin@aspireacademy.in"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin or aspireacademyamba@gmail.com"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-700 bg-slate-950 text-white placeholder:text-slate-600 text-sm focus:outline-none focus:border-amber-500 transition font-medium"
                 />
               </div>
+              <p className="text-[11px] text-slate-400">
+                Tip: Enter username <span className="text-amber-300 font-mono font-bold">admin</span>, <span className="text-amber-300 font-mono font-bold">shekhar</span>, or your registered email.
+              </p>
             </div>
 
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-300 block">
-                Security Password <span className="text-red-400">*</span>
+                Security Password <span className="text-amber-400">*</span>
               </label>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   required
                   placeholder="••••••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-700 bg-slate-950 text-white placeholder:text-slate-600 text-sm focus:outline-none focus:border-amber-500 transition font-medium"
+                  className="w-full pl-10 pr-11 py-3 rounded-xl border border-slate-700 bg-slate-950 text-white placeholder:text-slate-600 text-sm focus:outline-none focus:border-amber-500 transition font-medium"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 p-1"
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 px-4 rounded-xl font-black text-sm text-slate-950 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 transition shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2"
+              className="w-full py-3.5 px-4 rounded-xl font-black text-sm text-slate-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 disabled:opacity-50 transition shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 cursor-pointer"
             >
               {loading ? (
                 <>
@@ -155,34 +175,37 @@ export default function AdminLoginPage() {
               ) : (
                 <>
                   <KeyRound className="w-4 h-4" />
-                  <span>Authenticate as Administrator</span>
+                  <span>Sign In to Admin Console</span>
+                  <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
           </form>
 
-          {/* Quick Fill Demo Credentials for Shekhar Sir */}
+          {/* Quick Fill Admin Credentials */}
           <div className="pt-2 border-t border-slate-800 space-y-2 text-center">
             <button
               type="button"
               onClick={handleAutofillAdmin}
-              className="w-full py-2 px-3 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-xs font-bold text-amber-400 transition"
+              className="w-full py-2.5 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-xs font-bold text-amber-400 transition flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              ⚡ Click to Auto-fill Admin Credentials
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>⚡ 1-Click Auto-fill Admin Credentials</span>
             </button>
             <p className="text-[11px] text-slate-400">
-              Email: <span className="text-white font-mono">aspireacademyamba@gmail.com</span>
-              <br />
-              Password: <span className="text-white font-mono">AspireAdmin@2026!</span> or <span className="text-white font-mono">ShekharSir@Aspire2026</span>
+              Username: <span className="text-white font-mono font-bold">admin</span> &bull; Password: <span className="text-white font-mono font-bold">ShekharSir@Aspire2026</span>
             </p>
           </div>
 
-          <div className="pt-2 border-t border-slate-800/80 text-center">
+          <div className="pt-2 border-t border-slate-800/80 text-center space-y-2">
+            <p className="text-[11px] text-slate-400">
+              Students and parents please use the public student portal.
+            </p>
             <Link
               href="/auth/login"
-              className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition font-semibold"
+              className="inline-flex items-center gap-1.5 text-xs text-sky-400 hover:text-sky-300 transition font-semibold"
             >
-              <span>← Go to Student Portal Sign In</span>
+              <span>← Switch to Student Portal Sign In (Google / Mobile)</span>
             </Link>
           </div>
         </div>

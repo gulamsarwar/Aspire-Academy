@@ -17,6 +17,22 @@ export const DEFAULT_ADMIN_EMAILS = [
   'admin@aspireacademyonline.in',
 ];
 
+export const DEFAULT_ADMIN_USERNAMES = [
+  'admin',
+  'shekhar',
+  'shekharsir',
+  'aspireadmin',
+  'superadmin',
+  'faculty',
+];
+
+export const DEFAULT_ADMIN_PHONES = [
+  '9123456789',
+  '+919123456789',
+  '+91 9123456789',
+  '09123456789',
+];
+
 export const CANONICAL_ADMIN_ID = '00000000-0000-4000-8000-000000000002';
 
 /**
@@ -33,6 +49,37 @@ export function getAuthorizedAdminEmails(): string[] {
   ]);
 
   return Array.from(combined);
+}
+
+/**
+ * Checks if an identifier (username, email, or mobile number) belongs to an administrator.
+ */
+export function isAuthorizedAdminIdentifier(identifier?: string | null): {
+  isAuthorized: boolean;
+  canonicalEmail: string;
+} {
+  if (!identifier || !identifier.trim()) {
+    return { isAuthorized: false, canonicalEmail: '' };
+  }
+  const clean = identifier.trim().toLowerCase();
+
+  // 1. Direct email check
+  if (isAuthorizedAdminEmail(clean)) {
+    return { isAuthorized: true, canonicalEmail: clean };
+  }
+
+  // 2. Username check (e.g. "admin", "shekhar", "shekharsir")
+  if (DEFAULT_ADMIN_USERNAMES.includes(clean)) {
+    return { isAuthorized: true, canonicalEmail: 'admin@aspireacademy.in' };
+  }
+
+  // 3. Admin phone check (e.g. 9123456789)
+  const digits = clean.replace(/\D/g, '').slice(-10);
+  if (digits === '9123456789') {
+    return { isAuthorized: true, canonicalEmail: 'aspireacademyamba@gmail.com' };
+  }
+
+  return { isAuthorized: false, canonicalEmail: '' };
 }
 
 /**
@@ -185,36 +232,37 @@ export function verifyAdminRequest(req: { cookies?: any; headers?: any }): {
 
 /**
  * Verifies administrator login credentials server-side.
+ * Accepts username (e.g. 'admin', 'shekhar'), email, or phone number.
  */
 export function authenticateAdminCredentials(
-  email: string,
+  identifier: string,
   password: string
 ): { success: boolean; user?: Profile; error?: string; token?: string } {
-  const cleanEmail = email.trim().toLowerCase();
+  const { isAuthorized, canonicalEmail } = isAuthorizedAdminIdentifier(identifier);
 
-  if (!isAuthorizedAdminEmail(cleanEmail)) {
+  if (!isAuthorized) {
     return {
       success: false,
-      error: 'Access Denied: This email address is not on the administrator allowlist.',
+      error: 'Access Denied: Invalid administrator username, email, or mobile number.',
     };
   }
 
   if (!verifyAdminPassword(password)) {
     return {
       success: false,
-      error: 'Invalid administrator password. Please check your security credentials.',
+      error: 'Invalid administrator password. Please check your secret credentials.',
     };
   }
 
   // Get or create the canonical admin profile
   const adminProfile = db.resolveOrCreateProfile({
     id: CANONICAL_ADMIN_ID,
-    email: cleanEmail,
+    email: canonicalEmail,
     fullName: 'Shekhar Sir (Admin)',
     phone: '+91 9123456789',
   });
 
-  const token = signAdminToken({ id: adminProfile.id, email: cleanEmail });
+  const token = signAdminToken({ id: adminProfile.id, email: canonicalEmail });
 
   return {
     success: true,

@@ -6,16 +6,17 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { email, password } = body;
+    const { email, username, identifier, password } = body;
+    const adminIdentifier = (identifier || username || email || '').trim();
 
-    if (!email || !password) {
+    if (!adminIdentifier || !password) {
       return NextResponse.json(
-        { error: 'Email and administrator password are required.' },
+        { error: 'Username/Email and administrator password are required.' },
         { status: 400 }
       );
     }
 
-    const authResult = authenticateAdminCredentials(email, password);
+    const authResult = authenticateAdminCredentials(adminIdentifier, password);
 
     if (!authResult.success || !authResult.user) {
       return NextResponse.json(
