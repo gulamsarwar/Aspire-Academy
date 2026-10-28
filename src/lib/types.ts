@@ -25,6 +25,7 @@ export interface Course {
   category: 'Bihar Board' | 'CBSE' | 'NEET' | 'JEE' | 'Foundation';
   target_class: 'Class 9' | 'Class 10' | 'Class 11' | 'Class 12' | 'Repeater/Dropper';
   thumbnail_url: string;
+  thumbnail_r2_key?: string;
   price: number;
   original_price: number;
   currency: string;
@@ -71,6 +72,9 @@ export interface Lesson {
   title: string;
   description: string;
   youtube_video_id: string;
+  video_source_type?: 'youtube' | 'r2';
+  r2_object_key?: string;
+  video_url?: string;
   duration_minutes: number;
   material_path?: string;
   material_name?: string;

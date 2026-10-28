@@ -10,19 +10,24 @@ export const dynamic = 'force-dynamic';
 function getPublicOrigin(req: NextRequest): string {
   const forwardedHost = req.headers.get('x-forwarded-host');
   const forwardedProto = req.headers.get('x-forwarded-proto') || 'https';
-  if (forwardedHost) {
+  if (forwardedHost && !forwardedHost.includes('localhost')) {
     return `${forwardedProto}://${forwardedHost}`;
   }
   const host = req.headers.get('host');
-  if (host) {
-    const proto = host.includes('localhost') ? 'http' : 'https';
-    return `${proto}://${host}`;
+  if (host && !host.includes('localhost')) {
+    return `https://${host}`;
   }
-  return (
-    req.nextUrl.origin ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    'https://aspire-academy.pages.dev'
-  );
+  if (req.nextUrl.origin && !req.nextUrl.origin.includes('localhost')) {
+    return req.nextUrl.origin;
+  }
+  const envUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (envUrl && !envUrl.includes('localhost')) {
+    return envUrl;
+  }
+  if (host && host.includes('localhost')) {
+    return `http://${host}`;
+  }
+  return 'https://aspire-academy.pages.dev';
 }
 
 export async function GET(req: NextRequest) {

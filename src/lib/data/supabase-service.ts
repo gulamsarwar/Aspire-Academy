@@ -210,7 +210,7 @@ export async function addCourseToDatabase(courseData: Omit<Course, 'id' | 'creat
     const admin = createAdminClient() || createClient();
     if (admin) {
       try {
-        await admin.from('courses').insert({
+        const coursePayload: Record<string, any> = {
           id: created.id,
           slug: created.slug,
           title: created.title,
@@ -232,7 +232,10 @@ export async function addCourseToDatabase(courseData: Omit<Course, 'id' | 'creat
           features: created.features,
           created_at: created.created_at,
           updated_at: created.updated_at,
-        });
+        };
+        if (created.thumbnail_r2_key) coursePayload.thumbnail_r2_key = created.thumbnail_r2_key;
+
+        await admin.from('courses').insert(coursePayload);
       } catch (err) {
         console.warn('Could not persist course to Supabase:', err);
       }
@@ -315,12 +318,12 @@ export async function addLessonToDatabase(lessonData: Omit<Lesson, 'id' | 'creat
     const admin = createAdminClient() || createClient();
     if (admin) {
       try {
-        await admin.from('lessons').insert({
+        const insertObj: Record<string, any> = {
           id: created.id,
           module_id: created.module_id,
           title: created.title,
           description: created.description,
-          youtube_video_id: created.youtube_video_id,
+          youtube_video_id: created.youtube_video_id || '',
           duration_minutes: created.duration_minutes,
           material_path: created.material_path,
           material_name: created.material_name,
@@ -329,7 +332,12 @@ export async function addLessonToDatabase(lessonData: Omit<Lesson, 'id' | 'creat
           published: created.published,
           quiz_id: created.quiz_id,
           created_at: created.created_at,
-        });
+        };
+        if (created.video_source_type) insertObj.video_source_type = created.video_source_type;
+        if (created.r2_object_key) insertObj.r2_object_key = created.r2_object_key;
+        if (created.video_url) insertObj.video_url = created.video_url;
+
+        await admin.from('lessons').insert(insertObj);
       } catch (err) {
         console.warn('Could not persist lesson to Supabase:', err);
       }

@@ -285,5 +285,87 @@ describe('Aspire Academy — Comprehensive Platform Test Suite', () => {
       assert.ok(db.courses.length >= 4, 'Mock database courses must remain available');
     }
   });
+
+  // 14. Cloudflare R2 Configuration & Safe Diagnostics
+  test('14. Cloudflare R2: Diagnostic accurately reports configuration status without leaking secrets', async () => {
+    const { getR2Diagnostic, isR2Configured } = await import('../src/lib/r2');
+    const diagnostic = getR2Diagnostic();
+
+    assert.ok(diagnostic);
+    assert.equal(typeof diagnostic.isConfigured, 'boolean');
+    assert.ok(Array.isArray(diagnostic.missing));
+
+    // When unconfigured, missing keys must be reported clearly
+    if (!isR2Configured()) {
+      assert.equal(diagnostic.isConfigured, false);
+      assert.ok(diagnostic.missing.length > 0, 'Should list missing R2 env vars');
+    }
+  });
+
+  // 15. Lesson Video Sources (Option A YouTube & Option B Cloudflare R2) & Course Thumbnail
+  test('15. Video Sources & Thumbnail: Supports both YouTube embed and Cloudflare R2 object keys', () => {
+    // Test Course with R2 Thumbnail Key
+    const courseWithR2Thumb = db.addCourse({
+      slug: 'class-11-physics-r2-test',
+      title: 'Class 11 Physics (R2 Test)',
+      subtitle: 'Complete Mechanics',
+      description: 'Test description for R2 media',
+      category: 'Bihar Board',
+      target_class: 'Class 11',
+      thumbnail_url: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=800&q=80',
+      thumbnail_r2_key: 'thumbnails/class-11-physics.webp',
+      price: 299,
+      original_price: 599,
+      currency: 'INR',
+      published: true,
+      featured: false,
+      language: 'Hindi',
+      duration_weeks: 16,
+      instructor_name: 'Dr. Shekhar Sharma',
+      instructor_title: 'HOD Physics',
+      features: ['Live Doubt Sessions'],
+    });
+
+    assert.ok(courseWithR2Thumb.id);
+    assert.equal(courseWithR2Thumb.thumbnail_r2_key, 'thumbnails/class-11-physics.webp');
+
+    const testModule = db.addModule(courseWithR2Thumb.id, 'Unit 1: Kinematics & Motion');
+    assert.ok(testModule.id);
+
+    // Test Lesson with Option A: YouTube
+    const youtubeLesson = db.addLesson({
+      module_id: testModule.id,
+      title: 'Unit 1: Kinematics Lecture (YouTube)',
+      description: 'Introductory kinematics stream',
+      video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      youtube_video_id: 'dQw4w9WgXcQ',
+      video_source_type: 'youtube',
+      duration_minutes: 45,
+      sort_order: 1,
+      is_free_preview: true,
+      published: true,
+    });
+    assert.ok(youtubeLesson.id);
+    assert.equal(youtubeLesson.video_source_type, 'youtube');
+    assert.equal(youtubeLesson.video_url, 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+
+    // Test Lesson with Option B: Cloudflare R2
+    const r2Lesson = db.addLesson({
+      module_id: testModule.id,
+      title: 'Unit 2: Circular Motion (Cloudflare R2)',
+      description: 'High-bitrate private video hosted on R2',
+      video_source_type: 'r2',
+      r2_object_key: 'courses/class-11-physics/unit-2-circular-motion.mp4',
+      youtube_video_id: '',
+      duration_minutes: 55,
+      sort_order: 2,
+      is_free_preview: false,
+      published: true,
+    });
+    assert.ok(r2Lesson.id);
+    assert.equal(r2Lesson.video_source_type, 'r2');
+    assert.equal(r2Lesson.r2_object_key, 'courses/class-11-physics/unit-2-circular-motion.mp4');
+  });
 });
+
 

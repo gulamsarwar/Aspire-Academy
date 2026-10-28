@@ -245,18 +245,30 @@ export function CoursePlayerClient({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Column: Video Embed, Tabs, Notes */}
         <div className="lg:col-span-8 space-y-6">
-          {/* 1. Responsive YouTube Video Player or In-Player Lock Card */}
+          {/* 1. Responsive Video Player (YouTube or Cloudflare R2 Stream) */}
           {canAccessActiveLesson ? (
-            activeLesson?.youtube_video_id ? (
+            activeLesson?.r2_object_key || activeLesson?.video_source_type === 'r2' ? (
+              <YouTubePlayer
+                videoIdOrUrl={`/api/r2/playback?lessonId=${activeLesson.id}&redirect=1`}
+                title={activeLesson.title}
+                autoPlay={false}
+              />
+            ) : activeLesson?.youtube_video_id ? (
               <YouTubePlayer
                 videoIdOrUrl={activeLesson.youtube_video_id}
+                title={activeLesson.title}
+                autoPlay={false}
+              />
+            ) : activeLesson?.video_url ? (
+              <YouTubePlayer
+                videoIdOrUrl={activeLesson.video_url}
                 title={activeLesson.title}
                 autoPlay={false}
               />
             ) : (
               <div className="aspect-video w-full rounded-2xl bg-slate-950 flex flex-col items-center justify-center text-slate-400 space-y-2">
                 <Video className="w-12 h-12 text-slate-600" />
-                <p className="text-xs">Video content loading...</p>
+                <p className="text-xs">Video lecture stream loading...</p>
               </div>
             )
           ) : (

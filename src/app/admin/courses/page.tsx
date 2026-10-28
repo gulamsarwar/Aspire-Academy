@@ -34,6 +34,7 @@ import {
   HelpCircle,
   Film,
 } from 'lucide-react';
+import { R2MediaUpload } from '@/components/admin/R2MediaUpload';
 
 const PRESET_THUMBNAILS = [
   { label: 'Biology', url: 'https://images.unsplash.com/photo-1530497610245-94d3c16cda28?auto=format&fit=crop&w=1200&q=80', icon: '🧬' },
@@ -85,6 +86,7 @@ export default function AdminCoursesPage() {
   const [newInstructor, setNewInstructor] = useState('Shekhar Sir');
   const [newDuration, setNewDuration] = useState(24);
   const [newThumbnail, setNewThumbnail] = useState('https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=1200&q=80');
+  const [newThumbnailR2Key, setNewThumbnailR2Key] = useState('');
   const [newDescription, setNewDescription] = useState('Complete conceptual lectures, chapterwise notes, and high-yield board question practice.');
   const [newPublished, setNewPublished] = useState(true);
 
@@ -103,6 +105,7 @@ export default function AdminCoursesPage() {
   const [editInstructor, setEditInstructor] = useState('Shekhar Sir');
   const [editDuration, setEditDuration] = useState(24);
   const [editThumbnail, setEditThumbnail] = useState('');
+  const [editThumbnailR2Key, setEditThumbnailR2Key] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editPublished, setEditPublished] = useState(true);
 
@@ -168,6 +171,7 @@ export default function AdminCoursesPage() {
       category: newCategory,
       target_class: newClass,
       thumbnail_url: finalThumbnail,
+      thumbnail_r2_key: newThumbnailR2Key || undefined,
       price: Number(newPrice),
       original_price: Number(newOriginalPrice),
       currency: 'INR',
@@ -251,6 +255,7 @@ export default function AdminCoursesPage() {
     setEditInstructor(course.instructor_name);
     setEditDuration(course.duration_weeks);
     setEditThumbnail(course.thumbnail_url);
+    setEditThumbnailR2Key(course.thumbnail_r2_key || '');
     setEditDescription(course.description || '');
     setEditPublished(course.published);
   };
@@ -269,6 +274,7 @@ export default function AdminCoursesPage() {
       instructor_name: editInstructor,
       duration_weeks: Number(editDuration),
       thumbnail_url: editThumbnail,
+      thumbnail_r2_key: editThumbnailR2Key || undefined,
       description: editDescription,
       published: editPublished,
     });
@@ -931,10 +937,23 @@ export default function AdminCoursesPage() {
                   </button>
                 </div>
 
+                {/* Cloudflare R2 Image Upload */}
+                <R2MediaUpload
+                  type="thumbnail"
+                  resourceId="course"
+                  currentValue={newThumbnail}
+                  onSuccess={({ key, url }) => {
+                    setNewThumbnail(url);
+                    setNewThumbnailR2Key(key);
+                    setSuccessToast('Thumbnail uploaded to Cloudflare R2 successfully!');
+                    setTimeout(() => setSuccessToast(''), 3000);
+                  }}
+                />
+
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
-                    placeholder="https://..."
+                    placeholder="Or paste image URL (https://...)"
                     value={newThumbnail}
                     onChange={(e) => setNewThumbnail(e.target.value)}
                     className="flex-1 px-3.5 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#046BD2]"
@@ -1224,6 +1243,19 @@ export default function AdminCoursesPage() {
                     <span>Paste URL</span>
                   </button>
                 </div>
+                {/* Cloudflare R2 Image Upload for Edit Modal */}
+                <R2MediaUpload
+                  type="thumbnail"
+                  resourceId={editingCourse?.id || 'course'}
+                  currentValue={editThumbnail}
+                  onSuccess={({ key, url }) => {
+                    setEditThumbnail(url);
+                    setEditThumbnailR2Key(key);
+                    setSuccessToast('Thumbnail replaced in Cloudflare R2!');
+                    setTimeout(() => setSuccessToast(''), 3000);
+                  }}
+                />
+
                 <div className="flex items-center gap-2">
                   <input
                     type="text"

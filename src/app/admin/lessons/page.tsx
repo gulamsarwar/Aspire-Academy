@@ -26,6 +26,7 @@ import {
 
 import { extractYouTubeVideoId } from '@/lib/youtube';
 import { YouTubePlayer } from '@/components/ui/YouTubePlayer';
+import { R2MediaUpload } from '@/components/admin/R2MediaUpload';
 
 export default function AdminLessonsPage() {
   const [courses, setCourses] = useState<Course[]>([...db.courses]);
@@ -40,7 +41,9 @@ export default function AdminLessonsPage() {
   // Primary Add Lesson Form State
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [videoSourceType, setVideoSourceType] = useState<'youtube' | 'r2'>('youtube');
   const [youtubeVideoId, setYoutubeVideoId] = useState('');
+  const [r2ObjectKey, setR2ObjectKey] = useState('');
   const [durationMinutes, setDurationMinutes] = useState(45);
   const [materialName, setMaterialName] = useState('');
   const [lessonOrder, setLessonOrder] = useState(1);
@@ -57,7 +60,9 @@ export default function AdminLessonsPage() {
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editModuleId, setEditModuleId] = useState('');
+  const [editVideoSourceType, setEditVideoSourceType] = useState<'youtube' | 'r2'>('youtube');
   const [editYoutubeLink, setEditYoutubeLink] = useState('');
+  const [editR2ObjectKey, setEditR2ObjectKey] = useState('');
   const [editDuration, setEditDuration] = useState(45);
   const [editMaterialName, setEditMaterialName] = useState('');
   const [editLessonOrder, setEditLessonOrder] = useState(1);
@@ -181,13 +186,21 @@ export default function AdminLessonsPage() {
     setTimeout(() => setSuccessToast(''), 3000);
   };
 
-  // Create & Save Lesson with YouTube Link
+  // Create & Save Lesson with YouTube or Cloudflare R2
   const handleCreateLesson = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanVideoId = extractVideoId(youtubeVideoId);
-    if (!title.trim() || !cleanVideoId) {
-      alert('Please enter a lesson title and a valid YouTube video link or ID.');
-      return;
+    let cleanVideoId = '';
+    if (videoSourceType === 'youtube') {
+      cleanVideoId = extractVideoId(youtubeVideoId);
+      if (!title.trim() || !cleanVideoId) {
+        alert('Please enter a lesson title and a valid YouTube video link or ID.');
+        return;
+      }
+    } else {
+      if (!title.trim() || !r2ObjectKey) {
+        alert('Please enter a lesson title and upload a video file to Cloudflare R2.');
+        return;
+      }
     }
 
     let targetModuleId = selectedModuleId;
@@ -204,6 +217,8 @@ export default function AdminLessonsPage() {
       title: title.trim(),
       description: description.trim() || 'Conceptual lecture and practice walkthrough.',
       youtube_video_id: cleanVideoId,
+      video_source_type: videoSourceType,
+      r2_object_key: r2ObjectKey || undefined,
       duration_minutes: Number(durationMinutes) || 45,
       material_path: materialName ? `/notes/${materialName.toLowerCase().replace(/\s+/g, '-')}` : undefined,
       material_name: materialName.trim() || undefined,
@@ -217,6 +232,7 @@ export default function AdminLessonsPage() {
     setTitle('');
     setDescription('');
     setYoutubeVideoId('');
+    setR2ObjectKey('');
     setMaterialName('');
     setAttachedQuizId('');
     setIsFreePreview(false);
@@ -230,7 +246,9 @@ export default function AdminLessonsPage() {
     setEditTitle(lesson.title);
     setEditDescription(lesson.description || '');
     setEditModuleId(lesson.module_id);
-    setEditYoutubeLink(`https://www.youtube.com/watch?v=${lesson.youtube_video_id}`);
+    setEditVideoSourceType(lesson.video_source_type || 'youtube');
+    setEditR2ObjectKey(lesson.r2_object_key || '');
+    setEditYoutubeLink(lesson.youtube_video_id ? `https://www.youtube.com/watch?v=${lesson.youtube_video_id}` : '');
     setEditDuration(lesson.duration_minutes);
     setEditMaterialName(lesson.material_name || '');
     setEditLessonOrder(lesson.sort_order);
@@ -243,10 +261,18 @@ export default function AdminLessonsPage() {
     e.preventDefault();
     if (!editingLesson) return;
 
-    const cleanVideoId = extractVideoId(editYoutubeLink);
-    if (!editTitle.trim() || !cleanVideoId) {
-      alert('Please provide a lesson title and valid YouTube link.');
-      return;
+    let cleanVideoId = '';
+    if (editVideoSourceType === 'youtube') {
+      cleanVideoId = extractVideoId(editYoutubeLink);
+      if (!editTitle.trim() || !cleanVideoId) {
+        alert('Please provide a lesson title and valid YouTube link.');
+        return;
+      }
+    } else {
+      if (!editTitle.trim() || !editR2ObjectKey) {
+        alert('Please provide a lesson title and upload or retain the Cloudflare R2 video.');
+        return;
+      }
     }
 
     await updateLessonInDatabase(editingLesson.id, {
@@ -254,6 +280,8 @@ export default function AdminLessonsPage() {
       description: editDescription.trim(),
       module_id: editModuleId || editingLesson.module_id,
       youtube_video_id: cleanVideoId,
+      video_source_type: editVideoSourceType,
+      r2_object_key: editR2ObjectKey || undefined,
       duration_minutes: Number(editDuration) || 45,
       sort_order: Number(editLessonOrder) || 1,
       is_free_preview: editFreePreview,
@@ -418,96 +446,148 @@ export default function AdminLessonsPage() {
             </div>
           </div>
 
-          {/* Dedicated YouTube Video Link Field with Paste Button & Interactive Preview */}
-          <div className="space-y-3 bg-slate-50 p-4 sm:p-5 rounded-2xl border-2 border-dashed border-blue-400/50">
-            <label className="text-xs font-black text-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-              <span className="flex items-center gap-1.5 text-slate-900">
-                <Video className="w-4 h-4 text-rose-600" />
-                <span className="text-sm">YouTube Video Link / URL <span className="text-red-500">*</span></span>
+          {/* Dedicated Video Source Selector: Option A (YouTube) or Option B (Cloudflare R2) */}
+          <div className="space-y-4 bg-slate-50 p-4 sm:p-5 rounded-2xl border-2 border-dashed border-blue-400/50">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/80 pb-3">
+              <span className="text-sm font-black text-slate-900 flex items-center gap-1.5">
+                <Video className="w-4 h-4 text-[#046BD2]" />
+                <span>Video Source Option <span className="text-red-500">*</span></span>
               </span>
-              <span className="text-[11px] text-slate-500 font-normal">
-                Paste any YouTube URL (e.g. https://www.youtube.com/watch?v=... or https://youtu.be/...)
-              </span>
-            </label>
 
-            <div className="flex flex-col sm:flex-row items-stretch gap-2.5">
-              <div className="relative flex-1">
-                <input
-                  type="text"
-                  required
-                  placeholder="Paste YouTube Video URL here..."
-                  value={youtubeVideoId}
-                  onChange={(e) => setYoutubeVideoId(e.target.value)}
-                  className="w-full px-4 py-3 rounded-2xl border-2 border-blue-300 focus:border-[#046BD2] text-sm font-mono focus:outline-none bg-white font-semibold text-slate-900 placeholder:text-slate-400"
-                />
+              {/* Source Option Switcher */}
+              <div className="flex items-center gap-1.5 p-1 bg-white rounded-xl border border-slate-200 shadow-sm self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setVideoSourceType('youtube')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                    videoSourceType === 'youtube'
+                      ? 'bg-rose-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Option A — 🎬 YouTube Link
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVideoSourceType('r2')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                    videoSourceType === 'r2'
+                      ? 'bg-[#046BD2] text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Option B — ☁️ Cloudflare R2
+                </button>
               </div>
-
-              <button
-                type="button"
-                onClick={handlePasteClipboard}
-                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-black text-xs bg-rose-600 hover:bg-rose-700 text-white shadow transition whitespace-nowrap"
-                title="Paste link directly from your clipboard"
-              >
-                <ClipboardPaste className="w-4 h-4 text-white" />
-                <span>📋 Paste Link</span>
-              </button>
             </div>
 
-            {/* Quick Test Links */}
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              <span className="text-[11px] font-bold text-slate-500">Quick Test Link:</span>
-              <button
-                type="button"
-                onClick={() => setYoutubeVideoId('https://www.youtube.com/watch?v=kJQP7kiw5Fk')}
-                className="px-2.5 py-1 rounded-lg bg-white border border-slate-300 text-[10px] font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition"
-              >
-                ⚡ Load Sample Physics Link
-              </button>
-              <button
-                type="button"
-                onClick={() => setYoutubeVideoId('https://youtu.be/3JZ_D3ELwOQ')}
-                className="px-2.5 py-1 rounded-lg bg-white border border-slate-300 text-[10px] font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition"
-              >
-                ⚡ Load Sample Chemistry Link
-              </button>
-            </div>
-
-            {/* Video Player Preview if valid ID */}
-            {detectedVideoId && detectedVideoId.length >= 6 ? (
-              <div className="p-4 sm:p-5 rounded-2xl bg-emerald-50 border-2 border-emerald-400 mt-3 animate-in fade-in space-y-4">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-emerald-200 pb-3">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-                    <div>
-                      <span className="text-xs sm:text-sm font-black text-emerald-900 block">
-                        ✓ Valid YouTube Video Link Detected!
-                      </span>
-                      <span className="text-[11px] text-emerald-700 font-mono font-semibold">
-                        Video ID: {detectedVideoId}
-                      </span>
-                    </div>
+            {/* Option A: YouTube Link Input */}
+            {videoSourceType === 'youtube' ? (
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row items-stretch gap-2.5">
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      placeholder="Paste YouTube Video URL here (e.g. https://www.youtube.com/watch?v=...)"
+                      value={youtubeVideoId}
+                      onChange={(e) => setYoutubeVideoId(e.target.value)}
+                      className="w-full px-4 py-3 rounded-2xl border-2 border-blue-300 focus:border-[#046BD2] text-sm font-mono focus:outline-none bg-white font-semibold text-slate-900 placeholder:text-slate-400"
+                    />
                   </div>
 
-                  <a
-                    href={`https://www.youtube.com/watch?v=${detectedVideoId}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-emerald-300 text-emerald-800 text-xs font-bold hover:bg-emerald-100 transition shadow-sm"
+                  <button
+                    type="button"
+                    onClick={handlePasteClipboard}
+                    className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-black text-xs bg-rose-600 hover:bg-rose-700 text-white shadow transition whitespace-nowrap"
+                    title="Paste link directly from your clipboard"
                   >
-                    <span>Open in YouTube</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
+                    <ClipboardPaste className="w-4 h-4 text-white" />
+                    <span>📋 Paste Link</span>
+                  </button>
                 </div>
 
-                <div className="w-full max-w-lg rounded-2xl overflow-hidden shadow-lg border border-emerald-300 bg-black">
-                  <YouTubePlayer
-                    url={detectedVideoId}
-                    title={title || 'Lesson Video Preview'}
-                    autoPlay={false}
-                  />
+                {/* Quick Test Links */}
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <span className="text-[11px] font-bold text-slate-500">Quick Test Link:</span>
+                  <button
+                    type="button"
+                    onClick={() => setYoutubeVideoId('https://www.youtube.com/watch?v=kJQP7kiw5Fk')}
+                    className="px-2.5 py-1 rounded-lg bg-white border border-slate-300 text-[10px] font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition"
+                  >
+                    ⚡ Sample Physics Link
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setYoutubeVideoId('https://youtu.be/3JZ_D3ELwOQ')}
+                    className="px-2.5 py-1 rounded-lg bg-white border border-slate-300 text-[10px] font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition"
+                  >
+                    ⚡ Sample Chemistry Link
+                  </button>
                 </div>
+
+                {/* Video Player Preview if valid ID */}
+                {detectedVideoId && detectedVideoId.length >= 6 ? (
+                  <div className="p-4 sm:p-5 rounded-2xl bg-emerald-50 border-2 border-emerald-400 mt-3 animate-in fade-in space-y-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-emerald-200 pb-3">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                        <div>
+                          <span className="text-xs sm:text-sm font-black text-emerald-900 block">
+                            ✓ Valid YouTube Video Link Detected!
+                          </span>
+                          <span className="text-[11px] text-emerald-700 font-mono font-semibold">
+                            Video ID: {detectedVideoId}
+                          </span>
+                        </div>
+                      </div>
+
+                      <a
+                        href={`https://www.youtube.com/watch?v=${detectedVideoId}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-emerald-300 text-emerald-800 text-xs font-bold hover:bg-emerald-100 transition shadow-sm"
+                      >
+                        <span>Open in YouTube</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+
+                    <div className="w-full max-w-lg rounded-2xl overflow-hidden shadow-lg border border-emerald-300 bg-black">
+                      <YouTubePlayer
+                        url={detectedVideoId}
+                        title={title || 'Lesson Video Preview'}
+                        autoPlay={false}
+                      />
+                    </div>
+                  </div>
+                ) : null}
               </div>
-            ) : null}
+            ) : (
+              /* Option B: Cloudflare R2 Upload */
+              <div className="space-y-3">
+                <R2MediaUpload
+                  type="video"
+                  resourceId={selectedCourseId}
+                  currentValue={r2ObjectKey}
+                  onSuccess={({ key }) => {
+                    setR2ObjectKey(key);
+                    setSuccessToast('Private video uploaded to Cloudflare R2 successfully!');
+                    setTimeout(() => setSuccessToast(''), 4000);
+                  }}
+                />
+
+                {r2ObjectKey && (
+                  <div className="p-3 bg-white rounded-xl border border-slate-200 text-xs flex items-center justify-between">
+                    <span className="font-mono text-[11px] text-slate-700 truncate max-w-sm">
+                      Key: {r2ObjectKey}
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      R2 Linked
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Description */}
@@ -682,15 +762,21 @@ export default function AdminLessonsPage() {
                   </div>
 
                   <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
-                    <a
-                      href={`https://www.youtube.com/watch?v=${lesson.youtube_video_id}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 text-rose-600 font-bold hover:underline"
-                    >
-                      <PlayCircle className="w-4 h-4" />
-                      <span>Watch Video</span>
-                    </a>
+                    {lesson.video_source_type === 'r2' || lesson.r2_object_key ? (
+                      <span className="inline-flex items-center gap-1 text-[#046BD2] font-bold text-xs bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
+                        <span>☁️ Cloudflare R2 Video</span>
+                      </span>
+                    ) : (
+                      <a
+                        href={`https://www.youtube.com/watch?v=${lesson.youtube_video_id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 text-rose-600 font-bold hover:underline"
+                      >
+                        <PlayCircle className="w-4 h-4" />
+                        <span>Watch Video</span>
+                      </a>
+                    )}
 
                     <div className="flex items-center gap-2">
                       <button
@@ -768,22 +854,39 @@ export default function AdminLessonsPage() {
                       </td>
 
                       <td className="px-4 py-4 font-mono text-[11px]">
-                        <div className="flex items-center gap-2">
-                          <img
-                            src={`https://img.youtube.com/vi/${lesson.youtube_video_id}/mqdefault.jpg`}
-                            alt=""
-                            className="w-12 h-8 object-cover rounded border border-slate-200"
-                          />
-                          <a
-                            href={`https://www.youtube.com/watch?v=${lesson.youtube_video_id}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-[#046BD2] hover:underline flex items-center gap-1 font-semibold"
-                          >
-                            <span>{lesson.youtube_video_id}</span>
-                            <ExternalLink className="w-3 h-3 text-slate-400" />
-                          </a>
-                        </div>
+                        {lesson.video_source_type === 'r2' || lesson.r2_object_key ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-[#046BD2] border border-blue-200 flex items-center gap-1 whitespace-nowrap">
+                              ☁️ R2 Video
+                            </span>
+                            <span className="text-slate-500 truncate max-w-[120px]" title={lesson.r2_object_key}>
+                              {lesson.r2_object_key?.split('/').pop() || 'Private Media'}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            {lesson.youtube_video_id ? (
+                              <>
+                                <img
+                                  src={`https://img.youtube.com/vi/${lesson.youtube_video_id}/mqdefault.jpg`}
+                                  alt=""
+                                  className="w-12 h-8 object-cover rounded border border-slate-200"
+                                />
+                                <a
+                                  href={`https://www.youtube.com/watch?v=${lesson.youtube_video_id}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-[#046BD2] hover:underline flex items-center gap-1 font-semibold"
+                                >
+                                  <span>{lesson.youtube_video_id}</span>
+                                  <ExternalLink className="w-3 h-3 text-slate-400" />
+                                </a>
+                              </>
+                            ) : (
+                              <span className="text-slate-400">None</span>
+                            )}
+                          </div>
+                        )}
                       </td>
 
                       <td className="px-4 py-4 text-slate-600">
@@ -903,56 +1006,85 @@ export default function AdminLessonsPage() {
                 </select>
               </div>
 
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-700">
-                    YouTube Video Link or URL *
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handlePasteEditClipboard}
-                    className="text-[11px] font-bold text-rose-600 hover:underline flex items-center gap-1"
-                  >
-                    <ClipboardPaste className="w-3 h-3" />
-                    <span>Paste Link</span>
-                  </button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    required
-                    placeholder="Paste YouTube link here"
-                    value={editYoutubeLink}
-                    onChange={(e) => setEditYoutubeLink(e.target.value)}
-                    className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-mono focus:outline-none focus:border-[#046BD2]"
-                  />
-                  <button
-                    type="button"
-                    onClick={handlePasteEditClipboard}
-                    className="px-3 py-2.5 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 font-bold text-xs flex items-center gap-1 border border-rose-200 flex-shrink-0"
-                  >
-                    <ClipboardPaste className="w-3.5 h-3.5" />
-                    <span>Paste</span>
-                  </button>
+              <div className="space-y-3 p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <label className="text-xs font-bold text-slate-700">Video Source Option</label>
+                  <div className="flex items-center gap-1.5 p-0.5 bg-white rounded-lg border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setEditVideoSourceType('youtube')}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition ${
+                        editVideoSourceType === 'youtube'
+                          ? 'bg-rose-600 text-white'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Option A: YouTube
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditVideoSourceType('r2')}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition ${
+                        editVideoSourceType === 'r2'
+                          ? 'bg-[#046BD2] text-white'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Option B: R2 Video
+                    </button>
+                  </div>
                 </div>
 
-                {editDetectedVideoId && (
-                  <div className="flex items-center gap-3 p-2 bg-slate-50 rounded-xl border border-slate-200 mt-2">
-                    <img
-                      src={`https://img.youtube.com/vi/${editDetectedVideoId}/mqdefault.jpg`}
-                      alt="Thumbnail Preview"
-                      className="w-20 h-12 object-cover rounded-lg border border-slate-300 shadow-sm"
-                    />
-                    <div className="text-[11px]">
-                      <span className="font-bold text-emerald-600 block flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        Valid Link
-                      </span>
-                      <span className="text-slate-500 font-mono text-[10px]">
-                        ID: {editDetectedVideoId}
-                      </span>
+                {editVideoSourceType === 'youtube' ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="Paste YouTube link here"
+                        value={editYoutubeLink}
+                        onChange={(e) => setEditYoutubeLink(e.target.value)}
+                        className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-mono focus:outline-none focus:border-[#046BD2]"
+                      />
+                      <button
+                        type="button"
+                        onClick={handlePasteEditClipboard}
+                        className="px-3 py-2.5 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 font-bold text-xs flex items-center gap-1 border border-rose-200 flex-shrink-0"
+                      >
+                        <ClipboardPaste className="w-3.5 h-3.5" />
+                        <span>Paste</span>
+                      </button>
                     </div>
+
+                    {editDetectedVideoId && (
+                      <div className="flex items-center gap-3 p-2 bg-slate-50 rounded-xl border border-slate-200 mt-2">
+                        <img
+                          src={`https://img.youtube.com/vi/${editDetectedVideoId}/mqdefault.jpg`}
+                          alt="Thumbnail Preview"
+                          className="w-20 h-12 object-cover rounded-lg border border-slate-300 shadow-sm"
+                        />
+                        <div className="text-[11px]">
+                          <span className="font-bold text-emerald-600 block flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Valid Link
+                          </span>
+                          <span className="text-slate-500 font-mono text-[10px]">
+                            ID: {editDetectedVideoId}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
+                ) : (
+                  <R2MediaUpload
+                    type="video"
+                    resourceId={selectedCourseId}
+                    currentValue={editR2ObjectKey}
+                    onSuccess={({ key }) => {
+                      setEditR2ObjectKey(key);
+                      setSuccessToast('Video replaced in Cloudflare R2!');
+                      setTimeout(() => setSuccessToast(''), 3000);
+                    }}
+                  />
                 )}
               </div>
 

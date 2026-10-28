@@ -5,10 +5,22 @@
  * even if environment variables were not manually set in the host dashboard.
  */
 
+export function getCanonicalAppUrl(): string {
+  if (typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('localhost')) {
+    return window.location.origin;
+  }
+  const envUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (envUrl && !envUrl.includes('localhost')) {
+    return envUrl;
+  }
+  if (typeof window !== 'undefined' && window.location.origin) {
+    return window.location.origin;
+  }
+  return 'https://aspire-academy.pages.dev';
+}
+
 export const CONFIG = {
-  APP_URL:
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (typeof window !== 'undefined' ? window.location.origin : 'https://aspire-academy.pages.dev'),
+  APP_URL: getCanonicalAppUrl(),
   SITE_NAME: process.env.NEXT_PUBLIC_SITE_NAME || 'Aspire Academy Online',
 
   // Supabase PostgreSQL & Authentication (Free-Tier Production Instance)
