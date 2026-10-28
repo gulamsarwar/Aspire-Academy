@@ -20,7 +20,14 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { action, doubtId, answer, facultyName, studentId: rawStudentId, studentName, courseId, question } = body;
+    const action = body.action;
+    const doubtId = body.doubtId || body.doubt_id;
+    const answer = body.answer || body.answer_text;
+    const facultyName = body.facultyName || body.faculty_name;
+    const rawStudentId = body.studentId || body.student_id;
+    const studentName = body.studentName || body.student_name;
+    const courseId = body.courseId || body.course_id;
+    const question = body.question || body.question_text;
 
     // Admin answering a doubt
     if (action === 'answer' && doubtId && answer) {

@@ -4,7 +4,9 @@ import { db, normalizeStudentId } from '@/lib/data/mock-db';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { studentId: rawStudentId, lessonId, courseId } = body;
+    const rawStudentId = body.studentId || body.student_id;
+    const lessonId = body.lessonId || body.lesson_id;
+    const courseId = body.courseId || body.course_id;
 
     if (!lessonId) {
       return NextResponse.json({ error: 'Lesson ID required' }, { status: 400 });

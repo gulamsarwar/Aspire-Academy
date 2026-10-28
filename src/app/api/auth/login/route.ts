@@ -165,6 +165,7 @@ export async function POST(req: NextRequest) {
     if (!authUser) {
       const isDemoIdentifier =
         targetEmail === 'student@aspireacademy.demo' ||
+        targetEmail === 'student@aspireacademy.com' ||
         targetEmail === 'student.demo.test@aspireacademy.in' ||
         rawIdentifier.includes('9876543210') ||
         rawIdentifier.includes('98765 43210');
