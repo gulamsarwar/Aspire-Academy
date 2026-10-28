@@ -64,7 +64,21 @@ export function CheckoutClient({
   initialBatchId: string;
 }) {
   const router = useRouter();
-  const { user, loginWithGoogle } = useAuth();
+  const { user, loginWithGoogle, loginAsStudent } = useAuth();
+
+  const handleAuthRedirect = async () => {
+    const target = `/checkout/${course.slug}?batchId=${selectedBatchId}`;
+    if (
+      typeof window !== 'undefined' &&
+      window.location.hostname !== 'localhost' &&
+      window.location.hostname !== '127.0.0.1' &&
+      !window.location.hostname.endsWith('.localhost')
+    ) {
+      router.push(`/auth/login?redirect=${encodeURIComponent(target)}`);
+    } else {
+      await loginWithGoogle(target);
+    }
+  };
 
   const [selectedBatchId, setSelectedBatchId] = useState(initialBatchId);
   const [loading, setLoading] = useState(false);
@@ -132,8 +146,7 @@ export function CheckoutClient({
     setError('');
 
     if (!user) {
-      const redirectTarget = `/checkout/${course.slug}?batchId=${selectedBatchId}`;
-      await loginWithGoogle(redirectTarget);
+      await handleAuthRedirect();
       return;
     }
 
@@ -219,8 +232,7 @@ export function CheckoutClient({
     setError('');
 
     if (!user) {
-      const redirectTarget = `/checkout/${course.slug}?batchId=${selectedBatchId}`;
-      await loginWithGoogle(redirectTarget);
+      await handleAuthRedirect();
       return;
     }
 
@@ -465,7 +477,7 @@ export function CheckoutClient({
                     {/* Google One-Click Login Button */}
                     <button
                       type="button"
-                      onClick={() => loginWithGoogle(`/checkout/${course.slug}?batchId=${selectedBatchId}`)}
+                      onClick={handleAuthRedirect}
                       className="flex-1 py-3 px-4 rounded-xl font-bold text-xs bg-white text-slate-800 border-2 border-slate-300 hover:border-blue-500 hover:bg-slate-50 transition shadow-sm flex items-center justify-center gap-2"
                     >
                       <GoogleIcon />
@@ -796,7 +808,7 @@ export function CheckoutClient({
                 ) : (
                   <button
                     type="button"
-                    onClick={() => loginWithGoogle(`/checkout/${course.slug}?batchId=${selectedBatchId}`)}
+                    onClick={handleAuthRedirect}
                     className="w-full py-4 px-6 rounded-xl font-black text-sm text-white bg-[#046BD2] hover:bg-[#0352A0] shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2 hover:scale-[1.01]"
                   >
                     <Lock className="w-4 h-4" />

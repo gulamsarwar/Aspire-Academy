@@ -74,6 +74,22 @@ export default function RegisterPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
+  const [currentOrigin, setCurrentOrigin] = useState('');
+  const [isNetworkHost, setIsNetworkHost] = useState(false);
+  const [showGoogleChooser, setShowGoogleChooser] = useState(false);
+  const [customGoogleName, setCustomGoogleName] = useState('');
+  const [customGoogleEmail, setCustomGoogleEmail] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrentOrigin(window.location.origin);
+      setIsNetworkHost(
+        window.location.hostname !== 'localhost' &&
+        window.location.hostname !== '127.0.0.1' &&
+        !window.location.hostname.endsWith('.localhost')
+      );
+    }
+  }, []);
 
   // Countdown timer for OTP resend
   useEffect(() => {
@@ -88,6 +104,10 @@ export default function RegisterPage() {
 
   const handleGoogleSignup = async () => {
     setError('');
+    if (isNetworkHost) {
+      setShowGoogleChooser(true);
+      return;
+    }
     setGoogleLoading(true);
     try {
       await loginWithGoogle('/dashboard');
@@ -634,6 +654,106 @@ export default function RegisterPage() {
           </div>
         </div>
       </div>
+
+      {/* Google Account Chooser Modal for Mobile & Network Hosts */}
+      {showGoogleChooser && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <GoogleIcon />
+                <span className="font-black text-sm text-slate-800">Sign up with Google</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowGoogleChooser(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center font-bold text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-slate-700">
+                Choose an account to continue to <strong>Aspire Academy</strong>:
+              </p>
+              <p className="text-[11px] text-slate-500">
+                Mobile network mode active — Enter your name & Gmail to start learning immediately:
+              </p>
+            </div>
+
+            {/* Quick Demo Student */}
+            <button
+              type="button"
+              onClick={() => {
+                setShowGoogleChooser(false);
+                customLogin('student@aspireacademy.com', 'Priyanshu Kumari', 'student');
+                router.push('/dashboard');
+              }}
+              className="w-full text-left p-3.5 rounded-2xl border border-blue-200 bg-blue-50/60 hover:bg-blue-100 transition flex items-center gap-3 group"
+            >
+              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#046BD2] to-sky-400 text-white flex items-center justify-center font-black text-sm flex-shrink-0 shadow-sm">
+                P
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <span>Priyanshu Kumari</span>
+                  <span className="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded-full">
+                    Demo Student
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-500 truncate">student@aspireacademy.com</div>
+              </div>
+              <span className="text-xs font-bold text-[#046BD2] group-hover:translate-x-0.5 transition">
+                Continue →
+              </span>
+            </button>
+
+            {/* Custom Google Account */}
+            <div className="pt-2 border-t border-slate-100 space-y-2.5">
+              <div className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                <span>➕ Or enter your details:</span>
+              </div>
+              <input
+                type="text"
+                placeholder="Full Student Name (e.g. Aman Sharma)"
+                value={customGoogleName}
+                onChange={(e) => setCustomGoogleName(e.target.value)}
+                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#046BD2]"
+              />
+              <input
+                type="email"
+                placeholder="yourname@gmail.com"
+                value={customGoogleEmail}
+                onChange={(e) => setCustomGoogleEmail(e.target.value)}
+                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#046BD2]"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (!customGoogleEmail.trim()) {
+                    setError('Please enter your email.');
+                    setShowGoogleChooser(false);
+                    return;
+                  }
+                  setShowGoogleChooser(false);
+                  customLogin(
+                    customGoogleEmail.trim(),
+                    customGoogleName.trim() || customGoogleEmail.split('@')[0],
+                    'student'
+                  );
+                  router.push('/dashboard');
+                }}
+                disabled={!customGoogleEmail.trim()}
+                className="w-full py-2.5 px-3 rounded-xl bg-[#046BD2] hover:bg-[#0352A0] disabled:bg-slate-200 text-white font-bold text-xs shadow-sm transition"
+              >
+                Register & Enter Dashboard →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

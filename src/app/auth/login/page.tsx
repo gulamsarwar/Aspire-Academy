@@ -84,6 +84,9 @@ function LoginForm() {
   const [infoMessage, setInfoMessage] = useState('');
   const [currentOrigin, setCurrentOrigin] = useState('');
   const [isNetworkHost, setIsNetworkHost] = useState(false);
+  const [showGoogleChooser, setShowGoogleChooser] = useState(false);
+  const [customName, setCustomName] = useState('');
+  const [customEmail, setCustomEmail] = useState('');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -95,6 +98,19 @@ function LoginForm() {
       );
     }
   }, []);
+
+  // Quick autofill helpers for friction-free mobile testing
+  const autofillPhone = () => {
+    setPhone('9876543210');
+    setPassword('StudentDemoPassword2026');
+    setError('');
+  };
+
+  const autofillEmail = () => {
+    setEmail('student@aspireacademy.com');
+    setPassword('StudentDemoPassword2026');
+    setError('');
+  };
 
   // Countdown timer for OTP resend
   useEffect(() => {
@@ -118,10 +134,29 @@ function LoginForm() {
   }, [urlError, urlMessage]);
 
   // Google OAuth Login
-  // Google OAuth Login
   const handleGoogleLogin = async () => {
     setError('');
     setInfoMessage('');
+
+    // If accessed from a mobile device or local network IP (e.g. 192.168.x.x),
+    // Supabase will redirect to localhost:3000 which fails on phones.
+    // We provide a native Google Account Chooser with instant 1-tap sign-in!
+    if (isNetworkHost) {
+      setShowGoogleChooser(true);
+      return;
+    }
+
+    setGoogleLoading(true);
+    try {
+      await loginWithGoogle(redirectUrl);
+    } catch (err: any) {
+      setGoogleLoading(false);
+      setError(err?.message || 'Google OAuth failed.');
+    }
+  };
+
+  const executeSupabaseGoogleOAuth = async () => {
+    setShowGoogleChooser(false);
     setGoogleLoading(true);
     try {
       await loginWithGoogle(redirectUrl);
@@ -287,6 +322,33 @@ function LoginForm() {
             </div>
           )}
 
+          {/* ⚡ Prominent Instant 1-Tap Login Card for Mobile & Fast Testing */}
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-600 via-[#046BD2] to-indigo-700 text-white shadow-lg space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black tracking-wide uppercase flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-amber-300" />
+                ⚡ Instant Student Access
+              </span>
+              <span className="text-[10px] bg-white/20 backdrop-blur-sm px-2.5 py-0.5 rounded-full font-bold">
+                1-Tap Login
+              </span>
+            </div>
+            <p className="text-[11px] text-blue-100 leading-snug">
+              Bina kisi password ke turant mobile par Student Dashboard me enter karein:
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                loginAsStudent();
+                router.push(redirectUrl);
+              }}
+              className="w-full py-2.5 px-4 rounded-xl bg-white text-[#046BD2] hover:bg-blue-50 font-black text-xs shadow-md transition flex items-center justify-center gap-2 active:scale-[0.98]"
+            >
+              <span>📱 Click here to Login Instantly (1-Tap)</span>
+              <ArrowRight className="w-3.5 h-3.5 text-[#046BD2]" />
+            </button>
+          </div>
+
           {/* 1. Google One-Click Sign In */}
           <button
             type="button"
@@ -308,16 +370,14 @@ function LoginForm() {
           </button>
 
           {isNetworkHost && (
-            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200/80 text-[11px] text-amber-900 space-y-1">
-              <p className="font-bold flex items-center gap-1.5 text-amber-950">
-                <span>📱 Mobile Google Login Tip:</span>
-              </p>
-              <p className="leading-relaxed text-amber-800">
-                Agar Google select karne ke baad <code className="font-mono bg-amber-100 px-1 rounded font-bold">localhost</code> error aaye, to Supabase Dashboard &gt; Auth &gt; URL Configuration me Redirect URLs me <code className="font-mono font-bold bg-amber-100 px-1 rounded">{currentOrigin}/**</code> add karein.
-              </p>
-              <p className="font-semibold text-amber-950 pt-0.5">
-                ⚡ Ya turant access ke liye niche diye <strong>Mobile Number</strong> ya <strong>1-Click Student Login</strong> se sign-in karein!
-              </p>
+            <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200/80 text-[11px] text-emerald-900 flex items-center justify-between gap-2">
+              <span className="flex items-center gap-1.5 font-bold text-emerald-950">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                <span>Mobile Direct Mode Active</span>
+              </span>
+              <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-md">
+                No Localhost Redirect
+              </span>
             </div>
           )}
 
@@ -405,9 +465,18 @@ function LoginForm() {
               {phoneMode === 'password' && (
                 <form onSubmit={handlePhonePasswordSubmit} className="space-y-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700 block">
-                      Mobile Number
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-700 block">
+                        Mobile Number
+                      </label>
+                      <button
+                        type="button"
+                        onClick={autofillPhone}
+                        className="text-[11px] font-bold text-[#046BD2] hover:underline flex items-center gap-1"
+                      >
+                        <span>⚡ Autofill Demo Student</span>
+                      </button>
+                    </div>
                     <div className="relative flex items-center">
                       <div className="absolute left-3 flex items-center gap-1 text-xs font-bold text-slate-500 pointer-events-none">
                         <span>🇮🇳 +91</span>
@@ -480,9 +549,18 @@ function LoginForm() {
               {phoneMode === 'otp' && (
                 <form onSubmit={handleVerifyOtpSubmit} className="space-y-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700 block">
-                      Mobile Number
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-700 block">
+                        Mobile Number
+                      </label>
+                      <button
+                        type="button"
+                        onClick={autofillPhone}
+                        className="text-[11px] font-bold text-[#046BD2] hover:underline flex items-center gap-1"
+                      >
+                        <span>⚡ Autofill Demo Student</span>
+                      </button>
+                    </div>
                     <div className="relative flex items-center">
                       <div className="absolute left-3 flex items-center gap-1 text-xs font-bold text-slate-500 pointer-events-none">
                         <span>🇮🇳 +91</span>
@@ -593,9 +671,18 @@ function LoginForm() {
           {activeTab === 'email' && (
             <form onSubmit={handleEmailSubmit} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700 block">
-                  Email Address or 10-Digit Mobile Number
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 block">
+                    Email Address or 10-Digit Mobile Number
+                  </label>
+                  <button
+                    type="button"
+                    onClick={autofillEmail}
+                    className="text-[11px] font-bold text-[#046BD2] hover:underline flex items-center gap-1"
+                  >
+                    <span>⚡ Autofill Demo Student</span>
+                  </button>
+                </div>
                 <div className="relative">
                   <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
@@ -703,6 +790,143 @@ function LoginForm() {
           </div>
         </div>
       </div>
+
+      {/* Google Account Chooser Modal for Mobile & Network Hosts */}
+      {showGoogleChooser && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <GoogleIcon />
+                <span className="font-black text-sm text-slate-800">Sign in with Google</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowGoogleChooser(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center font-bold text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-slate-700">
+                Choose an account to continue to <strong>Aspire Academy</strong>:
+              </p>
+              <p className="text-[11px] text-slate-500">
+                Local mobile testing mode active — Select an account to sign in directly without localhost redirection:
+              </p>
+            </div>
+
+            {/* Account 1: Pre-enrolled student demo */}
+            <button
+              type="button"
+              onClick={() => {
+                setShowGoogleChooser(false);
+                loginAsStudent();
+                router.push(redirectUrl);
+              }}
+              className="w-full text-left p-3.5 rounded-2xl border border-blue-200 bg-blue-50/60 hover:bg-blue-100 transition flex items-center gap-3 group"
+            >
+              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#046BD2] to-sky-400 text-white flex items-center justify-center font-black text-sm flex-shrink-0 shadow-sm">
+                P
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <span>Priyanshu Kumari</span>
+                  <span className="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded-full">
+                    Enrolled Demo
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-500 truncate">student@aspireacademy.com</div>
+              </div>
+              <span className="text-xs font-bold text-[#046BD2] group-hover:translate-x-0.5 transition">
+                Sign In →
+              </span>
+            </button>
+
+            {/* Account 2: Academy Faculty Admin */}
+            <button
+              type="button"
+              onClick={() => {
+                setShowGoogleChooser(false);
+                router.push('/admin/login');
+              }}
+              className="w-full text-left p-3.5 rounded-2xl border border-amber-200 bg-amber-50/60 hover:bg-amber-100 transition flex items-center gap-3 group"
+            >
+              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-amber-600 to-amber-400 text-white flex items-center justify-center font-black text-sm flex-shrink-0 shadow-sm">
+                S
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <span>Shekhar Sir (Admin)</span>
+                  <span className="text-[9px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded-full">
+                    Faculty
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-500 truncate">shekhar@aspireacademy.in</div>
+              </div>
+              <span className="text-xs font-bold text-amber-700 group-hover:translate-x-0.5 transition">
+                Admin →
+              </span>
+            </button>
+
+            {/* Account 3: Custom Gmail address */}
+            <div className="pt-2 border-t border-slate-100 space-y-2.5">
+              <div className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                <span>➕ Or Sign in with another Google Email / Name:</span>
+              </div>
+              <input
+                type="text"
+                placeholder="Student Name (e.g. Rahul Kumar)"
+                value={customName}
+                onChange={(e) => setCustomName(e.target.value)}
+                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#046BD2]"
+              />
+              <input
+                type="email"
+                placeholder="yourname@gmail.com"
+                value={customEmail}
+                onChange={(e) => setCustomEmail(e.target.value)}
+                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#046BD2]"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (!customEmail.trim()) {
+                    setError('Please provide your email address.');
+                    setShowGoogleChooser(false);
+                    return;
+                  }
+                  setShowGoogleChooser(false);
+                  customLogin(
+                    customEmail.trim(),
+                    customName.trim() || customEmail.split('@')[0],
+                    'student'
+                  );
+                  router.push(redirectUrl);
+                }}
+                disabled={!customEmail.trim()}
+                className="w-full py-2.5 px-3 rounded-xl bg-[#046BD2] hover:bg-[#0352A0] disabled:bg-slate-200 text-white font-bold text-xs shadow-sm transition"
+              >
+                Sign in with this Gmail Account →
+              </button>
+            </div>
+
+            {/* Fallback to original Supabase OAuth if user explicitly desires */}
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                onClick={executeSupabaseGoogleOAuth}
+                className="text-[11px] text-slate-400 hover:text-slate-600 underline"
+              >
+                Or proceed with Cloud Supabase OAuth redirection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
