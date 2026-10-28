@@ -10,6 +10,8 @@ import {
   ImageIcon,
   X,
   Info,
+  Database,
+  Cloud,
 } from 'lucide-react';
 
 interface R2MediaUploadProps {
@@ -29,12 +31,23 @@ export function R2MediaUpload({
 }: R2MediaUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Status for R2 and Supabase Storage
   const [r2Status, setR2Status] = useState<{
     isConfigured: boolean;
     missing: string[];
     bucketName: string | null;
   } | null>(null);
+
+  const [supabaseStatus, setSupabaseStatus] = useState<{
+    isConfigured: boolean;
+    provider: string;
+    bucketName: string;
+  } | null>(null);
+
   const [checkingStatus, setCheckingStatus] = useState(true);
+
+  // Storage provider selector for thumbnail ('supabase' | 'r2')
+  const [thumbnailProvider, setThumbnailProvider] = useState<'supabase' | 'r2'>('supabase');
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>(currentValue);
@@ -42,29 +55,50 @@ export function R2MediaUpload({
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [uploadSuccessKey, setUploadSuccessKey] = useState<string>('');
+  const [uploadSuccessProvider, setUploadSuccessProvider] = useState<string>('');
 
   useEffect(() => {
     let isMounted = true;
-    async function checkStatus() {
+    async function checkStatuses() {
       try {
-        const res = await fetch('/api/r2/status');
-        if (res.ok) {
-          const data = await res.json();
-          if (isMounted) {
-            setR2Status(data);
+        const [r2Res, sbRes] = await Promise.all([
+          fetch('/api/r2/status').catch(() => null),
+          fetch('/api/storage/thumbnail').catch(() => null),
+        ]);
+
+        if (isMounted) {
+          if (r2Res && r2Res.ok) {
+            const r2Data = await r2Res.json();
+            setR2Status(r2Data);
+          }
+          if (sbRes && sbRes.ok) {
+            const sbData = await sbRes.json();
+            setSupabaseStatus(sbData);
+            if (sbData.isConfigured) {
+              setThumbnailProvider('supabase');
+            } else if (r2Status?.isConfigured) {
+              setThumbnailProvider('r2');
+            }
           }
         }
       } catch (err) {
-        console.warn('Could not check R2 status:', err);
+        console.warn('Could not check storage statuses:', err);
       } finally {
         if (isMounted) setCheckingStatus(false);
       }
     }
-    checkStatus();
+    checkStatuses();
     return () => {
       isMounted = false;
     };
   }, []);
+
+  const isStorageReady =
+    type === 'thumbnail'
+      ? thumbnailProvider === 'supabase'
+        ? supabaseStatus?.isConfigured
+        : r2Status?.isConfigured
+      : r2Status?.isConfigured;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -72,12 +106,13 @@ export function R2MediaUpload({
 
     setErrorMessage('');
     setUploadSuccessKey('');
+    setUploadSuccessProvider('');
 
     // Validation
     if (type === 'thumbnail') {
-      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
       if (!validTypes.includes(file.type.toLowerCase())) {
-        setErrorMessage('Invalid image format. Supported formats: JPG, PNG, WebP.');
+        setErrorMessage('Invalid image format. Supported formats: JPG, PNG, WebP, GIF.');
         return;
       }
       if (file.size > 10 * 1024 * 1024) {
@@ -105,10 +140,14 @@ export function R2MediaUpload({
   const handleStartUpload = async () => {
     if (!selectedFile) return;
 
-    if (!r2Status?.isConfigured) {
-      setErrorMessage(
-        `Cloudflare R2 is not configured. Missing: ${r2Status?.missing?.join(', ') || 'environment credentials'}.`
-      );
+    if (!isStorageReady) {
+      if (type === 'thumbnail' && thumbnailProvider === 'supabase') {
+        setErrorMessage('Supabase Storage is not configured. Please check .env.local.');
+      } else {
+        setErrorMessage(
+          `Cloudflare R2 is not configured. Missing: ${r2Status?.missing?.join(', ') || 'environment credentials'}.`
+        );
+      }
       return;
     }
 
@@ -117,7 +156,49 @@ export function R2MediaUpload({
     setErrorMessage('');
 
     try {
-      // 1. Request presigned upload URL from backend
+      // Branch 1: Upload Thumbnail to Supabase Storage
+      if (type === 'thumbnail' && thumbnailProvider === 'supabase') {
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', '/api/storage/thumbnail', true);
+
+          xhr.upload.onprogress = (ev) => {
+            if (ev.lengthComputable) {
+              const percent = Math.round((ev.loaded / ev.total) * 100);
+              setUploadProgress(percent);
+            }
+          };
+
+          xhr.onload = () => {
+            try {
+              const resp = JSON.parse(xhr.responseText);
+              if (xhr.status >= 200 && xhr.status < 300 && resp.success) {
+                setUploadSuccessKey(resp.key);
+                setUploadSuccessProvider('Supabase Storage');
+                setPreviewUrl(resp.url);
+                onSuccess({
+                  key: resp.key,
+                  url: resp.url,
+                });
+                resolve();
+              } else {
+                reject(new Error(resp.error || `Upload failed with status ${xhr.status}`));
+              }
+            } catch (err: any) {
+              reject(new Error('Invalid response from storage upload endpoint.'));
+            }
+          };
+
+          xhr.onerror = () => reject(new Error('Network error during Supabase upload.'));
+          xhr.send(formData);
+        });
+        return;
+      }
+
+      // Branch 2: Upload to Cloudflare R2 (Videos or R2 Thumbnails)
       const presignRes = await fetch('/api/r2/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -136,7 +217,7 @@ export function R2MediaUpload({
 
       const { uploadUrl, key } = presignData;
 
-      // 2. Upload file directly to R2 using XMLHttpRequest for real-time progress
+      // Upload file directly to R2 using XMLHttpRequest for real-time progress
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open('PUT', uploadUrl, true);
@@ -163,13 +244,14 @@ export function R2MediaUpload({
 
       const playbackOrStreamUrl = `/api/r2/playback?key=${encodeURIComponent(key)}`;
       setUploadSuccessKey(key);
+      setUploadSuccessProvider('Cloudflare R2');
       onSuccess({
         key,
         url: playbackOrStreamUrl,
       });
     } catch (err: any) {
       console.error('Upload failed:', err);
-      setErrorMessage(err?.message || 'Failed to upload media to Cloudflare R2.');
+      setErrorMessage(err?.message || 'Failed to upload media.');
     } finally {
       setIsUploading(false);
     }
@@ -177,7 +259,7 @@ export function R2MediaUpload({
 
   return (
     <div className={`space-y-3 p-4 rounded-2xl bg-slate-50 border border-slate-200 ${className}`}>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           {type === 'thumbnail' ? (
             <ImageIcon className="w-4 h-4 text-[#046BD2]" />
@@ -185,14 +267,37 @@ export function R2MediaUpload({
             <FileVideo className="w-4 h-4 text-[#046BD2]" />
           )}
           <span className="text-xs font-bold text-slate-800">
-            {type === 'thumbnail' ? 'Upload Course Thumbnail (JPG, PNG, WebP)' : 'Upload Video to Cloudflare R2'}
+            {type === 'thumbnail'
+              ? 'Upload Course Thumbnail (JPG, PNG, WebP)'
+              : 'Upload Video to Cloudflare R2'}
           </span>
         </div>
 
+        {/* Provider Indicator Badges */}
         {checkingStatus ? (
           <span className="text-[10px] text-slate-400 flex items-center gap-1 font-medium">
-            <Loader2 className="w-3 h-3 animate-spin" /> Checking R2
+            <Loader2 className="w-3 h-3 animate-spin" /> Checking Storage...
           </span>
+        ) : type === 'thumbnail' ? (
+          <div className="flex items-center gap-1.5">
+            {supabaseStatus?.isConfigured && (
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                <Database className="w-3 h-3 text-emerald-600" />
+                Supabase Storage Ready
+              </span>
+            )}
+            {r2Status?.isConfigured && (
+              <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200 flex items-center gap-1">
+                <Cloud className="w-3 h-3" />
+                R2 Ready
+              </span>
+            )}
+            {!supabaseStatus?.isConfigured && !r2Status?.isConfigured && (
+              <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" /> Storage Unconfigured
+              </span>
+            )}
+          </div>
         ) : r2Status?.isConfigured ? (
           <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
             <CheckCircle2 className="w-3 h-3" /> Cloudflare R2 Ready
@@ -204,19 +309,59 @@ export function R2MediaUpload({
         )}
       </div>
 
-      {/* R2 Not Configured Notice */}
-      {!checkingStatus && !r2Status?.isConfigured && (
+      {/* Storage Destination Switcher for Thumbnail */}
+      {type === 'thumbnail' && (supabaseStatus?.isConfigured || r2Status?.isConfigured) && (
+        <div className="flex items-center gap-2 pt-1 text-xs">
+          <span className="text-[11px] font-semibold text-slate-500">Upload Target:</span>
+          <div className="inline-flex rounded-xl bg-slate-200/70 p-0.5">
+            {supabaseStatus?.isConfigured && (
+              <button
+                type="button"
+                onClick={() => setThumbnailProvider('supabase')}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1.5 ${
+                  thumbnailProvider === 'supabase'
+                    ? 'bg-white text-emerald-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Database className="w-3 h-3" />
+                <span>Supabase Storage</span>
+                <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-100 text-emerald-800">
+                  Active
+                </span>
+              </button>
+            )}
+            {r2Status?.isConfigured && (
+              <button
+                type="button"
+                onClick={() => setThumbnailProvider('r2')}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1.5 ${
+                  thumbnailProvider === 'r2'
+                    ? 'bg-white text-blue-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Cloud className="w-3 h-3" />
+                <span>Cloudflare R2</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Storage Unconfigured Warning */}
+      {!checkingStatus && !isStorageReady && (
         <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-900 text-xs space-y-1">
           <div className="flex items-center gap-1.5 font-bold">
             <Info className="w-4 h-4 text-amber-600 flex-shrink-0" />
-            <span>Cloudflare R2 Storage Not Configured</span>
+            <span>
+              {type === 'thumbnail' ? 'Storage Not Configured' : 'Cloudflare R2 Storage Not Configured'}
+            </span>
           </div>
           <p className="text-[11px] text-amber-800 leading-relaxed">
-            Missing environment credentials:{' '}
-            <code className="font-mono font-bold bg-amber-100/80 px-1 py-0.5 rounded text-[10px]">
-              {r2Status?.missing?.join(', ')}
-            </code>
-            . Direct file upload is disabled until R2 keys are added to environment settings.
+            {type === 'thumbnail'
+              ? 'Please configure NEXT_PUBLIC_SUPABASE_URL in .env.local for instant Supabase Storage uploads.'
+              : `Missing environment credentials: ${r2Status?.missing?.join(', ')}. Direct file upload is disabled until R2 keys are added.`}
           </p>
         </div>
       )}
@@ -226,8 +371,12 @@ export function R2MediaUpload({
         <input
           ref={fileInputRef}
           type="file"
-          accept={type === 'thumbnail' ? 'image/jpeg,image/png,image/webp' : 'video/mp4,video/webm,video/quicktime'}
-          disabled={!r2Status?.isConfigured || isUploading}
+          accept={
+            type === 'thumbnail'
+              ? 'image/jpeg,image/png,image/webp,image/gif'
+              : 'video/mp4,video/webm,video/quicktime'
+          }
+          disabled={!isStorageReady || isUploading}
           onChange={handleFileChange}
           className="text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#046BD2] file:text-white hover:file:bg-[#0352A0] file:cursor-pointer disabled:opacity-50 text-slate-600 cursor-pointer"
         />
@@ -235,9 +384,9 @@ export function R2MediaUpload({
         {selectedFile && (
           <button
             type="button"
-            disabled={!r2Status?.isConfigured || isUploading}
+            disabled={!isStorageReady || isUploading}
             onClick={handleStartUpload}
-            className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 transition flex items-center justify-center gap-1.5 shadow-sm"
+            className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 transition flex items-center justify-center gap-1.5 shadow-sm whitespace-nowrap"
           >
             {isUploading ? (
               <>
@@ -247,14 +396,18 @@ export function R2MediaUpload({
             ) : (
               <>
                 <Upload className="w-3.5 h-3.5" />
-                <span>Upload to R2</span>
+                <span>
+                  {type === 'thumbnail' && thumbnailProvider === 'supabase'
+                    ? 'Upload to Supabase'
+                    : 'Upload to R2'}
+                </span>
               </>
             )}
           </button>
         )}
       </div>
 
-      {/* Selected file preview */}
+      {/* Selected file preview pill */}
       {selectedFile && (
         <div className="flex items-center justify-between text-xs text-slate-600 bg-white p-2 rounded-xl border border-slate-200">
           <span className="font-mono text-[11px] truncate max-w-xs">{selectedFile.name}</span>
@@ -274,7 +427,12 @@ export function R2MediaUpload({
             />
           </div>
           <div className="flex justify-between text-[10px] text-slate-500 font-semibold">
-            <span>Uploading to Cloudflare R2...</span>
+            <span>
+              Uploading to{' '}
+              {type === 'thumbnail' && thumbnailProvider === 'supabase'
+                ? 'Supabase Cloud Storage...'
+                : 'Cloudflare R2...'}
+            </span>
             <span>{uploadProgress}%</span>
           </div>
         </div>
@@ -293,7 +451,8 @@ export function R2MediaUpload({
         <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
           <span className="truncate">
-            Successfully uploaded to R2: <strong className="font-mono">{uploadSuccessKey}</strong>
+            ✓ Successfully uploaded to {uploadSuccessProvider}:{' '}
+            <strong className="font-mono">{uploadSuccessKey}</strong>
           </span>
         </div>
       )}
@@ -302,7 +461,7 @@ export function R2MediaUpload({
       {type === 'thumbnail' && previewUrl && (
         <div className="space-y-1 pt-1">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-            Image Preview:
+            Thumbnail Live Preview:
           </span>
           <img
             src={previewUrl}

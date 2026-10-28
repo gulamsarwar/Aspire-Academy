@@ -937,7 +937,7 @@ export default function AdminCoursesPage() {
                   </button>
                 </div>
 
-                {/* Cloudflare R2 Image Upload */}
+                {/* Supabase Storage / Cloudflare R2 Image Upload */}
                 <R2MediaUpload
                   type="thumbnail"
                   resourceId="course"
@@ -945,7 +945,7 @@ export default function AdminCoursesPage() {
                   onSuccess={({ key, url }) => {
                     setNewThumbnail(url);
                     setNewThumbnailR2Key(key);
-                    setSuccessToast('Thumbnail uploaded to Cloudflare R2 successfully!');
+                    setSuccessToast('Thumbnail uploaded successfully!');
                     setTimeout(() => setSuccessToast(''), 3000);
                   }}
                 />
@@ -1243,7 +1243,7 @@ export default function AdminCoursesPage() {
                     <span>Paste URL</span>
                   </button>
                 </div>
-                {/* Cloudflare R2 Image Upload for Edit Modal */}
+                {/* Supabase Storage / Cloudflare R2 Image Upload for Edit Modal */}
                 <R2MediaUpload
                   type="thumbnail"
                   resourceId={editingCourse?.id || 'course'}
@@ -1251,7 +1251,7 @@ export default function AdminCoursesPage() {
                   onSuccess={({ key, url }) => {
                     setEditThumbnail(url);
                     setEditThumbnailR2Key(key);
-                    setSuccessToast('Thumbnail replaced in Cloudflare R2!');
+                    setSuccessToast('Thumbnail updated successfully!');
                     setTimeout(() => setSuccessToast(''), 3000);
                   }}
                 />

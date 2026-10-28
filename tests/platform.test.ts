@@ -1,6 +1,31 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+
+// Automatically load .env.local for test runner to match Next.js environment
+const envPath = path.resolve(process.cwd(), '.env.local');
+if (fs.existsSync(envPath)) {
+  const content = fs.readFileSync(envPath, 'utf8');
+  content.split('\n').forEach((line) => {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith('#')) {
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx > 0) {
+        const key = trimmed.slice(0, eqIdx).trim();
+        let val = trimmed.slice(eqIdx + 1).trim();
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+          val = val.slice(1, -1);
+        }
+        if (!process.env[key]) {
+          process.env[key] = val;
+        }
+      }
+    }
+  });
+}
+
 import { db } from '../src/lib/data/mock-db';
 import { verifyWebhookSignature } from '../src/lib/razorpay';
 import { Course, Batch } from '../src/lib/types';
@@ -366,6 +391,44 @@ describe('Aspire Academy — Comprehensive Platform Test Suite', () => {
     assert.equal(r2Lesson.video_source_type, 'r2');
     assert.equal(r2Lesson.r2_object_key, 'courses/class-11-physics/unit-2-circular-motion.mp4');
   });
+
+  // 16. Supabase Cloud Storage for Course Thumbnails
+  test('16. Supabase Storage: Thumbnail diagnostic and upload validation', async () => {
+    const { getSupabaseStorageDiagnostic, uploadThumbnailToSupabase } = await import(
+      '../src/lib/supabase-storage'
+    );
+    const diagnostic = getSupabaseStorageDiagnostic();
+
+    assert.ok(diagnostic);
+    assert.equal(typeof diagnostic.isConfigured, 'boolean');
+    assert.equal(diagnostic.bucketName, 'course-thumbnails');
+
+    // Reject invalid mime types
+    const invalidResult = await uploadThumbnailToSupabase(
+      Buffer.from('not-an-image'),
+      'sample.pdf',
+      'application/pdf'
+    );
+    assert.equal(invalidResult.success, false);
+    assert.ok(invalidResult.error?.includes('Invalid file type'));
+
+    // If Supabase is configured in environment, verify upload of valid PNG
+    if (diagnostic.isConfigured) {
+      const png1x1 = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+        'base64'
+      );
+      const uploadResult = await uploadThumbnailToSupabase(
+        png1x1,
+        'unit_test_thumb.png',
+        'image/png'
+      );
+      assert.equal(uploadResult.success, true);
+      assert.ok(uploadResult.url);
+      assert.ok(uploadResult.url.includes('course-thumbnails'));
+    }
+  });
 });
+
 
 
