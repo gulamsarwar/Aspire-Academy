@@ -252,16 +252,16 @@ export default function AdminBatchesPage() {
 
       {/* Desktop Batches Table (>= 768px) */}
       <div className="hidden md:block bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs min-w-[750px]">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-left text-xs min-w-[700px]">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold">
               <tr>
-                <th className="px-6 py-4">Batch Name & Schedule</th>
-                <th className="px-6 py-4">Associated Course</th>
-                <th className="px-6 py-4">Faculty</th>
-                <th className="px-6 py-4">Capacity & Enrolled</th>
-                <th className="px-6 py-4">Enrollment State</th>
-                <th className="px-6 py-4 text-right">Toggle Status</th>
+                <th className="px-4 py-3.5">Batch Name & Schedule</th>
+                <th className="px-4 py-3.5">Associated Course</th>
+                <th className="px-4 py-3.5">Faculty</th>
+                <th className="px-4 py-3.5">Capacity & Enrolled</th>
+                <th className="px-4 py-3.5">Enrollment State</th>
+                <th className="px-4 py-3.5 text-right">Toggle Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -270,7 +270,7 @@ export default function AdminBatchesPage() {
 
                 return (
                   <tr key={batch.id} className="hover:bg-slate-50 transition">
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3.5">
                       <h4 className="font-bold text-slate-900 text-sm">{batch.name}</h4>
                       <p className="text-[11px] text-slate-500 flex items-center gap-1 font-medium mt-0.5">
                         <Clock className="w-3 h-3 text-[#046BD2]" />
@@ -278,22 +278,22 @@ export default function AdminBatchesPage() {
                       </p>
                     </td>
 
-                    <td className="px-6 py-4 font-semibold text-slate-800 max-w-xs truncate">
+                    <td className="px-4 py-3.5 font-semibold text-slate-800 max-w-xs truncate">
                       {course?.title}
                     </td>
 
-                    <td className="px-6 py-4 text-slate-700 font-medium">
+                    <td className="px-4 py-3.5 text-slate-700 font-medium whitespace-nowrap">
                       {batch.instructor_name || course?.instructor_name}
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3.5 whitespace-nowrap">
                       <span className="font-bold text-slate-900">
                         {batch.enrolled_count}
                       </span>
                       <span className="text-slate-400"> / {batch.capacity} seats</span>
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3.5 whitespace-nowrap">
                       {batch.enrollment_open ? (
                         <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full font-bold text-[10px]">
                           <CheckCircle2 className="w-3 h-3" /> Open
@@ -305,7 +305,7 @@ export default function AdminBatchesPage() {
                       )}
                     </td>
 
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-4 py-3.5 text-right whitespace-nowrap">
                       <button
                         onClick={() => toggleEnrollment(batch.id)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${

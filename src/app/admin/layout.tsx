@@ -146,7 +146,7 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col lg:flex-row">
+    <div className="min-h-screen bg-slate-100 flex flex-col lg:flex-row w-full max-w-full overflow-x-hidden">
       {/* Mobile Top Sub-nav */}
       <div className="lg:hidden bg-slate-900 text-white px-4 py-3 flex items-center justify-between overflow-x-auto space-x-2 border-b border-slate-800">
         <div className="flex items-center space-x-2">
@@ -252,7 +252,7 @@ export default function AdminLayout({
       </aside>
 
       {/* Main Admin Workspace */}
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">{children}</main>
+      <main className="flex-1 min-w-0 w-full p-4 sm:p-6 lg:p-8 overflow-x-hidden overflow-y-auto">{children}</main>
     </div>
   );
 }

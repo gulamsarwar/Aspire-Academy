@@ -291,7 +291,7 @@ export default function AdminCoursesPage() {
   }, 0);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-16">
+    <div className="space-y-6 max-w-7xl mx-auto pb-16 pt-1">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
@@ -309,7 +309,7 @@ export default function AdminCoursesPage() {
 
         <button
           onClick={() => setShowAddModal(true)}
-          className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-bold text-xs sm:text-sm bg-[#046BD2] hover:bg-[#0352A0] text-white shadow-lg shadow-blue-500/25 transition active:scale-95"
+          className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-bold text-xs sm:text-sm bg-[#046BD2] hover:bg-[#0352A0] text-white shadow-lg shadow-blue-500/25 transition active:scale-95 flex-shrink-0"
         >
           <Plus className="w-4 h-4" />
           <span>+ Create New Course</span>
@@ -504,17 +504,17 @@ export default function AdminCoursesPage() {
 
       {/* 💻 DESKTOP COURSES TABLE (Visible on screens >= 768px) */}
       <div className="hidden md:block bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs min-w-[760px]">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-left text-xs min-w-[720px]">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold">
               <tr>
-                <th className="px-6 py-4">Course Info</th>
-                <th className="px-6 py-4">Class & Board</th>
-                <th className="px-6 py-4">Price (INR)</th>
-                <th className="px-6 py-4">Video Lessons</th>
-                <th className="px-6 py-4">Batches</th>
-                <th className="px-6 py-4">Catalog Status</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+                <th className="px-4 py-3.5">Course Info</th>
+                <th className="px-3 py-3.5">Class & Board</th>
+                <th className="px-3 py-3.5">Price</th>
+                <th className="px-3 py-3.5">Video Lessons</th>
+                <th className="px-3 py-3.5">Batches</th>
+                <th className="px-3 py-3.5">Status</th>
+                <th className="px-4 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -525,33 +525,33 @@ export default function AdminCoursesPage() {
 
                 return (
                   <tr key={course.id} className="hover:bg-slate-50 transition">
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <img
                           src={course.thumbnail_url}
                           alt={course.title}
-                          className="w-12 h-12 rounded-xl object-cover flex-shrink-0 border border-slate-200"
+                          className="w-11 h-11 rounded-xl object-cover flex-shrink-0 border border-slate-200 bg-slate-100"
                         />
-                        <div className="space-y-0.5">
-                          <h4 className="font-bold text-slate-900 text-sm max-w-xs truncate">
+                        <div className="space-y-0.5 min-w-0">
+                          <h4 className="font-bold text-slate-900 text-xs sm:text-sm max-w-[200px] lg:max-w-xs truncate" title={course.title}>
                             {course.title}
                           </h4>
-                          <span className="text-[11px] text-slate-500">
-                            Faculty: {course.instructor_name} • {course.duration_weeks} wks
+                          <span className="text-[11px] text-slate-500 truncate block">
+                            {course.instructor_name} • {course.duration_weeks} wks
                           </span>
                         </div>
                       </div>
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-3 whitespace-nowrap">
                       <span className="font-semibold text-slate-800 block">
                         {course.target_class}
                       </span>
                       <span className="text-[10px] text-slate-500">{course.category}</span>
                     </td>
 
-                    <td className="px-6 py-4">
-                      <span className="font-black text-slate-900 text-sm block">
+                    <td className="px-3 py-3 whitespace-nowrap">
+                      <span className="font-black text-slate-900 text-xs sm:text-sm block">
                         ₹{course.price.toLocaleString('en-IN')}
                       </span>
                       <span className="text-[10px] text-slate-400 line-through">
@@ -559,10 +559,10 @@ export default function AdminCoursesPage() {
                       </span>
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-3 whitespace-nowrap">
                       <Link
                         href={`/admin/lessons?courseId=${course.id}`}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition border ${
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition border ${
                           totalLessons > 0
                             ? 'bg-blue-50 text-[#046BD2] border-blue-200 hover:bg-blue-100'
                             : 'bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100'
@@ -574,7 +574,7 @@ export default function AdminCoursesPage() {
                       </Link>
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-3 whitespace-nowrap">
                       <Link
                         href={`/admin/batches?courseId=${course.id}`}
                         className="font-bold text-slate-800 hover:text-[#046BD2] hover:underline"
@@ -583,7 +583,7 @@ export default function AdminCoursesPage() {
                       </Link>
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-3 whitespace-nowrap">
                       {course.published ? (
                         <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full font-bold text-[10px]">
                           <CheckCircle2 className="w-3 h-3" /> Published
@@ -595,12 +595,12 @@ export default function AdminCoursesPage() {
                       )}
                     </td>
 
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end flex-wrap gap-1.5">
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-1.5">
                         {/* 1. Manage Lessons */}
                         <Link
                           href={`/admin/lessons?courseId=${course.id}`}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-[#046BD2] text-white hover:bg-[#0352A0] transition shadow-sm"
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-[#046BD2] text-white hover:bg-[#0352A0] transition shadow-sm"
                           title="Manage curriculum and paste video links"
                         >
                           <Video className="w-3.5 h-3.5" />
@@ -610,7 +610,7 @@ export default function AdminCoursesPage() {
                         {/* 2. Manage Batches */}
                         <Link
                           href={`/admin/batches?courseId=${course.id}`}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
+                          className="inline-flex items-center gap-1 px-2 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
                           title="View and configure batches for this course"
                         >
                           <Users className="w-3.5 h-3.5 text-slate-500" />
@@ -620,7 +620,7 @@ export default function AdminCoursesPage() {
                         {/* 3. Edit Course */}
                         <button
                           onClick={() => handleOpenEdit(course)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
+                          className="inline-flex items-center gap-1 px-2 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
                           title="Edit course metadata"
                         >
                           <Edit className="w-3.5 h-3.5 text-slate-500" />
@@ -632,16 +632,16 @@ export default function AdminCoursesPage() {
                           href={`/courses/${course.slug}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+                          className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
                           title="Open public course catalog preview"
                         >
-                          <ExternalLink className="w-4 h-4" />
+                          <ExternalLink className="w-3.5 h-3.5" />
                         </a>
 
                         {/* 5. Publish Toggle */}
                         <button
                           onClick={() => togglePublish(course.id)}
-                          className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition ${
+                          className={`px-2 py-1.5 rounded-xl text-xs font-bold transition ${
                             course.published
                               ? 'bg-red-50 text-red-600 hover:bg-red-100'
                               : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'

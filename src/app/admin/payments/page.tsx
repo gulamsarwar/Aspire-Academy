@@ -209,16 +209,16 @@ export default function AdminPaymentsPage() {
 
       {/* Desktop Orders Table (>= 768px) */}
       <div className="hidden md:block bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs min-w-[750px]">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-left text-xs min-w-[700px]">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold">
               <tr>
-                <th className="px-6 py-4">Internal Order ID</th>
-                <th className="px-6 py-4">Course & Batch</th>
-                <th className="px-6 py-4">Amount</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Razorpay Reference</th>
-                <th className="px-6 py-4">Created Date</th>
+                <th className="px-4 py-3.5">Internal Order ID</th>
+                <th className="px-4 py-3.5">Course & Batch</th>
+                <th className="px-4 py-3.5">Amount</th>
+                <th className="px-4 py-3.5">Status</th>
+                <th className="px-4 py-3.5">Razorpay Reference</th>
+                <th className="px-4 py-3.5">Created Date</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -228,22 +228,22 @@ export default function AdminPaymentsPage() {
 
                 return (
                   <tr key={order.id} className="hover:bg-slate-50 transition">
-                    <td className="px-6 py-4 font-mono font-bold text-slate-800">
+                    <td className="px-4 py-3.5 font-mono font-bold text-slate-800">
                       {order.id}
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3.5">
                       <span className="font-bold text-slate-900 block truncate max-w-xs">
                         {course?.title}
                       </span>
                       <span className="text-[11px] text-slate-500">{batch?.name}</span>
                     </td>
 
-                    <td className="px-6 py-4 font-black text-slate-900 text-sm">
+                    <td className="px-4 py-3.5 font-black text-slate-900 text-sm whitespace-nowrap">
                       ₹{order.amount.toLocaleString('en-IN')}
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3.5 whitespace-nowrap">
                       {order.status === 'paid' ? (
                         <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full font-bold text-[10px]">
                           <CheckCircle2 className="w-3 h-3" /> Verified & Paid
@@ -259,7 +259,7 @@ export default function AdminPaymentsPage() {
                       )}
                     </td>
 
-                    <td className="px-6 py-4 font-mono text-[11px] text-slate-600">
+                    <td className="px-4 py-3.5 font-mono text-[11px] text-slate-600">
                       <div>
                         <span className="text-[10px] text-slate-400 block">Payment ID:</span>
                         <span className="font-bold">
@@ -272,7 +272,7 @@ export default function AdminPaymentsPage() {
                       </div>
                     </td>
 
-                    <td className="px-6 py-4 text-slate-500">
+                    <td className="px-4 py-3.5 text-slate-500 whitespace-nowrap">
                       {new Date(order.created_at).toLocaleString('en-IN', {
                         dateStyle: 'medium',
                         timeStyle: 'short',

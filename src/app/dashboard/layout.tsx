@@ -54,7 +54,7 @@ export default function DashboardLayout({
   };
 
   return (
-    <div className="min-h-screen bg-slate-100/70 flex flex-col lg:flex-row">
+    <div className="min-h-screen bg-slate-100/70 flex flex-col lg:flex-row w-full max-w-full overflow-x-hidden">
       {/* Mobile Top Sub-nav */}
       <div className="lg:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between overflow-x-auto space-x-2">
         {navItems.map((item) => {
@@ -153,7 +153,7 @@ export default function DashboardLayout({
       </aside>
 
       {/* Main Dashboard Workspace */}
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">{children}</main>
+      <main className="flex-1 min-w-0 w-full p-4 sm:p-6 lg:p-8 overflow-x-hidden overflow-y-auto">{children}</main>
     </div>
   );
 }

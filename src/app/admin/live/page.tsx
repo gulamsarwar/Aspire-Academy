@@ -211,16 +211,16 @@ export default function AdminLiveClassesPage() {
 
       {/* Desktop Table (>= 768px) */}
       <div className="hidden md:block bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs min-w-[750px]">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-left text-xs min-w-[700px]">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold">
               <tr>
-                <th className="px-6 py-4">Live Class Title</th>
-                <th className="px-6 py-4">Course & Batch</th>
-                <th className="px-6 py-4">Faculty</th>
-                <th className="px-6 py-4">Scheduled Time</th>
-                <th className="px-6 py-4">Live Stream Status</th>
-                <th className="px-6 py-4 text-right">Change Status</th>
+                <th className="px-4 py-3.5">Live Class Title</th>
+                <th className="px-4 py-3.5">Course & Batch</th>
+                <th className="px-4 py-3.5">Faculty</th>
+                <th className="px-4 py-3.5 whitespace-nowrap">Scheduled Time</th>
+                <th className="px-4 py-3.5 whitespace-nowrap">Live Stream Status</th>
+                <th className="px-4 py-3.5 text-right whitespace-nowrap">Change Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -230,7 +230,7 @@ export default function AdminLiveClassesPage() {
 
                 return (
                   <tr key={lc.id} className="hover:bg-slate-50 transition">
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3.5">
                       <div className="flex items-center gap-2.5">
                         <Video className="w-4 h-4 text-rose-600 flex-shrink-0" />
                         <div>
@@ -250,25 +250,25 @@ export default function AdminLiveClassesPage() {
                       </div>
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3.5">
                       <span className="font-bold text-slate-800 block truncate max-w-[200px]">
                         {course?.title}
                       </span>
                       <span className="text-[10px] text-slate-500">{batch?.name}</span>
                     </td>
 
-                    <td className="px-6 py-4 font-medium text-slate-700">
+                    <td className="px-4 py-3.5 font-medium text-slate-700 whitespace-nowrap">
                       {lc.instructor_name}
                     </td>
 
-                    <td className="px-6 py-4 text-slate-600 font-medium">
+                    <td className="px-4 py-3.5 text-slate-600 font-medium whitespace-nowrap">
                       {new Date(lc.scheduled_at).toLocaleString('en-IN', {
                         dateStyle: 'medium',
                         timeStyle: 'short',
                       })}
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3.5 whitespace-nowrap">
                       <span
                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                           lc.status === 'live'
@@ -282,7 +282,7 @@ export default function AdminLiveClassesPage() {
                       </span>
                     </td>
 
-                    <td className="px-6 py-4 text-right space-x-1.5">
+                    <td className="px-4 py-3.5 text-right whitespace-nowrap space-x-1.5">
                       {lc.status === 'scheduled' && (
                         <button
                           onClick={() => updateStatus(lc.id, 'live')}

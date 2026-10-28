@@ -180,15 +180,15 @@ export default function AdminStudentsPage() {
 
       {/* Desktop Students Table (>= 768px) */}
       <div className="hidden md:block bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs min-w-[750px]">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-left text-xs min-w-[700px]">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold">
               <tr>
-                <th className="px-6 py-4">Student</th>
-                <th className="px-6 py-4">Contact</th>
-                <th className="px-6 py-4">Active Enrollments</th>
-                <th className="px-6 py-4">Total Orders</th>
-                <th className="px-6 py-4 text-right">Access Controls</th>
+                <th className="px-4 py-3.5">Student</th>
+                <th className="px-4 py-3.5">Contact</th>
+                <th className="px-4 py-3.5">Active Enrollments</th>
+                <th className="px-4 py-3.5">Total Orders</th>
+                <th className="px-4 py-3.5 text-right">Access Controls</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -198,7 +198,7 @@ export default function AdminStudentsPage() {
 
                 return (
                   <tr key={student.id} className="hover:bg-slate-50 transition">
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3.5">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center">
                           {student.full_name.charAt(0)}
@@ -214,12 +214,12 @@ export default function AdminStudentsPage() {
                       </div>
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3.5">
                       <span className="text-slate-800 block font-medium">{student.email}</span>
                       <span className="text-slate-500 text-[11px]">{student.phone || 'N/A'}</span>
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3.5">
                       <span className="font-bold text-slate-900 block">
                         {enrollments.length} Active Courses
                       </span>
@@ -233,11 +233,11 @@ export default function AdminStudentsPage() {
                       ))}
                     </td>
 
-                    <td className="px-6 py-4 font-bold text-slate-900">
+                    <td className="px-4 py-3.5 font-bold text-slate-900 whitespace-nowrap">
                       {orders.length} Orders
                     </td>
 
-                    <td className="px-6 py-4 text-right space-x-2">
+                    <td className="px-4 py-3.5 text-right whitespace-nowrap">
                       <button
                         onClick={() => handleOpenOverride(student)}
                         className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 transition inline-flex items-center gap-1 border border-amber-200"

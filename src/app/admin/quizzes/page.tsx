@@ -829,8 +829,8 @@ Explanation: \\sqrt{16} = 4, and \\frac{1}{2}(4) = 2. 4 + 2 = 6.`;
                 key={quiz.id}
                 className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
               >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
+                <div className="space-y-1 min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-[10px] font-bold text-[#046BD2] bg-blue-50 px-2 py-0.5 rounded">
                       {quiz.subject || 'Biology'}
                     </span>
@@ -849,13 +849,13 @@ Explanation: \\sqrt{16} = 4, and \\frac{1}{2}(4) = 2. 4 + 2 = 6.`;
                       {quiz.status || (quiz.published ? 'Published' : 'Draft')}
                     </span>
                   </div>
-                  <h4 className="text-sm font-bold text-slate-900">{quiz.title}</h4>
+                  <h4 className="text-sm font-bold text-slate-900 break-words">{quiz.title}</h4>
                   <p className="text-xs text-slate-500">
                     Duration: {quiz.duration_minutes} mins • Total Marks: {quiz.total_marks} • Negative: -{quiz.negative_marking || 0} • Questions: {quiz.questions?.length || quiz.questions_count || 0}
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   {quiz.status === 'published' || quiz.published ? (
                     <button
                       onClick={() => handleUpdateQuizStatus(quiz.id, 'draft')}
