@@ -61,10 +61,10 @@ export async function POST(req: NextRequest) {
 
       // Validate media types
       if (type === 'thumbnail') {
-        const validImages = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        const validImages = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
         if (!validImages.includes(contentType.toLowerCase())) {
           return NextResponse.json(
-            { error: 'Invalid thumbnail format. Supported: JPG, PNG, WebP.' },
+            { error: 'Invalid thumbnail format. Supported: JPG, PNG, WebP, GIF.' },
             { status: 400 }
           );
         }

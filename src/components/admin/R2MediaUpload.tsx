@@ -66,19 +66,16 @@ export function R2MediaUpload({
           fetch('/api/storage/thumbnail').catch(() => null),
         ]);
 
+        const r2Data = r2Res && r2Res.ok ? await r2Res.json() : null;
+        const sbData = sbRes && sbRes.ok ? await sbRes.json() : null;
+
         if (isMounted) {
-          if (r2Res && r2Res.ok) {
-            const r2Data = await r2Res.json();
-            setR2Status(r2Data);
-          }
-          if (sbRes && sbRes.ok) {
-            const sbData = await sbRes.json();
-            setSupabaseStatus(sbData);
-            if (sbData.isConfigured) {
-              setThumbnailProvider('supabase');
-            } else if (r2Status?.isConfigured) {
-              setThumbnailProvider('r2');
-            }
+          if (r2Data) setR2Status(r2Data);
+          if (sbData) setSupabaseStatus(sbData);
+          if (sbData?.isConfigured) {
+            setThumbnailProvider('supabase');
+          } else if (r2Data?.isConfigured) {
+            setThumbnailProvider('r2');
           }
         }
       } catch (err) {
@@ -92,6 +89,10 @@ export function R2MediaUpload({
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    setPreviewUrl(currentValue);
+  }, [currentValue]);
 
   const isStorageReady =
     type === 'thumbnail'
@@ -179,6 +180,8 @@ export function R2MediaUpload({
                 setUploadSuccessKey(resp.key);
                 setUploadSuccessProvider('Supabase Storage');
                 setPreviewUrl(resp.url);
+                setSelectedFile(null);
+                if (fileInputRef.current) fileInputRef.current.value = '';
                 onSuccess({
                   key: resp.key,
                   url: resp.url,
@@ -245,6 +248,8 @@ export function R2MediaUpload({
       const playbackOrStreamUrl = `/api/r2/playback?key=${encodeURIComponent(key)}`;
       setUploadSuccessKey(key);
       setUploadSuccessProvider('Cloudflare R2');
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       onSuccess({
         key,
         url: playbackOrStreamUrl,
@@ -411,9 +416,22 @@ export function R2MediaUpload({
       {selectedFile && (
         <div className="flex items-center justify-between text-xs text-slate-600 bg-white p-2 rounded-xl border border-slate-200">
           <span className="font-mono text-[11px] truncate max-w-xs">{selectedFile.name}</span>
-          <span className="text-[10px] text-slate-400 font-semibold">
-            {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-slate-400 font-semibold">
+              {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedFile(null);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+              }}
+              className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+              title="Remove selected file"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       )}
 

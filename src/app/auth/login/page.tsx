@@ -115,18 +115,34 @@ function LoginForm() {
     }
   };
 
-  // Handle Email / Password Login
+  // Handle Email or Mobile / Password Login
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setInfoMessage('');
 
-    if (!email.trim() || !password) {
-      setError('Please enter your email ID and password.');
+    const inputVal = email.trim();
+    if (!inputVal || !password) {
+      setError('Please enter your email ID / 10-digit mobile number and password.');
       return;
     }
 
-    const cleanEmail = email.trim().toLowerCase();
+    // Auto-detect if user entered a 10-digit mobile number in the email input
+    const cleanDigits = inputVal.replace(/\D/g, '');
+    if (!inputVal.includes('@') && cleanDigits.length === 10) {
+      setLoading(true);
+      try {
+        await loginWithPhonePassword(cleanDigits, password);
+        router.push(redirectUrl);
+      } catch (err: any) {
+        setError(err?.message || 'Invalid mobile number or password.');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    const cleanEmail = inputVal.toLowerCase();
 
     // Prevent administrator accounts from logging in via public student portal
     if (isAuthorizedAdminEmail(cleanEmail)) {
@@ -167,6 +183,15 @@ function LoginForm() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePhoneInputChange = (val: string) => {
+    if (val.includes('@')) {
+      setActiveTab('email');
+      setEmail(val);
+      return;
+    }
+    setPhone(val.replace(/\D/g, ''));
   };
 
   // Send Mobile OTP
@@ -360,7 +385,7 @@ function LoginForm() {
                         placeholder="98765 43210"
                         maxLength={10}
                         value={phone}
-                        onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+                        onChange={(e) => handlePhoneInputChange(e.target.value)}
                         className="w-full pl-20 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#046BD2] font-medium"
                       />
                     </div>
@@ -527,14 +552,14 @@ function LoginForm() {
             <form onSubmit={handleEmailSubmit} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-700 block">
-                  Email Address / Gmail ID
+                  Email Address or 10-Digit Mobile Number
                 </label>
                 <div className="relative">
                   <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
-                    type="email"
+                    type="text"
                     required
-                    placeholder="student@gmail.com"
+                    placeholder="student@gmail.com or 9876543210"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#046BD2]"

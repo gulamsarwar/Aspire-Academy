@@ -60,7 +60,11 @@ export function YouTubePlayer({
       rawInput.endsWith('.m3u8') ||
       rawInput.includes('.mp4?') ||
       rawInput.includes('/video/') ||
-      rawInput.includes('blob:'));
+      rawInput.includes('/api/r2/playback') ||
+      rawInput.includes('/api/storage/') ||
+      rawInput.includes('blob:') ||
+      rawInput.startsWith('blob:') ||
+      rawInput.startsWith('data:video/'));
 
   useEffect(() => {
     setIsLoading(true);

@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     let targetEmail = '';
     let formattedPhone: string | undefined = undefined;
 
-    if (type === 'phone' || phone) {
+    if (type === 'phone' || (!email && phone)) {
       const normalized = normalizeIndianPhoneNumber(phone);
       if (!normalized.isValid) {
         return NextResponse.json({ error: normalized.error }, { status: 400 });
@@ -39,6 +39,12 @@ export async function POST(req: NextRequest) {
         );
       }
       targetEmail = email.trim().toLowerCase();
+      if (phone) {
+        const normalized = normalizeIndianPhoneNumber(phone);
+        if (normalized.isValid) {
+          formattedPhone = normalized.e164;
+        }
+      }
     }
 
     const admin = createAdminClient();

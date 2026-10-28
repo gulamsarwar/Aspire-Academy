@@ -330,8 +330,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       const cleanEmail = email.trim().toLowerCase();
-      const supabase = await ensureSupabaseClient();
 
+      // 1. Authenticate via secure server-side endpoint
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier: cleanEmail, password }),
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success && data.user) {
+          setUser(data.user);
+          setRole('student');
+          localStorage.setItem('aspire_user', JSON.stringify(data.user));
+          localStorage.setItem('aspire_role', 'student');
+          if (typeof document !== 'undefined') {
+            document.cookie = `aspire_session_id=${data.user.id}; path=/; max-age=2592000; SameSite=Lax;`;
+          }
+
+          if (data.session) {
+            try {
+              const supabase = await ensureSupabaseClient();
+              if (supabase) {
+                await supabase.auth.setSession({
+                  access_token: data.session.access_token,
+                  refresh_token: data.session.refresh_token,
+                });
+              }
+            } catch {
+              // ignore
+            }
+          }
+          return;
+        }
+
+        if (!res.ok && data.error) {
+          throw new Error(data.error);
+        }
+      } catch (apiErr: any) {
+        if (apiErr?.message && !apiErr.message.includes('fetch')) {
+          throw apiErr;
+        }
+      }
+
+      // 2. Client-side SDK fallback
+      const supabase = await ensureSupabaseClient();
       if (supabase) {
         let authRes = await supabase.auth.signInWithPassword({
           email: cleanEmail,
@@ -472,6 +516,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!password) throw new Error('Please enter your account password.');
 
+      // 1. Authenticate via secure server-side endpoint (auto resolves phone to registered profile)
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier: e164, password }),
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success && data.user) {
+          setUser(data.user);
+          setRole('student');
+          localStorage.setItem('aspire_user', JSON.stringify(data.user));
+          localStorage.setItem('aspire_role', 'student');
+          if (typeof document !== 'undefined') {
+            document.cookie = `aspire_session_id=${data.user.id}; path=/; max-age=2592000; SameSite=Lax;`;
+          }
+
+          if (data.session) {
+            try {
+              const supabase = await ensureSupabaseClient();
+              if (supabase) {
+                await supabase.auth.setSession({
+                  access_token: data.session.access_token,
+                  refresh_token: data.session.refresh_token,
+                });
+              }
+            } catch {
+              // ignore
+            }
+          }
+          return;
+        }
+
+        if (!res.ok && data.error) {
+          throw new Error(data.error);
+        }
+      } catch (apiErr: any) {
+        if (apiErr?.message && !apiErr.message.includes('fetch')) {
+          throw apiErr;
+        }
+      }
+
+      // 2. Client-side SDK fallback
       const supabase = await ensureSupabaseClient();
       if (!supabase) throw new Error('Supabase client not initialized.');
 

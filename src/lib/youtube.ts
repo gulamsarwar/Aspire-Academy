@@ -125,7 +125,7 @@ export function getYouTubeInfo(input: string | null | undefined): ParsedYouTubeI
   return {
     videoId,
     isValid: true,
-    embedUrl: `https://www.youtube.com/embed/${videoId}?autoplay=0&rel=0&modestbranding=1&playsinline=1`,
+    embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=0&rel=0&modestbranding=1&playsinline=1`,
     watchUrl: `https://www.youtube.com/watch?v=${videoId}`,
     thumbnailUrl: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
     isLive: input ? input.includes('/live/') : false,
@@ -137,7 +137,7 @@ export function getYouTubeInfo(input: string | null | undefined): ParsedYouTubeI
  */
 export function generateYouTubeEmbedUrl(videoId: string, autoPlay: boolean = false): string {
   const cleanId = extractYouTubeVideoId(videoId) || videoId;
-  return `https://www.youtube.com/embed/${cleanId}?autoplay=${autoPlay ? 1 : 0}&rel=0&modestbranding=1&playsinline=1`;
+  return `https://www.youtube-nocookie.com/embed/${cleanId}?autoplay=${autoPlay ? 1 : 0}&rel=0&modestbranding=1&playsinline=1`;
 }
 
 /**

@@ -89,8 +89,15 @@ export function formatSupabasePhoneError(error: any): string {
   if (!error) return 'An unexpected error occurred.';
   const msg = error.message || String(error);
 
-  if (msg.includes('SMS provider is not enabled') || msg.includes('Unsupported provider') || msg.includes('provider is not enabled')) {
-    return 'SMS service is pending provider configuration in the Supabase Dashboard (Authentication > Providers > Phone). You can log in using Email & Password or Google in the meantime.';
+  if (
+    msg.includes('SMS provider is not enabled') ||
+    msg.includes('Unsupported provider') ||
+    msg.includes('Unsupported phone provider') ||
+    msg.includes('phone_provider_disabled') ||
+    msg.includes('Phone logins are disabled') ||
+    msg.includes('provider is not enabled')
+  ) {
+    return 'SMS OTP login is currently disabled by SMS provider. Please log in using your Password or click "Continue with Google / Gmail" for instant 1-click access.';
   }
 
   if (msg.includes('rate limit') || msg.includes('Too many requests') || msg.includes('over_sms_send_rate_limit')) {

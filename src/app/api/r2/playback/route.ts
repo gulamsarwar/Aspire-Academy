@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { isAuthorizedAdminId, verifyAdminRequest } from '@/lib/auth/admin';
 import { db } from '@/lib/data/mock-db';
+import { isStudentEnrolledInDatabase, isSupabaseConfigured } from '@/lib/data/supabase-service';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { getR2Diagnostic, createSignedPlaybackUrl } from '@/lib/r2';
 
 export const dynamic = 'force-dynamic';
@@ -19,7 +21,19 @@ export async function GET(req: NextRequest) {
 
     // If lessonId is given, resolve lesson from database
     if (lessonId) {
-      const lesson = db.lessons.find((l) => l.id === lessonId);
+      let lesson = db.lessons.find((l) => l.id === lessonId);
+      if (!lesson && isSupabaseConfigured()) {
+        try {
+          const admin = createAdminClient();
+          if (admin) {
+            const { data } = await admin.from('lessons').select('*').eq('id', lessonId).maybeSingle();
+            if (data) lesson = data as any;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
       if (lesson) {
         r2Key = lesson.r2_object_key || r2Key;
         isFreePreview = Boolean(lesson.is_free_preview);
@@ -68,7 +82,7 @@ export async function GET(req: NextRequest) {
         }
 
         if (!isFreePreview) {
-          const isEnrolled = courseId ? db.isStudentEnrolled(candidateId, courseId) : false;
+          const isEnrolled = courseId ? await isStudentEnrolledInDatabase(candidateId, courseId) : false;
           if (!isEnrolled) {
             return NextResponse.json(
               { error: 'Enrollment required. You have not purchased access to this course.' },
@@ -97,7 +111,9 @@ export async function GET(req: NextRequest) {
     });
 
     if (redirectMode) {
-      return NextResponse.redirect(playbackUrl);
+      const redirectResponse = NextResponse.redirect(playbackUrl);
+      redirectResponse.headers.set('Cache-Control', 'private, no-cache, no-store, max-age=0, must-revalidate');
+      return redirectResponse;
     }
 
     return NextResponse.json({

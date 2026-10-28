@@ -19,8 +19,8 @@ import {
 export default function ForgotPasswordPage() {
   const { resetPassword, sendPhoneOtp, resetPasswordWithPhoneOtp } = useAuth();
 
-  // Active tab: 'phone' or 'email'
-  const [activeTab, setActiveTab] = useState<'phone' | 'email'>('phone');
+  // Active tab: 'email' or 'phone'
+  const [activeTab, setActiveTab] = useState<'phone' | 'email'>('email');
 
   // Email form state
   const [email, setEmail] = useState('');
@@ -196,6 +196,13 @@ export default function ForgotPasswordPage() {
           {/* TAB 1: Reset via Mobile OTP */}
           {activeTab === 'phone' && (
             <>
+              <div className="p-3 bg-amber-50/80 rounded-xl border border-amber-200/80 text-[11.5px] text-amber-800 space-y-1">
+                <p className="font-semibold">Notice for Mobile Password Recovery:</p>
+                <p className="text-amber-700 leading-relaxed">
+                  If SMS delivery is unavailable in your area, please use the <strong>Via Email</strong> tab or contact Shekhar Sir on WhatsApp at <a href="https://wa.me/919123456789?text=Hello%20Shekhar%20Sir,%20I%20need%20help%20with%20my%20Aspire%20Academy%20account" target="_blank" rel="noreferrer" className="font-bold underline text-emerald-700 hover:text-emerald-800">+91 9123456789</a> for instant reset assistance.
+                </p>
+              </div>
+
               {phoneResetSuccess ? (
                 <div className="p-6 rounded-2xl bg-emerald-50 border border-emerald-200 text-center space-y-3">
                   <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />

@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isSupabaseConfigured } from '@/lib/data/supabase-service';
+import { CONFIG } from '@/lib/config';
 
 export interface StorageDiagnostic {
   isConfigured: boolean;
@@ -12,8 +13,30 @@ const THUMBNAIL_BUCKET = 'course-thumbnails';
 const MAX_THUMBNAIL_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
+export function isSupabaseStorageConfigured(): boolean {
+  const url =
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.SUPABASE_URL ||
+    CONFIG.SUPABASE_URL;
+  const key =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_SECRET_KEY ||
+    CONFIG.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    CONFIG.SUPABASE_ANON_KEY;
+
+  return Boolean(
+    url &&
+    key &&
+    !url.includes('your-project-id') &&
+    url.startsWith('https://') &&
+    key.length > 15
+  );
+}
+
 export function getSupabaseStorageDiagnostic(): StorageDiagnostic {
-  const configured = isSupabaseConfigured();
+  const configured = isSupabaseStorageConfigured();
   return {
     isConfigured: configured,
     provider: configured ? 'supabase' : 'none',
@@ -35,11 +58,14 @@ export async function ensureThumbnailBucketExists() {
     const { data: buckets } = await supabase.storage.listBuckets();
     const exists = buckets?.some((b) => b.name === THUMBNAIL_BUCKET);
     if (!exists) {
-      await supabase.storage.createBucket(THUMBNAIL_BUCKET, {
+      const { error: createErr } = await supabase.storage.createBucket(THUMBNAIL_BUCKET, {
         public: true,
         fileSizeLimit: MAX_THUMBNAIL_SIZE,
         allowedMimeTypes: ALLOWED_MIME_TYPES,
       });
+      if (createErr && !createErr.message?.toLowerCase().includes('already exists')) {
+        console.warn('Could not create thumbnail bucket:', createErr);
+      }
     }
     bucketEnsured = true;
     return true;
@@ -76,7 +102,11 @@ export async function uploadThumbnailToSupabase(
   }
 
   try {
-    await ensureThumbnailBucketExists();
+    try {
+      await ensureThumbnailBucketExists();
+    } catch {
+      // Continue best-effort in case bucket already exists
+    }
 
     const extMatch = originalFilename.match(/\.([a-zA-Z0-9]+)$/);
     const ext = extMatch ? extMatch[1].toLowerCase() : 'webp';

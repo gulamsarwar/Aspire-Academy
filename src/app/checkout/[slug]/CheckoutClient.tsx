@@ -476,7 +476,7 @@ export function CheckoutClient({
                       href={`/auth/login?redirect=${encodeURIComponent(`/checkout/${course.slug}?batchId=${selectedBatchId}`)}`}
                       className="py-3 px-4 rounded-xl font-bold text-xs bg-[#046BD2] hover:bg-[#0352A0] text-white transition shadow-sm flex items-center justify-center gap-1.5"
                     >
-                      <span>Email Sign In</span>
+                      <span>Sign In (Mobile / Email)</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </Link>
 

@@ -324,7 +324,8 @@ Explanation: 1953 खोज.
   // AUTH REQUIREMENT 3: Purchased Courses Persistence Across Logout & Re-login
   // --------------------------------------------------------------------------
   test('AUTH REQUIREMENT 3: Purchased courses persist across logout and re-login (Rule A, B, C, D)', () => {
-    const studentEmail = 'aryan.student@gmail.com';
+    const runId = Date.now();
+    const studentEmail = `aryan.student_${runId}@gmail.com`;
 
     // Step 1: Student logs in via Google / Email
     const student = db.resolveOrCreateProfile({
@@ -584,6 +585,45 @@ Explanation: 1953 खोज.
     });
     const newStudentEnrollments = db.getStudentEnrollments(newStudent.id);
     assert.strictEqual(newStudentEnrollments.length, 0);
+  });
+
+  // --------------------------------------------------------------------------
+  // STUDENT LOGIN: Server-side Authentication & Unified Identifier Login
+  // --------------------------------------------------------------------------
+  test('STUDENT LOGIN: Supports mobile number, email, and demo login seamlessly', async () => {
+    const { POST } = await import('../src/app/api/auth/login/route');
+
+    // 1. Mobile login with 10 digits
+    const req1 = new Request('http://localhost:3000/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: '9876543210', password: 'Password@123' }),
+    });
+    const res1 = await POST(req1 as any);
+    const data1 = await res1.json();
+    assert.strictEqual(res1.status, 200);
+    assert.strictEqual(data1.success, true);
+    assert.ok(data1.user);
+
+    // 2. Demo student login
+    const req2 = new Request('http://localhost:3000/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: 'student@aspireacademy.demo', password: 'demo123' }),
+    });
+    const res2 = await POST(req2 as any);
+    const data2 = await res2.json();
+    assert.strictEqual(res2.status, 200);
+    assert.strictEqual(data2.success, true);
+
+    // 3. Admin account rejected on student login endpoint
+    const req3 = new Request('http://localhost:3000/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: 'aspireacademyamba@gmail.com', password: 'AspireAdmin@2026!' }),
+    });
+    const res3 = await POST(req3 as any);
+    assert.strictEqual(res3.status, 403);
   });
 });
 
