@@ -3,7 +3,7 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { db } from '@/lib/data/mock-db';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isAuthorizedAdminEmail, isAuthorizedAdminId, CANONICAL_ADMIN_ID } from '@/lib/auth/admin';
+import { isAuthorizedAdminEmail, isAuthorizedAdminId, CANONICAL_ADMIN_ID, signAdminToken } from '@/lib/auth/admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -158,6 +158,17 @@ export async function GET(req: NextRequest) {
             maxAge: 7 * 24 * 60 * 60,
             sameSite: 'lax',
           });
+          try {
+            const adminToken = signAdminToken({ id: profile.id, email: profile.email });
+            finalResponse.cookies.set('aspire_admin_token', adminToken, {
+              path: '/',
+              httpOnly: false,
+              maxAge: 7 * 24 * 60 * 60,
+              sameSite: 'lax',
+            });
+          } catch {
+            // ignore
+          }
         }
 
         return finalResponse;
