@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth/AuthContext';
+import { useSiteSettings } from '@/components/settings/SiteSettingsContext';
 import { YouTubePlayer } from '@/components/ui/YouTubePlayer';
 import {
   Video,
@@ -20,9 +21,16 @@ import {
 
 export default function LiveClassesPage() {
   const { user, role } = useAuth();
+  const { settings } = useSiteSettings();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeClassId, setActiveClassId] = useState<string>('');
+
+  const rawPhone = (settings.whatsapp || settings.phone || '9123456789').replace(/[^0-9]/g, '');
+  const cleanPhone = rawPhone.startsWith('91') ? rawPhone : `91${rawPhone}`;
+  const liveWhatsAppUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(
+    'Hello Shekhar Sir, I have a doubt during the live class'
+  )}`;
 
   useEffect(() => {
     async function fetchLiveClasses() {
@@ -148,7 +156,7 @@ export default function LiveClassesPage() {
                 <span>Faculty: <strong>{activeClass.instructor_name}</strong></span>
                 <span>Subject: <strong>{activeClass.course?.category || 'Biology'}</strong></span>
                 <a
-                  href="https://wa.me/918709322045?text=Hello%20Shekhar%20Sir%2C%20I%20have%20a%20doubt%20during%20the%20live%20class"
+                  href={liveWhatsAppUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold transition"

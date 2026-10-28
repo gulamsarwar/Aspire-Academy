@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
+import { useSiteSettings } from '@/components/settings/SiteSettingsContext';
 import {
   HelpCircle,
   Send,
@@ -16,8 +17,15 @@ import {
 
 export default function StudentDoubtsPage() {
   const { user } = useAuth();
+  const { settings } = useSiteSettings();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  const rawPhone = (settings.whatsapp || settings.phone || '9123456789').replace(/[^0-9]/g, '');
+  const cleanPhone = rawPhone.startsWith('91') ? rawPhone : `91${rawPhone}`;
+  const doubtWhatsAppUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(
+    'Hello Shekhar Sir, I am a student of Aspire Academy and have an urgent academic doubt.'
+  )}`;
 
   // Doubt submission form
   const [courseId, setCourseId] = useState('');
@@ -189,7 +197,7 @@ export default function StudentDoubtsPage() {
               Need Instant Resolution?
             </span>
             <a
-              href="https://wa.me/918709322045?text=Hello%20Shekhar%20Sir%2C%20I%20am%20a%20student%20of%20Aspire%20Academy%20and%20have%20an%20urgent%20academic%20doubt."
+              href={doubtWhatsAppUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="w-full py-2.5 px-4 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center justify-center gap-2 shadow-sm"
