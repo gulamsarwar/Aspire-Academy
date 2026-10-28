@@ -15,15 +15,21 @@ export default function StudentBatchesPage() {
   useEffect(() => {
     if (!isAuthReady) return;
 
-    if (!user) {
-      router.push('/auth/login?redirect=' + encodeURIComponent('/dashboard/batches'));
+    const activeUser =
+      user ||
+      (typeof window !== 'undefined' && localStorage.getItem('aspire_user')
+        ? JSON.parse(localStorage.getItem('aspire_user')!)
+        : null);
+
+    if (!activeUser) {
+      window.location.href = '/auth/login?redirect=' + encodeURIComponent('/dashboard/batches');
       return;
     }
 
     async function fetchBatches() {
       try {
         setLoading(true);
-        const res = await fetch(`/api/student/dashboard?studentId=${encodeURIComponent(user!.id)}`);
+        const res = await fetch(`/api/student/dashboard?studentId=${encodeURIComponent(activeUser.id)}`);
         if (!res.ok) throw new Error('Failed to load batches');
         const json = await res.json();
         setData(json);

@@ -73,10 +73,37 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<Profile | null>(null);
-  const [role, setRole] = useState<UserRoleType>('student');
+  const [user, setUser] = useState<Profile | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('aspire_user');
+        if (saved) return JSON.parse(saved);
+      } catch {
+        // ignore
+      }
+    }
+    return null;
+  });
+
+  const [role, setRole] = useState<UserRoleType>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const savedRole = localStorage.getItem('aspire_role');
+        if (savedRole === 'admin') return 'admin';
+      } catch {
+        // ignore
+      }
+    }
+    return 'student';
+  });
+
   const [isLoading, setIsLoading] = useState(false);
-  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [isAuthReady, setIsAuthReady] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return !!localStorage.getItem('aspire_user');
+    }
+    return false;
+  });
 
   // Helper to ensure Supabase client is ready, checking runtime /api/auth/config if needed
   const ensureSupabaseClient = async () => {
@@ -234,6 +261,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     setUser(studentUser);
     setRole('student');
+    setIsAuthReady(true);
     localStorage.setItem('aspire_user', JSON.stringify(studentUser));
     localStorage.setItem('aspire_role', 'student');
     if (typeof document !== 'undefined') {
@@ -244,6 +272,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setAdminSession = (adminProfile: Profile) => {
     setUser(adminProfile);
     setRole('admin');
+    setIsAuthReady(true);
     localStorage.setItem('aspire_user', JSON.stringify(adminProfile));
     localStorage.setItem('aspire_role', 'admin');
     if (typeof document !== 'undefined') {
@@ -264,6 +293,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     setUser(profile);
     setRole(effectiveRole);
+    setIsAuthReady(true);
     localStorage.setItem('aspire_user', JSON.stringify(profile));
     localStorage.setItem('aspire_role', effectiveRole);
 

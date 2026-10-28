@@ -117,6 +117,14 @@ export default function RegisterPage() {
     }
   };
 
+  const navigateToDashboard = () => {
+    if (typeof window !== 'undefined') {
+      window.location.href = '/dashboard';
+    } else {
+      router.push('/dashboard');
+    }
+  };
+
   // Submit Mobile Number Signup
   const handlePhoneRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,7 +159,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await registerWithPhonePassword(phone.trim(), password, fullName.trim());
-      router.push('/dashboard');
+      navigateToDashboard();
     } catch (err: any) {
       setError(err?.message || 'Failed to create student account with this mobile number.');
     } finally {
@@ -173,7 +181,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await verifyPhoneOtp(phone.trim(), otpToken.trim());
-      router.push('/dashboard');
+      navigateToDashboard();
     } catch (err: any) {
       setError(err?.message || 'Invalid or expired OTP code.');
     } finally {
@@ -225,7 +233,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await registerWithEmail(email.trim(), password, fullName.trim());
-      router.push('/dashboard');
+      navigateToDashboard();
     } catch (err: any) {
       setError(err?.message || 'Failed to create account with this email address.');
     } finally {
@@ -689,7 +697,7 @@ export default function RegisterPage() {
               onClick={() => {
                 setShowGoogleChooser(false);
                 customLogin('student@aspireacademy.com', 'Priyanshu Kumari', 'student');
-                router.push('/dashboard');
+                navigateToDashboard();
               }}
               className="w-full text-left p-3.5 rounded-2xl border border-blue-200 bg-blue-50/60 hover:bg-blue-100 transition flex items-center gap-3 group"
             >
@@ -743,7 +751,7 @@ export default function RegisterPage() {
                     customGoogleName.trim() || customGoogleEmail.split('@')[0],
                     'student'
                   );
-                  router.push('/dashboard');
+                  navigateToDashboard();
                 }}
                 disabled={!customGoogleEmail.trim()}
                 className="w-full py-2.5 px-3 rounded-xl bg-[#046BD2] hover:bg-[#0352A0] disabled:bg-slate-200 text-white font-bold text-xs shadow-sm transition"

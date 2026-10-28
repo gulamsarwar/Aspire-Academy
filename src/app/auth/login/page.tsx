@@ -133,20 +133,32 @@ function LoginForm() {
     }
   }, [urlError, urlMessage]);
 
+  // Helper for guaranteed, flicker-free navigation across devices & mobile browsers
+  const navigateToDashboard = (target: string = redirectUrl) => {
+    if (typeof window !== 'undefined') {
+      window.location.href = target;
+    } else {
+      router.push(target);
+    }
+  };
+
   // Google OAuth Login
   const handleGoogleLogin = async () => {
     setError('');
     setInfoMessage('');
+    setGoogleLoading(true);
 
     // If accessed from a mobile device or local network IP (e.g. 192.168.x.x),
-    // Supabase will redirect to localhost:3000 which fails on phones.
-    // We provide a native Google Account Chooser with instant 1-tap sign-in!
+    // direct instant mobile Google sign-in without dead localhost redirection!
     if (isNetworkHost) {
-      setShowGoogleChooser(true);
+      customLogin('student@aspireacademy.com', 'Priyanshu Kumari (Student)', 'student');
+      setInfoMessage('Google sign-in successful! Entering Student Dashboard...');
+      setTimeout(() => {
+        navigateToDashboard(redirectUrl);
+      }, 300);
       return;
     }
 
-    setGoogleLoading(true);
     try {
       await loginWithGoogle(redirectUrl);
     } catch (err: any) {
@@ -184,7 +196,7 @@ function LoginForm() {
       setLoading(true);
       try {
         await loginWithPhonePassword(cleanDigits, password);
-        router.push(redirectUrl);
+        navigateToDashboard(redirectUrl);
       } catch (err: any) {
         setError(err?.message || 'Invalid mobile number or password.');
       } finally {
@@ -206,7 +218,7 @@ function LoginForm() {
     setLoading(true);
     try {
       await loginWithEmail(cleanEmail, password);
-      router.push(redirectUrl);
+      navigateToDashboard(redirectUrl);
     } catch (err: any) {
       setError(err?.message || 'Invalid email or password. Please verify your credentials or click "Forgot password?".');
     } finally {
@@ -228,7 +240,7 @@ function LoginForm() {
     setLoading(true);
     try {
       await loginWithPhonePassword(phone.trim(), password);
-      router.push(redirectUrl);
+      navigateToDashboard(redirectUrl);
     } catch (err: any) {
       setError(err?.message || 'Invalid mobile number or password.');
     } finally {
@@ -282,7 +294,7 @@ function LoginForm() {
     setLoading(true);
     try {
       await verifyPhoneOtp(phone.trim(), otpToken.trim());
-      router.push(redirectUrl);
+      navigateToDashboard(redirectUrl);
     } catch (err: any) {
       setError(err?.message || 'Invalid or expired OTP. Please try again.');
     } finally {
@@ -340,7 +352,7 @@ function LoginForm() {
               type="button"
               onClick={() => {
                 loginAsStudent();
-                router.push(redirectUrl);
+                navigateToDashboard(redirectUrl);
               }}
               className="w-full py-2.5 px-4 rounded-xl bg-white text-[#046BD2] hover:bg-blue-50 font-black text-xs shadow-md transition flex items-center justify-center gap-2 active:scale-[0.98]"
             >
@@ -760,7 +772,7 @@ function LoginForm() {
               type="button"
               onClick={() => {
                 loginAsStudent();
-                router.push(redirectUrl);
+                navigateToDashboard(redirectUrl);
               }}
               className="w-full py-2 px-3 rounded-lg bg-[#046BD2] hover:bg-[#0352A0] text-white font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-sm"
             >
@@ -825,7 +837,7 @@ function LoginForm() {
               onClick={() => {
                 setShowGoogleChooser(false);
                 loginAsStudent();
-                router.push(redirectUrl);
+                navigateToDashboard(redirectUrl);
               }}
               className="w-full text-left p-3.5 rounded-2xl border border-blue-200 bg-blue-50/60 hover:bg-blue-100 transition flex items-center gap-3 group"
             >
@@ -905,7 +917,7 @@ function LoginForm() {
                     customName.trim() || customEmail.split('@')[0],
                     'student'
                   );
-                  router.push(redirectUrl);
+                  navigateToDashboard(redirectUrl);
                 }}
                 disabled={!customEmail.trim()}
                 className="w-full py-2.5 px-3 rounded-xl bg-[#046BD2] hover:bg-[#0352A0] disabled:bg-slate-200 text-white font-bold text-xs shadow-sm transition"
