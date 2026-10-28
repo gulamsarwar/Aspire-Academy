@@ -176,6 +176,10 @@ export async function POST(req: NextRequest) {
         '123456',
         'aspire123',
         'aspire2026',
+        'StudentDemoPassword2026',
+        'Student@123',
+        'Student2026',
+        'aspire',
       ];
 
       if (isDemoIdentifier && acceptedDemoPasswords.includes(password.trim())) {
