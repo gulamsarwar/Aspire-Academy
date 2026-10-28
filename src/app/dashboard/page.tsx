@@ -107,6 +107,40 @@ export default function DashboardOverviewPage() {
         </div>
       </div>
 
+      {/* Resume Learning Spotlight Card (PhysicsWallah / Unacademy Style) */}
+      {enrollments.length > 0 && enrollments[0]?.course && (
+        <div className="bg-gradient-to-r from-blue-950 via-indigo-900 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl border border-blue-500/20 relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-3 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-xs font-bold text-sky-300">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Resume Next Lecture (पढ़ाई जारी रखें)</span>
+            </div>
+            <h3 className="text-xl sm:text-2xl font-black text-white leading-snug">
+              {enrollments[0].course.title}
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-300">
+              Batch: <strong className="text-white font-bold">{enrollments[0].batch?.name || 'Academic Batch'}</strong> • Access your 1080p HD video player, handwritten diagram notes, and chapter tests.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <Link
+              href={`/dashboard/courses/${enrollments[0].course.slug}/learn`}
+              className="px-6 py-3.5 rounded-2xl bg-[#046BD2] hover:bg-sky-500 text-white font-bold text-sm shadow-lg shadow-blue-500/30 transition-all hover:scale-105 flex items-center justify-center gap-2 text-center"
+            >
+              <PlayCircle className="w-5 h-5 fill-white text-blue-950" />
+              <span>Resume Lecture</span>
+            </Link>
+            <Link
+              href="/dashboard/tests"
+              className="px-4 py-3.5 rounded-2xl bg-white/10 hover:bg-white/15 text-white font-semibold text-xs border border-white/20 transition text-center"
+            >
+              Chapter Tests
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* 2. Key Stats Summary */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
