@@ -7,14 +7,30 @@ import { User, Mail, Phone, Lock, CheckCircle2, Shield } from 'lucide-react';
 export default function ProfileSettingsPage() {
   const { user, role } = useAuth();
 
-  const [fullName, setFullName] = useState(user?.full_name || 'Priyanshu Kumari');
-  const [phone, setPhone] = useState(user?.phone || '+91 9876543210');
+  const [fullName, setFullName] = useState(user?.full_name || 'Student');
+  const [phone, setPhone] = useState(user?.phone || '');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [saved, setSaved] = useState(false);
 
+  React.useEffect(() => {
+    if (user) {
+      if (user.full_name) setFullName(user.full_name);
+      if (user.phone) setPhone(user.phone);
+    }
+  }, [user]);
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    if (user) {
+      user.full_name = fullName;
+      user.phone = phone;
+      try {
+        localStorage.setItem('aspire_student_user', JSON.stringify(user));
+      } catch {
+        // ignore
+      }
+    }
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };

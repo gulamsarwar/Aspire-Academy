@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth/AuthContext';
+import { useSiteSettings } from '@/components/settings/SiteSettingsContext';
 import {
   Calendar,
   Clock,
@@ -17,6 +18,7 @@ import {
 
 export default function WeeklySchedulePage() {
   const { user } = useAuth();
+  const { settings } = useSiteSettings();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -96,7 +98,7 @@ export default function WeeklySchedulePage() {
                         <h4 className="font-bold text-slate-900 text-xs">
                           Biology Lecture & Diagram Mastery
                         </h4>
-                        <p className="text-[11px] text-slate-500">Faculty: Shekhar Sir</p>
+                        <p className="text-[11px] text-slate-500">Faculty: {settings.lead_faculty || 'Shekhar Sir'}</p>
                       </div>
 
                       <div className="p-2.5 rounded-xl bg-white border border-slate-200/70 space-y-1">
