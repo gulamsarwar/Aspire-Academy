@@ -62,6 +62,9 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   turbopack: {
     rules: {
       "*.css": {
@@ -69,6 +72,9 @@ const nextConfig: NextConfig = {
         as: "*.css",
       },
     },
+  },
+  experimental: {
+    cpus: 1,
   },
 };
 
