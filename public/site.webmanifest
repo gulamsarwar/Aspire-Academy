@@ -1,0 +1,22 @@
+{
+  "name": "Aspire Academy — विद्या यशः",
+  "short_name": "Aspire Academy",
+  "description": "Bihar Board, CBSE, NEET Online Coaching led by Shekhar Sir",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#046BD2",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/aspire-seal.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/aspire-logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 import React from 'react';
-import Link from 'next/link';
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { db } from '@/lib/data/mock-db';
 import {
@@ -16,6 +16,38 @@ export function generateStaticParams() {
 }
 
 export const dynamicParams = true;
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const course = await getCourseBySlug(slug);
+
+  if (!course) {
+    return {
+      title: 'Course Not Found — Aspire Academy',
+    };
+  }
+
+  return {
+    title: `${course.title} — Aspire Academy`,
+    description:
+      course.description ||
+      `Enroll in ${course.title} at Aspire Academy with Shekhar Sir. Live batches, chapter-wise lectures, and handwritten PDF notes.`,
+    openGraph: {
+      title: `${course.title} — Aspire Academy`,
+      description: course.description,
+      images: course.thumbnail_url ? [{ url: course.thumbnail_url }] : [],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${course.title} — Aspire Academy`,
+      description: course.description,
+    },
+  };
+}
 
 export default async function CourseDetailPage({
   params,

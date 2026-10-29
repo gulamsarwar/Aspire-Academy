@@ -36,6 +36,7 @@ export const metadata: Metadata = {
   },
   authors: [{ name: 'Aspire Academy' }],
   metadataBase: new URL('https://aspireacademyonline.in'),
+  manifest: '/site.webmanifest',
   openGraph: {
     title: 'Aspire Academy — Bihar Board, CBSE, NEET & Foundation',
     description:
@@ -44,6 +45,12 @@ export const metadata: Metadata = {
     siteName: 'Aspire Academy',
     locale: 'en_IN',
     type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Aspire Academy — Accelerate Your Success | Bihar Board & CBSE',
+    description:
+      'Bihar Board & CBSE Coaching led by Shekhar Sir. Live batches, recorded lectures & PDF notes.',
   },
 };
 

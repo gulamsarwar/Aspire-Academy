@@ -64,19 +64,14 @@ export function CheckoutClient({
   initialBatchId: string;
 }) {
   const router = useRouter();
-  const { user, loginWithGoogle, loginAsStudent } = useAuth();
+  const { user, loginWithGoogle } = useAuth();
 
   const handleAuthRedirect = async () => {
     const target = `/checkout/${course.slug}?batchId=${selectedBatchId}`;
-    if (
-      typeof window !== 'undefined' &&
-      window.location.hostname !== 'localhost' &&
-      window.location.hostname !== '127.0.0.1' &&
-      !window.location.hostname.endsWith('.localhost')
-    ) {
-      router.push(`/auth/login?redirect=${encodeURIComponent(target)}`);
-    } else {
+    try {
       await loginWithGoogle(target);
+    } catch {
+      router.push(`/auth/login?redirect=${encodeURIComponent(target)}`);
     }
   };
 
