@@ -322,7 +322,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           ? window.location.origin
           : 'https://aspire-academy.pages.dev';
 
-      const redirectUrl = `${origin}/auth/callback?redirect=${encodeURIComponent(redirectPath)}`;
+      // Check if accessed from a private LAN IP on mobile (e.g. 192.168.x.x)
+      // Supabase whitelists https://aspire-academy.pages.dev and http://localhost:3000.
+      // If on mobile LAN, bridge through the whitelisted production callback to prevent dead localhost redirects!
+      const isPrivateLanIp =
+        typeof window !== 'undefined' &&
+        /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(window.location.hostname);
+
+      const redirectUrl = isPrivateLanIp
+        ? `https://aspire-academy.pages.dev/auth/callback?return_to=${encodeURIComponent(
+            origin
+          )}&redirect=${encodeURIComponent(redirectPath)}`
+        : `${origin}/auth/callback?redirect=${encodeURIComponent(redirectPath)}`;
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',

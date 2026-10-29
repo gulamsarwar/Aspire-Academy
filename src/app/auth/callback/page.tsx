@@ -18,6 +18,23 @@ function AuthCallbackContent() {
 
     async function processAuth() {
       try {
+        // If this callback was bridged from a local network device (e.g. mobile testing at 192.168.x.x),
+        // forward the complete URL (query parameters + hash fragment with tokens) back to the local device!
+        const returnTo = searchParams.get('return_to');
+        if (typeof window !== 'undefined' && returnTo && !returnTo.includes(window.location.host)) {
+          try {
+            const target = new URL('/auth/callback', returnTo);
+            searchParams.forEach((val, key) => {
+              if (key !== 'return_to') target.searchParams.set(key, val);
+            });
+            target.hash = window.location.hash;
+            window.location.replace(target.toString());
+            return;
+          } catch (bridgeErr) {
+            console.warn('Bridge return_to notice:', bridgeErr);
+          }
+        }
+
         // 1. Check for URL query error parameters
         const urlError = searchParams.get('error') || searchParams.get('error_description');
         if (urlError) {
