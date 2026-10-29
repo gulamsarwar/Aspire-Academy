@@ -72,12 +72,6 @@ export default function AdminLoginPage() {
     }
   };
 
-  const handleAutofillAdmin = () => {
-    setIdentifier('admin');
-    setPassword('ShekharSir@Aspire2026');
-    setError('');
-  };
-
   return (
     <div className="min-h-screen bg-[#070D18] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 text-white relative overflow-hidden selection:bg-amber-500 selection:text-slate-950">
       {/* Background Ambient Glows */}
@@ -181,21 +175,6 @@ export default function AdminLoginPage() {
               )}
             </button>
           </form>
-
-          {/* Quick Fill Admin Credentials */}
-          <div className="pt-2 border-t border-slate-800 space-y-2 text-center">
-            <button
-              type="button"
-              onClick={handleAutofillAdmin}
-              className="w-full py-2.5 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-xs font-bold text-amber-400 transition flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>⚡ 1-Click Auto-fill Admin Credentials</span>
-            </button>
-            <p className="text-[11px] text-slate-400">
-              Username: <span className="text-white font-mono font-bold">admin</span> &bull; Password: <span className="text-white font-mono font-bold">ShekharSir@Aspire2026</span>
-            </p>
-          </div>
 
           <div className="pt-2 border-t border-slate-800/80 text-center space-y-2">
             <p className="text-[11px] text-slate-400">

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { isAuthorizedAdminId, verifyAdminRequest } from '@/lib/auth/admin';
+import { isAuthorizedAdminId, verifyAdminRequest, verifyAdminToken } from '@/lib/auth/admin';
 import {
   getSupabaseStorageDiagnostic,
   uploadThumbnailToSupabase,
@@ -13,6 +13,9 @@ async function checkAdminAuth(req: NextRequest): Promise<boolean> {
   if (verified.isAuthorized) return true;
 
   const cookieStore = await cookies();
+  const adminToken = cookieStore.get('aspire_admin_token')?.value;
+  if (adminToken && verifyAdminToken(adminToken).valid) return true;
+
   const adminCookie = cookieStore.get('aspire_admin_session')?.value;
   const sessionCookie = cookieStore.get('aspire_session_id')?.value;
 

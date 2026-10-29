@@ -49,22 +49,13 @@ export default function MyCoursesPage() {
         if (!res.ok) throw new Error('Failed to load courses');
         const json = await res.json();
 
-        // Merge with local client storage cache for instant offline/reload sync
+        // Update local client storage cache for instant offline/reload sync
         try {
-          const cached = localStorage.getItem('aspire_student_enrollments');
-          if (cached) {
-            const cachedList = JSON.parse(cached);
-            const serverEnrs = json.enrollments || [];
-            const merged = [...serverEnrs];
-            for (const c of cachedList) {
-              if (!merged.some((m: any) => m.course_id === c.course_id)) {
-                merged.unshift(c);
-              }
-            }
-            json.enrollments = merged;
+          if (json.enrollments && Array.isArray(json.enrollments)) {
+            localStorage.setItem('aspire_student_enrollments', JSON.stringify(json.enrollments));
           }
         } catch {
-          // ignore cache read error
+          // ignore cache write error
         }
 
         setData(json);

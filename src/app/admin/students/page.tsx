@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { db } from '@/lib/data/mock-db';
 import { Profile } from '@/lib/types';
+import { CANONICAL_ADMIN_ID } from '@/lib/auth/admin';
 import {
   Users,
   Search,
@@ -57,7 +58,7 @@ export default function AdminStudentsPage() {
 
     try {
       db.manualEnrollmentOverride({
-        adminId: 'u0000000-0000-0000-0000-000000000002', // Shekhar Sir
+        adminId: CANONICAL_ADMIN_ID, // Shekhar Sir
         studentId: overrideStudent!.id,
         courseId: targetCourseId,
         batchId: targetBatchId,

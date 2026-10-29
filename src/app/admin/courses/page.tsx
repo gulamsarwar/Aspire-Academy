@@ -33,6 +33,8 @@ import {
   Clock,
   HelpCircle,
   Film,
+  Trash2,
+  Loader2,
 } from 'lucide-react';
 import { R2MediaUpload } from '@/components/admin/R2MediaUpload';
 
@@ -55,6 +57,14 @@ export default function AdminCoursesPage() {
     let isMounted = true;
     async function loadLiveCourses() {
       try {
+        const res = await fetch('/api/admin/courses');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.courses && Array.isArray(data.courses) && data.courses.length > 0 && isMounted) {
+            setCourses(data.courses);
+            return;
+          }
+        }
         const liveCourses = await getCourses();
         if (liveCourses && liveCourses.length > 0 && isMounted) {
           setCourses(liveCourses);
@@ -75,6 +85,8 @@ export default function AdminCoursesPage() {
     hasVideo: boolean;
     videoTitle?: string;
   } | null>(null);
+
+  const [isCreatingCourse, setIsCreatingCourse] = useState(false);
 
   // New Course Form State
   const [newTitle, setNewTitle] = useState('');
@@ -135,6 +147,24 @@ export default function AdminCoursesPage() {
     if (!course) return;
 
     const newPublishStatus = !course.published;
+    try {
+      const res = await fetch('/api/admin/courses', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: courseId, published: newPublishStatus }),
+      });
+      if (res.ok) {
+        setCourses((prev) =>
+          prev.map((c) => (c.id === courseId ? { ...c, published: newPublishStatus } : c))
+        );
+        setSuccessToast(`Course status updated to ${newPublishStatus ? 'Published' : 'Draft'}.`);
+        setTimeout(() => setSuccessToast(''), 3000);
+        return;
+      }
+    } catch {
+      // fallback
+    }
+
     const updated = await updateCourseInDatabase(courseId, { published: newPublishStatus });
     if (updated) {
       setCourses((prev) =>
@@ -149,99 +179,142 @@ export default function AdminCoursesPage() {
     e.preventDefault();
     if (!newTitle.trim()) return;
 
-    const slug = newTitle
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '');
-
-    // If user provided a YouTube video and thumbnail was left as default/empty, auto-set thumbnail from YouTube!
-    let finalThumbnail = newThumbnail.trim();
-    if (detectedNewVideoId && (!finalThumbnail || finalThumbnail.includes('unsplash.com/photo-1434030216411'))) {
-      finalThumbnail = `https://img.youtube.com/vi/${detectedNewVideoId}/hqdefault.jpg`;
-    }
-    if (!finalThumbnail) {
-      finalThumbnail = 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=1200&q=80';
-    }
-
-    const created = await addCourseToDatabase({
-      slug,
-      title: newTitle.trim(),
-      subtitle: newSubtitle.trim() || 'Comprehensive Board & Entrance Preparation',
-      description: newDescription.trim() || 'Structured conceptual classes, NCERT line-by-line solutions and chapter tests.',
-      category: newCategory,
-      target_class: newClass,
-      thumbnail_url: finalThumbnail,
-      thumbnail_r2_key: newThumbnailR2Key || undefined,
-      price: Number(newPrice),
-      original_price: Number(newOriginalPrice),
-      currency: 'INR',
-      published: newPublished,
-      featured: false,
-      language: 'Hinglish',
-      duration_weeks: Number(newDuration),
-      instructor_name: newInstructor.trim() || 'Shekhar Sir',
-      instructor_title: 'Senior Faculty',
-      features: ['Full Syllabus Video Lectures', 'NCERT Handwritten Notes', 'Chapter PYQ Bank'],
-    });
-
+    setIsCreatingCourse(true);
+    let created: Course | null = null;
     let hasVideoAdded = false;
     let savedVideoTitle = '';
 
-    // If YouTube video link was provided, auto-create Chapter 1 and Lesson 1!
-    if (detectedNewVideoId) {
-      try {
-        const mod = await addModuleToDatabase(created.id, 'Chapter 1: Foundation & Core Concepts');
-        savedVideoTitle = newLessonTitle.trim() || `${created.title} - Intro & Demo Lecture`;
-
-        await addLessonToDatabase({
-          module_id: mod.id,
-          title: savedVideoTitle,
-          description: 'Comprehensive introductory lecture, key chapter concepts, and syllabus walkthrough.',
-          youtube_video_id: detectedNewVideoId,
-          duration_minutes: 45,
-          sort_order: 1,
+    try {
+      const res = await fetch('/api/admin/courses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newTitle.trim(),
+          subtitle: newSubtitle.trim() || 'Comprehensive Board & Entrance Preparation',
+          description: newDescription.trim() || 'Structured conceptual classes, NCERT line-by-line solutions and chapter tests.',
+          category: newCategory,
+          target_class: newClass,
+          price: Number(newPrice),
+          original_price: Number(newOriginalPrice),
+          duration_weeks: Number(newDuration),
+          instructor_name: newInstructor.trim() || 'Shekhar Sir',
+          published: newPublished,
+          thumbnail_url: newThumbnail,
+          thumbnail_r2_key: newThumbnailR2Key || undefined,
+          video_url: newVideoUrl,
+          lesson_title: newLessonTitle,
           is_free_preview: newIsFreePreview,
-          published: true,
-        });
+        }),
+      });
 
-        hasVideoAdded = true;
-      } catch (err) {
-        console.error('Failed to auto-create first lesson:', err);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.course) {
+          created = data.course;
+          hasVideoAdded = Boolean(data.lesson);
+          savedVideoTitle = data.lesson?.title || '';
+        }
+      }
+    } catch (err) {
+      console.error('Failed to create course via API:', err);
+    }
+
+    // Fallback if API was unavailable
+    if (!created) {
+      const slug = newTitle
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+
+      let finalThumbnail = newThumbnail.trim();
+      if (detectedNewVideoId && (!finalThumbnail || finalThumbnail.includes('unsplash.com/photo-1434030216411'))) {
+        finalThumbnail = `https://img.youtube.com/vi/${detectedNewVideoId}/hqdefault.jpg`;
+      }
+      if (!finalThumbnail) {
+        finalThumbnail = 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=1200&q=80';
+      }
+
+      created = await addCourseToDatabase({
+        slug,
+        title: newTitle.trim(),
+        subtitle: newSubtitle.trim() || 'Comprehensive Board & Entrance Preparation',
+        description: newDescription.trim() || 'Structured conceptual classes, NCERT line-by-line solutions and chapter tests.',
+        category: newCategory,
+        target_class: newClass,
+        thumbnail_url: finalThumbnail,
+        thumbnail_r2_key: newThumbnailR2Key || undefined,
+        price: Number(newPrice),
+        original_price: Number(newOriginalPrice),
+        currency: 'INR',
+        published: newPublished,
+        featured: false,
+        language: 'Hinglish',
+        duration_weeks: Number(newDuration),
+        instructor_name: newInstructor.trim() || 'Shekhar Sir',
+        instructor_title: 'Senior Faculty',
+        features: ['Full Syllabus Video Lectures', 'NCERT Handwritten Notes', 'Chapter PYQ Bank'],
+      });
+
+      if (detectedNewVideoId) {
+        try {
+          const mod = await addModuleToDatabase(created.id, 'Chapter 1: Foundation & Core Concepts');
+          savedVideoTitle = newLessonTitle.trim() || `${created.title} - Intro & Demo Lecture`;
+          await addLessonToDatabase({
+            module_id: mod.id,
+            title: savedVideoTitle,
+            description: 'Comprehensive introductory lecture, key chapter concepts, and syllabus walkthrough.',
+            youtube_video_id: detectedNewVideoId,
+            duration_minutes: 45,
+            sort_order: 1,
+            is_free_preview: newIsFreePreview,
+            published: true,
+          });
+          hasVideoAdded = true;
+        } catch (err) {
+          console.error('Fallback lesson error:', err);
+        }
       }
     }
 
-    // Auto-create a default active Batch so course is ready for student enrollment!
-    try {
-      await addBatchToDatabase({
-        course_id: created.id,
-        name: 'Target 2026-27 Batch',
-        schedule_description: 'Mon, Wed, Fri — 05:00 PM to 06:30 PM',
-        start_at: new Date().toISOString(),
-        end_at: new Date(Date.now() + 300 * 24 * 3600 * 1000).toISOString(),
-        capacity: 150,
-        enrollment_open: true,
-        instructor_name: newInstructor.trim() || 'Shekhar Sir',
+    setIsCreatingCourse(false);
+
+    if (created) {
+      setCourses((prev) => [created!, ...prev]);
+      setShowAddModal(false);
+
+      // Reset Form Fields
+      setNewTitle('');
+      setNewSubtitle('');
+      setNewVideoUrl('');
+      setNewLessonTitle('');
+      setNewThumbnail('https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=1200&q=80');
+
+      setCreatedSuccessCourse({
+        course: created,
+        hasVideo: hasVideoAdded || Boolean(detectedNewVideoId),
+        videoTitle: savedVideoTitle || newLessonTitle || `${created.title} - Intro Lecture`,
       });
-    } catch (err) {
-      console.warn('Could not auto-create batch:', err);
     }
+  };
 
-    setCourses([created, ...courses]);
-    setShowAddModal(false);
-
-    // Reset Form Fields
-    setNewTitle('');
-    setNewSubtitle('');
-    setNewVideoUrl('');
-    setNewLessonTitle('');
-    setNewThumbnail('https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=1200&q=80');
-
-    // Show celebratory post-creation dialog with clear next steps!
-    setCreatedSuccessCourse({
-      course: created,
-      hasVideo: hasVideoAdded,
-      videoTitle: savedVideoTitle,
-    });
+  const handleDeleteCourse = async (courseId: string, courseTitle: string) => {
+    if (!window.confirm(`Are you sure you want to permanently delete course "${courseTitle}"? This cannot be undone.`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/admin/courses?id=${encodeURIComponent(courseId)}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setCourses((prev) => prev.filter((c) => c.id !== courseId));
+        setSuccessToast(`Course "${courseTitle}" deleted successfully.`);
+        setTimeout(() => setSuccessToast(''), 3000);
+      } else {
+        alert('Could not delete course. Please try again.');
+      }
+    } catch (err: any) {
+      alert(`Error deleting course: ${err.message}`);
+    }
   };
 
   const handleOpenEdit = (course: Course) => {
@@ -264,7 +337,8 @@ export default function AdminCoursesPage() {
     e.preventDefault();
     if (!editingCourse) return;
 
-    const updated = await updateCourseInDatabase(editingCourse.id, {
+    const payload = {
+      id: editingCourse.id,
       title: editTitle,
       subtitle: editSubtitle,
       category: editCategory,
@@ -277,8 +351,28 @@ export default function AdminCoursesPage() {
       thumbnail_r2_key: editThumbnailR2Key || undefined,
       description: editDescription,
       published: editPublished,
-    });
+    };
 
+    try {
+      const res = await fetch('/api/admin/courses', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        setCourses((prev) =>
+          prev.map((c) => (c.id === editingCourse.id ? { ...c, ...payload } : c))
+        );
+        setEditingCourse(null);
+        setSuccessToast(`Course "${editTitle}" updated successfully.`);
+        setTimeout(() => setSuccessToast(''), 3000);
+        return;
+      }
+    } catch {
+      // fallback
+    }
+
+    const updated = await updateCourseInDatabase(editingCourse.id, payload);
     if (updated) {
       setCourses((prev) =>
         prev.map((c) => (c.id === editingCourse.id ? { ...c, ...updated } : c))
@@ -655,6 +749,15 @@ export default function AdminCoursesPage() {
                         >
                           {course.published ? 'Unpublish' : 'Publish'}
                         </button>
+
+                        {/* 6. Delete Course */}
+                        <button
+                          onClick={() => handleDeleteCourse(course.id, course.title)}
+                          className="p-1.5 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition"
+                          title="Permanently Delete Course from Database"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -1024,10 +1127,20 @@ export default function AdminCoursesPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-xl font-black text-xs text-white bg-[#046BD2] hover:bg-[#0352A0] shadow-md shadow-blue-500/25 flex items-center gap-2 transition active:scale-95"
+                  disabled={isCreatingCourse}
+                  className="px-6 py-2.5 rounded-xl font-black text-xs text-white bg-[#046BD2] hover:bg-[#0352A0] disabled:opacity-50 shadow-md shadow-blue-500/25 flex items-center gap-2 transition active:scale-95"
                 >
-                  <Plus className="w-4 h-4" />
-                  <span>Create Course</span>
+                  {isCreatingCourse ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Saving to Cloud Database...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      <span>Create Course</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>

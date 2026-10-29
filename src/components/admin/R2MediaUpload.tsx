@@ -101,6 +101,59 @@ export function R2MediaUpload({
         : r2Status?.isConfigured
       : r2Status?.isConfigured;
 
+  const uploadThumbnailDirect = async (file: File) => {
+    setIsUploading(true);
+    setUploadProgress(15);
+    setErrorMessage('');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/storage/thumbnail', true);
+
+        xhr.upload.onprogress = (ev) => {
+          if (ev.lengthComputable) {
+            const percent = Math.round((ev.loaded / ev.total) * 100);
+            setUploadProgress(Math.max(15, percent));
+          }
+        };
+
+        xhr.onload = () => {
+          try {
+            const resp = JSON.parse(xhr.responseText);
+            if (xhr.status >= 200 && xhr.status < 300 && resp.success) {
+              setUploadSuccessKey(resp.key);
+              setUploadSuccessProvider('Supabase Storage');
+              setPreviewUrl(resp.url);
+              setSelectedFile(null);
+              if (fileInputRef.current) fileInputRef.current.value = '';
+              onSuccess({
+                key: resp.key,
+                url: resp.url,
+              });
+              resolve();
+            } else {
+              reject(new Error(resp.error || `Upload failed with status ${xhr.status}`));
+            }
+          } catch {
+            reject(new Error('Invalid response from storage upload endpoint.'));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error('Network error during Supabase upload.'));
+        xhr.send(formData);
+      });
+    } catch (err: any) {
+      console.error('Thumbnail upload failed:', err);
+      setErrorMessage(err?.message || 'Failed to upload thumbnail.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -123,6 +176,8 @@ export function R2MediaUpload({
       setSelectedFile(file);
       const objUrl = URL.createObjectURL(file);
       setPreviewUrl(objUrl);
+      // Auto-upload immediately to Supabase Cloud Storage
+      uploadThumbnailDirect(file);
     } else {
       const validTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-matroska'];
       if (!validTypes.includes(file.type.toLowerCase()) && !file.name.match(/\.(mp4|webm|mov|mkv)$/i)) {

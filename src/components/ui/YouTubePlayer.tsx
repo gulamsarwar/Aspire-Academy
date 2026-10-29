@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from '@/components/auth/AuthContext';
 import { extractYouTubeVideoId, getYouTubeInfo } from '@/lib/youtube';
 import {
   Video,
@@ -38,6 +39,7 @@ export function YouTubePlayer({
 }: YouTubePlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(autoPlay);
@@ -47,6 +49,95 @@ export function YouTubePlayer({
   const [duration, setDuration] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const [securityWarning, setSecurityWarning] = useState<string>('');
+  const { user } = useAuth();
+
+  // Sync state from YouTube Iframe postMessage API
+  useEffect(() => {
+    const handleMessage = (e: MessageEvent) => {
+      try {
+        const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+        if (data?.event === 'infoDelivery' && data?.info) {
+          if (typeof data.info.currentTime === 'number') {
+            setCurrentTime(data.info.currentTime);
+          }
+          if (typeof data.info.duration === 'number') {
+            setDuration(data.info.duration);
+          }
+          if (typeof data.info.playerState === 'number') {
+            setIsPlaying(data.info.playerState === 1);
+          }
+        }
+      } catch {
+        // ignore non-json messages
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  // Dynamic Floating Anti-Piracy Watermark coordinates (8 strategic points across the screen)
+  const [watermarkPos, setWatermarkPos] = useState({ top: 22, left: 25 });
+  const [isScreenCaptured, setIsScreenCaptured] = useState(false);
+
+  useEffect(() => {
+    const positions = [
+      { top: 20, left: 25 },
+      { top: 70, left: 70 },
+      { top: 28, left: 65 },
+      { top: 65, left: 25 },
+      { top: 45, left: 50 },
+      { top: 32, left: 78 },
+      { top: 58, left: 35 },
+      { top: 80, left: 50 },
+    ];
+    let idx = 0;
+    const interval = setInterval(() => {
+      idx = (idx + 1) % positions.length;
+      setWatermarkPos(positions[idx]);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Format student anti-piracy identifier (Phone, Name, and Student ID)
+  const studentWatermarkText = user
+    ? `🔒 ASPIRE ACADEMY • ${user.full_name || 'STUDENT'} • ${
+        user.phone ? `+91 ${user.phone.replace(/[^0-9]/g, '').slice(-10)}` : user.email || 'ENROLLED'
+      } • ID: ${user.id ? user.id.slice(0, 8).toUpperCase() : 'VERIFIED'}`
+    : 'ASPIRE ACADEMY • COPYRIGHT PROTECTED';
+
+  const triggerSecurityAlert = (msg?: string) => {
+    setSecurityWarning(
+      msg || '⚠️ Video content is DRM protected. Screen recording, downloading, and unauthorized sharing are strictly prohibited.'
+    );
+    setTimeout(() => setSecurityWarning(''), 4000);
+  };
+
+  // Advanced Keyboard protection against DevTools, PrintScreen, Page Save & Inspect
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Devtools shortcuts & Inspect
+      if (
+        (e.ctrlKey && (e.key === 's' || e.key === 'u' || e.key === 'p' || e.key === 'S' || e.key === 'U' || e.key === 'P')) ||
+        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) ||
+        e.key === 'F12'
+      ) {
+        e.preventDefault();
+        triggerSecurityAlert('⚠️ Inspect and Page Saving are disabled to protect course content.');
+        return;
+      }
+
+      // Screenshot hotkey detection (PrintScreen)
+      if (e.key === 'PrintScreen') {
+        setIsScreenCaptured(true);
+        triggerSecurityAlert('⚠️ Screenshot detected! Screen capture of paid lectures is prohibited.');
+        setTimeout(() => setIsScreenCaptured(false), 2500);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const rawInput = (videoIdOrUrl || url || '').trim();
 
@@ -152,8 +243,38 @@ export function YouTubePlayer({
     return (
       <div
         ref={containerRef}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          triggerSecurityAlert();
+        }}
         className={`relative aspect-video w-full rounded-2xl overflow-hidden bg-slate-950 shadow-2xl border border-slate-800 group select-none ${className}`}
       >
+        {/* Anti-Piracy Security Alert Toast */}
+        {securityWarning && (
+          <div className="absolute top-14 left-1/2 -translate-x-1/2 z-40 px-3.5 py-2 rounded-xl bg-red-600/90 text-white text-xs font-bold shadow-xl border border-red-400 backdrop-blur-sm animate-in fade-in flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>{securityWarning}</span>
+          </div>
+        )}
+
+        {/* Dynamic Floating Anti-Piracy Watermark */}
+        <div
+          style={{
+            top: `${watermarkPos.top}%`,
+            left: `${watermarkPos.left}%`,
+            transform: 'translate(-50%, -50%)',
+          }}
+          className="absolute z-20 pointer-events-none select-none transition-all duration-1000 ease-in-out flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-black/60 backdrop-blur-[2px] border border-white/10 text-[10px] sm:text-xs font-mono font-bold text-white/60 tracking-wider shadow-sm"
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
+          <span>{studentWatermarkText}</span>
+        </div>
+
+        {/* Corner DRM Protection Seal */}
+        <div className="absolute bottom-2 right-2 z-20 pointer-events-none select-none opacity-40 text-[9px] font-mono text-white/70">
+          🔒 Aspire Academy DRM Protected
+        </div>
+
         {/* Top Aspire Academy Header */}
         <div className="absolute top-0 left-0 right-0 z-30 h-12 bg-gradient-to-b from-slate-950/90 via-slate-950/50 to-transparent px-4 flex items-center justify-between text-white pointer-events-auto">
           <div className="flex items-center gap-2">
@@ -176,7 +297,12 @@ export function YouTubePlayer({
           src={rawInput}
           playsInline
           autoPlay={autoPlay}
-          controlsList="nodownload"
+          controlsList="nodownload noplaybackrate nofullscreen"
+          disablePictureInPicture
+          onContextMenu={(e) => {
+            e.preventDefault();
+            triggerSecurityAlert();
+          }}
           onTimeUpdate={() => {
             if (videoRef.current) {
               setCurrentTime(videoRef.current.currentTime);
@@ -187,7 +313,7 @@ export function YouTubePlayer({
             setIsPlaying(false);
             if (onEnded) onEnded();
           }}
-          className="w-full h-full object-contain cursor-pointer"
+          className="w-full h-full object-contain cursor-pointer select-none"
           onClick={handlePlayPause}
         />
 
@@ -303,38 +429,149 @@ export function YouTubePlayer({
   // Engine 2: Dedicated In-App Sandboxed YouTube Player
   // Ensures playback stays 100% inside the website and NEVER leaves to YouTube
   const videoId = youtubeId || rawInput;
+  const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
   const embedUrl = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=${
     autoPlay ? 1 : 0
-  }&rel=0&modestbranding=1&playsinline=1&controls=1&fs=1&disablekb=0&iv_load_policy=3&enablejsapi=1`;
+  }&rel=0&modestbranding=1&playsinline=1&controls=1&fs=1&disablekb=0&iv_load_policy=3&enablejsapi=1${
+    currentOrigin ? `&origin=${encodeURIComponent(currentOrigin)}` : ''
+  }`;
 
   return (
     <div
       ref={containerRef}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        triggerSecurityAlert();
+      }}
       className={`relative aspect-video w-full rounded-2xl overflow-hidden bg-slate-950 shadow-2xl border border-slate-800 group select-none ${className}`}
     >
-      {/* Top Protective Header: Covers the YouTube top title bar so clicking title does NOT open YouTube */}
-      <div className="absolute top-0 left-0 right-0 z-30 h-11 bg-gradient-to-b from-slate-950/95 via-slate-950/60 to-transparent px-3 sm:px-4 flex items-center justify-between text-white pointer-events-auto">
+      {/* Screen Capture Detection Blackout Overlay */}
+      {isScreenCaptured && (
+        <div className="absolute inset-0 z-50 bg-black flex flex-col items-center justify-center text-center p-6 space-y-3">
+          <div className="w-12 h-12 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center border border-rose-500/30">
+            <Lock className="w-6 h-6" />
+          </div>
+          <p className="text-sm font-bold text-white">DRM Content Protected</p>
+          <p className="text-xs text-slate-400 max-w-sm">
+            Screen capture and external recording of paid batch lectures are strictly prohibited by Aspire Academy.
+          </p>
+        </div>
+      )}
+
+      {/* Anti-Piracy Security Alert Toast */}
+      {securityWarning && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 px-4 py-2 rounded-xl bg-red-600/95 text-white text-xs font-bold shadow-2xl border border-red-400 backdrop-blur-sm animate-in fade-in flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span>{securityWarning}</span>
+        </div>
+      )}
+
+      {/* Dynamic Floating Anti-Piracy Watermark with Student Identity */}
+      <div
+        style={{
+          top: `${watermarkPos.top}%`,
+          left: `${watermarkPos.left}%`,
+          transform: 'translate(-50%, -50%)',
+        }}
+        className="absolute z-20 pointer-events-none select-none transition-all duration-1000 ease-in-out flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/70 backdrop-blur-[3px] border border-white/15 text-[10px] sm:text-xs font-mono font-bold text-white/75 tracking-wider shadow-lg"
+      >
+        <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+        <span>{studentWatermarkText}</span>
+      </div>
+
+      {/* Corner DRM Protection Seal */}
+      <div className="absolute bottom-2.5 right-32 z-20 pointer-events-none select-none opacity-50 text-[9px] font-mono text-white/70">
+        🔒 Aspire Academy DRM Protected
+      </div>
+
+      {/* Top Protective Header: Generously covers the YouTube title bar & share icon (56px height) */}
+      <div className="absolute top-0 left-0 right-0 z-30 h-14 bg-gradient-to-b from-slate-950/95 via-slate-950/70 to-transparent px-3 sm:px-4 flex items-center justify-between text-white pointer-events-auto">
         <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-600/30 border border-blue-400/30 text-[10px] font-bold text-blue-300 shadow-sm">
-            <ShieldCheck className="w-3 h-3 text-blue-400" />
-            <span>Aspire Player</span>
+          <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-600/30 border border-blue-400/30 text-[10px] font-bold text-blue-300 shadow-sm">
+            <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+            <span>Aspire Secure Player</span>
           </span>
-          <span className="text-xs font-semibold text-slate-100 truncate max-w-[200px] sm:max-w-md">
+          <span className="text-xs font-semibold text-slate-100 truncate max-w-[180px] sm:max-w-md">
             {title}
           </span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-            Playing in Website
+        <div className="flex items-center gap-2">
+          <span className="hidden sm:inline-block text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+            Paid Batch Stream
           </span>
           <button
             type="button"
             onClick={toggleFullscreen}
-            className="p-1 rounded text-slate-300 hover:text-white hover:bg-white/10 transition"
+            className="p-1.5 rounded text-slate-300 hover:text-white hover:bg-white/10 transition"
             title="Expand Fullscreen"
           >
-            <Maximize2 className="w-3.5 h-3.5" />
+            <Maximize2 className="w-4 h-4" />
           </button>
+        </div>
+      </div>
+
+      {/* Interactive Middle Glass Shield:
+          - Intercepts right-clicks so students CANNOT right-click on YouTube iframe to copy URL!
+          - Intercepts clicks to toggle play/pause via postMessage
+          - Intercepts double clicks for 10s rewind / forward
+      */}
+      <div
+        className="absolute top-14 bottom-12 inset-x-0 z-20 cursor-pointer"
+        onContextMenu={(e) => {
+          e.preventDefault();
+          triggerSecurityAlert();
+        }}
+        onClick={() => {
+          if (iframeRef.current?.contentWindow) {
+            iframeRef.current.contentWindow.postMessage(
+              JSON.stringify({
+                event: 'command',
+                func: isPlaying ? 'pauseVideo' : 'playVideo',
+                args: [],
+              }),
+              '*'
+            );
+            setIsPlaying(!isPlaying);
+          }
+        }}
+        onDoubleClick={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          const clickX = e.clientX - rect.left;
+          const isLeftSide = clickX < rect.width / 2;
+          if (iframeRef.current?.contentWindow) {
+            const delta = isLeftSide ? -10 : 10;
+            const targetTime = Math.max(0, currentTime + delta);
+            iframeRef.current.contentWindow.postMessage(
+              JSON.stringify({
+                event: 'command',
+                func: 'seekTo',
+                args: [targetTime, true],
+              }),
+              '*'
+            );
+            setCurrentTime(targetTime);
+            triggerSecurityAlert(isLeftSide ? '⏪ Rewound 10s' : '⏩ Forwarded 10s');
+          }
+        }}
+      />
+
+      {/* Bottom-Right YouTube Logo Blocker Shield:
+          Covers YouTube logo & "Watch on YouTube" icon to prevent opening youtube.com!
+      */}
+      <div
+        className="absolute bottom-0 right-0 z-30 w-32 h-12 pointer-events-auto cursor-default flex items-center justify-end pr-2.5 pb-2 select-none"
+        onContextMenu={(e) => {
+          e.preventDefault();
+          triggerSecurityAlert();
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          triggerSecurityAlert('🔒 External redirection blocked. This video is locked to Aspire Academy.');
+        }}
+      >
+        <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-900/95 border border-slate-700 text-[9px] font-mono text-slate-300 shadow">
+          <ShieldCheck className="w-2.5 h-2.5 text-blue-400" />
+          <span>Aspire DRM</span>
         </div>
       </div>
 
@@ -349,14 +586,16 @@ export function YouTubePlayer({
       {/* Sandboxed YouTube Embed:
           - sandbox="allow-scripts allow-same-origin allow-presentation"
           - WITHOUT "allow-top-navigation" and WITHOUT "allow-popups-to-escape-sandbox"
-          This strictly prevents YouTube from redirecting the parent page to youtube.com or opening external apps!
+          - WITHOUT "web-share"
+          Strictly prevents YouTube from redirecting to youtube.com, opening external apps, or sharing links!
       */}
       <iframe
+        ref={iframeRef}
         key={videoId}
         title={title}
         src={embedUrl}
-        className="w-full h-full border-0"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        className="w-full h-full border-0 select-none pointer-events-auto"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
         allowFullScreen
         sandbox="allow-scripts allow-same-origin allow-presentation"
         onLoad={() => setIsLoading(false)}

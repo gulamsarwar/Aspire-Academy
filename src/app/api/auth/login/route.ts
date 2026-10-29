@@ -161,52 +161,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Fallback: Check Demo Student credentials in mock database
+    // If authentication failed on Supabase
     if (!authUser) {
-      const isDemoIdentifier =
-        targetEmail === 'student@aspireacademy.demo' ||
-        targetEmail === 'student@aspireacademy.com' ||
-        targetEmail === 'student.demo.test@aspireacademy.in' ||
-        rawIdentifier.includes('9876543210') ||
-        rawIdentifier.includes('98765 43210');
-
-      const acceptedDemoPasswords = [
-        'Password@123',
-        'demo123',
-        'student123',
-        '123456',
-        'aspire123',
-        'aspire2026',
-        'StudentDemoPassword2026',
-        'Student@123',
-        'Student2026',
-        'aspire',
-      ];
-
-      if (isDemoIdentifier && acceptedDemoPasswords.includes(password.trim())) {
-        const demoProfile = db.resolveOrCreateProfile({
-          id: '00000000-0000-4000-8000-000000000001',
-          email: 'student@aspireacademy.demo',
-          phone: '+91 9876543210',
-          fullName: 'Priyanshu Kumari',
-        });
-
-        const res = NextResponse.json({
-          success: true,
-          user: demoProfile,
-          role: 'student',
-          message: 'Signed in successfully as Demo Student.',
-        });
-
-        res.cookies.set('aspire_session_id', demoProfile.id, {
-          path: '/',
-          httpOnly: false,
-          maxAge: 30 * 24 * 60 * 60,
-          sameSite: 'lax',
-        });
-
-        return res;
-      }
 
       // Check if user is registered with Google OAuth and lacks password
       if (admin && targetEmail) {

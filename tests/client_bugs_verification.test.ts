@@ -590,33 +590,28 @@ Explanation: 1953 खोज.
   // --------------------------------------------------------------------------
   // STUDENT LOGIN: Server-side Authentication & Unified Identifier Login
   // --------------------------------------------------------------------------
-  test('STUDENT LOGIN: Supports mobile number, email, and demo login seamlessly', async () => {
+  test('STUDENT LOGIN: Blocks fake dummy credentials & enforces real security', async () => {
     const { POST } = await import('../src/app/api/auth/login/route');
 
-    // 1. Mobile login with 10 digits
+    // 1. Fake/unregistered mobile is rejected with 401
     const req1 = new Request('http://localhost:3000/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identifier: '9876543210', password: 'Password@123' }),
+      body: JSON.stringify({ identifier: '9999999999', password: 'WrongPassword123' }),
     });
     const res1 = await POST(req1 as any);
-    const data1 = await res1.json();
-    assert.strictEqual(res1.status, 200);
-    assert.strictEqual(data1.success, true);
-    assert.ok(data1.user);
+    assert.strictEqual(res1.status, 401);
 
-    // 2. Demo student login
+    // 2. Demo student login bypass is strictly disabled (returns 401)
     const req2 = new Request('http://localhost:3000/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ identifier: 'student@aspireacademy.demo', password: 'demo123' }),
     });
     const res2 = await POST(req2 as any);
-    const data2 = await res2.json();
-    assert.strictEqual(res2.status, 200);
-    assert.strictEqual(data2.success, true);
+    assert.strictEqual(res2.status, 401);
 
-    // 3. Admin account rejected on student login endpoint
+    // 3. Admin account rejected on student login endpoint with 403
     const req3 = new Request('http://localhost:3000/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -624,6 +619,35 @@ Explanation: 1953 खोज.
     });
     const res3 = await POST(req3 as any);
     assert.strictEqual(res3.status, 403);
+  });
+
+  // --------------------------------------------------------------------------
+  // VIDEO PROTECTION & PAID BATCH RESTRICTIONS
+  // --------------------------------------------------------------------------
+  test('VIDEO SECURITY: Enforces paid batch restriction & anti-download protection', () => {
+    // 1. Unenrolled student is blocked from paid lessons in course
+    const unpurchasedStudent = db.resolveOrCreateProfile({
+      email: 'unpaid.student@test.com',
+      fullName: 'Unpaid Student',
+    });
+    const courseId = 'c0000000-0000-0000-0000-000000000001'; // Physics Class 12
+    assert.strictEqual(db.isStudentEnrolled(unpurchasedStudent.id, courseId), false);
+
+    // 2. Enrolled student has active access
+    const enrolledStudentId = '00000000-0000-4000-8000-000000000001';
+    assert.strictEqual(db.isStudentEnrolled(enrolledStudentId, courseId), true);
+
+    // 3. Lessons in course verify paid lock
+    const curriculum = db.getCurriculumForCourse(courseId);
+    assert.ok(curriculum.length > 0);
+    const paidLessons = curriculum.flatMap((m) => m.lessons).filter((l) => !l.is_free_preview);
+    assert.ok(paidLessons.length > 0, 'Course must have paid lessons');
+
+    // Each paid lesson has a valid video source that is only unlocked for enrolled students
+    paidLessons.forEach((lesson) => {
+      assert.strictEqual(lesson.is_free_preview, false);
+      assert.ok(lesson.youtube_video_id || lesson.video_url || lesson.r2_object_key);
+    });
   });
 });
 

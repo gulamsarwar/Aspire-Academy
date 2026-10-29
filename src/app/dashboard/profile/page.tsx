@@ -26,6 +26,7 @@ export default function ProfileSettingsPage() {
       user.full_name = fullName;
       user.phone = phone;
       try {
+        localStorage.setItem('aspire_user', JSON.stringify(user));
         localStorage.setItem('aspire_student_user', JSON.stringify(user));
       } catch {
         // ignore

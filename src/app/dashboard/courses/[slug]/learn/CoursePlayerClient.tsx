@@ -23,6 +23,9 @@ import {
   MessageCircle,
   Bookmark as BookmarkIcon,
   Award,
+  Tv,
+  Radio,
+  ShieldCheck,
 } from 'lucide-react';
 import { YouTubePlayer } from '@/components/ui/YouTubePlayer';
 
@@ -48,7 +51,8 @@ export function CoursePlayerClient({
   // Check enrollment with dynamic server/cache synchronization
   const [isEnrolled, setIsEnrolled] = useState<boolean>(() => {
     if (role === 'admin') return true;
-    if (user && db.isStudentEnrolled(user.id, course.id)) return true;
+    if (!user) return false;
+    if (db.isStudentEnrolled(user.id, course.id)) return true;
     if (typeof window !== 'undefined') {
       try {
         const stored = localStorage.getItem('aspire_student_enrollments');
@@ -75,6 +79,7 @@ export function CoursePlayerClient({
   const [activeTab, setActiveTab] = useState<'overview' | 'notes' | 'live' | 'announcements'>('overview');
   const [toastMessage, setToastMessage] = useState<string>('');
   const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
+  const [isTheaterMode, setIsTheaterMode] = useState<boolean>(false);
 
   const activeLesson = allLessons.find((l) => l.id === activeLessonId) || allLessons[0];
   const activeLessonIndex = allLessons.findIndex((l) => l.id === activeLessonId);
@@ -85,7 +90,10 @@ export function CoursePlayerClient({
       setIsEnrolled(true);
       return;
     }
-    if (!studentId) return;
+    if (!studentId || !user) {
+      setIsEnrolled(false);
+      return;
+    }
 
     try {
       const stored = localStorage.getItem('aspire_student_enrollments');
@@ -109,6 +117,11 @@ export function CoursePlayerClient({
           );
           if (hasCourse) {
             setIsEnrolled(true);
+            try {
+              localStorage.setItem('aspire_student_enrollments', JSON.stringify(data.enrollments));
+            } catch {
+              // ignore
+            }
           }
         }
       } catch {
@@ -226,6 +239,20 @@ export function CoursePlayerClient({
               <span className="hidden sm:inline">{isBookmarked ? 'Bookmarked' : 'Bookmark'}</span>
             </button>
 
+            {/* Theater Mode Toggle */}
+            <button
+              onClick={() => setIsTheaterMode(!isTheaterMode)}
+              className={`hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition shadow-xs ${
+                isTheaterMode
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
+              }`}
+              title={isTheaterMode ? 'Switch to Split Layout' : 'Expand Video to Theater View'}
+            >
+              <Tv className="w-3.5 h-3.5" />
+              <span>{isTheaterMode ? 'Split View' : 'Theater View'}</span>
+            </button>
+
             <button
               onClick={() => toggleComplete(activeLesson.id)}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm ${
@@ -242,9 +269,9 @@ export function CoursePlayerClient({
       </div>
 
       {/* Main Grid: Player on Left, Lessons Drawer on Right */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className={`grid grid-cols-1 ${isTheaterMode ? 'lg:grid-cols-1 gap-6' : 'lg:grid-cols-12 gap-8'} items-start`}>
         {/* Left Column: Video Embed, Tabs, Notes */}
-        <div className="lg:col-span-8 space-y-6">
+        <div className={`${isTheaterMode ? 'lg:col-span-12' : 'lg:col-span-8'} space-y-6`}>
           {/* 1. Responsive Video Player (YouTube or Cloudflare R2 Stream) */}
           {canAccessActiveLesson ? (
             activeLesson?.r2_object_key || activeLesson?.video_source_type === 'r2' ? (
@@ -329,6 +356,18 @@ export function CoursePlayerClient({
               <span>Next Lesson</span>
               <ChevronRight className="w-4 h-4" />
             </button>
+          </div>
+
+          {/* Digital DRM Anti-Piracy Watermark Notice */}
+          <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2 rounded-xl bg-slate-100/90 border border-slate-200 text-[11px] text-slate-600">
+            <div className="flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+              <span className="font-semibold text-slate-800">Anti-Piracy & Anti-Download Protection Active:</span>
+              <span className="text-slate-500">Video watermarked with student roll ID to prevent sharing.</span>
+            </div>
+            <span className="font-mono text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+              Paid Batch Access Locked
+            </span>
           </div>
 
           {/* 2. Interactive Study Tabs */}
@@ -556,7 +595,7 @@ export function CoursePlayerClient({
         </div>
 
         {/* Right Column: Curriculum Drawer / Course Structure */}
-        <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+        <div className={`${isTheaterMode ? 'lg:col-span-12 mt-4' : 'lg:col-span-4'} bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4`}>
           <div className="space-y-1 pb-3 border-b border-slate-100">
             <h3 className="text-sm font-bold text-slate-900">Course Curriculum</h3>
             <p className="text-[11px] text-slate-500">
@@ -565,50 +604,63 @@ export function CoursePlayerClient({
           </div>
 
           <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
-            {curriculum.map((module, mIdx) => (
-              <div key={module.id} className="space-y-2">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                  Unit 0{mIdx + 1}: {module.title}
-                </span>
+            {curriculum.map((module, mIdx) => {
+              const moduleLessons = module.lessons || [];
+              const moduleCompletedCount = moduleLessons.filter((l) => completedLessons[l.id]).length;
 
-                <div className="space-y-1.5">
-                  {module.lessons.map((lesson) => {
-                    const isActive = lesson.id === activeLessonId;
-                    const done = !!completedLessons[lesson.id];
+              return (
+                <div key={module.id} className="space-y-2">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    <span>Unit 0{mIdx + 1}: {module.title}</span>
+                    <span className="text-[10px] text-slate-400 font-semibold lowercase">
+                      {moduleCompletedCount}/{moduleLessons.length} done
+                    </span>
+                  </div>
 
-                    return (
-                      <div
-                        key={lesson.id}
-                        className={`p-3 rounded-xl border text-xs cursor-pointer transition flex items-center justify-between gap-2 ${
-                          isActive
-                            ? 'border-[#046BD2] bg-blue-50/70 font-bold shadow-sm'
-                            : 'border-slate-100 hover:bg-slate-50 text-slate-700'
-                        }`}
-                        onClick={() => setActiveLessonId(lesson.id)}
-                      >
-                        <div className="flex items-center gap-2.5 overflow-hidden">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleComplete(lesson.id);
-                            }}
-                            className="flex-shrink-0"
-                            title={done ? 'Mark as incomplete' : 'Mark as complete'}
-                          >
-                            <CheckCircle2
-                              className={`w-4 h-4 ${
-                                done
-                                  ? 'text-emerald-600 fill-emerald-100'
-                                  : 'text-slate-300 hover:text-slate-400'
-                              }`}
-                            />
-                          </button>
-                          <span className="truncate">{lesson.title}</span>
-                        </div>
+                  <div className="space-y-1.5">
+                    {module.lessons.map((lesson) => {
+                      const isActive = lesson.id === activeLessonId;
+                      const done = !!completedLessons[lesson.id];
 
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                          {lesson.is_free_preview ? (
+                      return (
+                        <div
+                          key={lesson.id}
+                          className={`p-3 rounded-xl border text-xs cursor-pointer transition flex items-center justify-between gap-2 ${
+                            isActive
+                              ? 'border-[#046BD2] bg-blue-50/70 font-bold shadow-sm'
+                              : 'border-slate-100 hover:bg-slate-50 text-slate-700'
+                          }`}
+                          onClick={() => setActiveLessonId(lesson.id)}
+                        >
+                          <div className="flex items-center gap-2.5 overflow-hidden">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleComplete(lesson.id);
+                              }}
+                              className="flex-shrink-0"
+                              title={done ? 'Mark as incomplete' : 'Mark as complete'}
+                            >
+                              <CheckCircle2
+                                className={`w-4 h-4 ${
+                                  done
+                                    ? 'text-emerald-600 fill-emerald-100'
+                                    : 'text-slate-300 hover:text-slate-400'
+                                }`}
+                              />
+                            </button>
+                            <span className="truncate">{lesson.title}</span>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            {isActive && (
+                              <span className="flex items-center gap-1 text-[9px] font-bold text-[#046BD2] bg-blue-100/90 px-1.5 py-0.5 rounded-full animate-pulse flex-shrink-0">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#046BD2]" />
+                                <span>Playing</span>
+                              </span>
+                            )}
+                            {lesson.is_free_preview ? (
                             <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
                               Free Demo
                             </span>
@@ -631,7 +683,8 @@ export function CoursePlayerClient({
                   })}
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         </div>
       </div>

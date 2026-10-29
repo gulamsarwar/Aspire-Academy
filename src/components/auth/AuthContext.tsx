@@ -793,6 +793,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setRole('student');
     localStorage.removeItem('aspire_user');
     localStorage.removeItem('aspire_role');
+    localStorage.removeItem('aspire_student_enrollments');
+    localStorage.removeItem('aspire_student_user');
 
     // Clear session cookies
     if (typeof document !== 'undefined') {

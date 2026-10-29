@@ -78,6 +78,14 @@ export default function AdminLessonsPage() {
     let isMounted = true;
     async function loadLiveCourses() {
       try {
+        const res = await fetch('/api/admin/courses');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.courses && Array.isArray(data.courses) && data.courses.length > 0 && isMounted) {
+            setCourses(data.courses);
+            return;
+          }
+        }
         const liveCourses = await getCourses();
         if (liveCourses && liveCourses.length > 0 && isMounted) {
           setCourses(liveCourses);

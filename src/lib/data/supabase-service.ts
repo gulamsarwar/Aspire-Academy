@@ -658,13 +658,47 @@ export async function directEnrollStudentInDatabase({
   return localEnr;
 }
 
+async function resolveAllAssociatedStudentIds(studentId: string, adminClient?: any): Promise<string[]> {
+  const ids = new Set(db.resolveAssociatedStudentIds(studentId));
+  if (adminClient && studentId) {
+    try {
+      const { data: profile } = await adminClient
+        .from('profiles')
+        .select('email, phone')
+        .eq('id', studentId)
+        .maybeSingle();
+
+      if (profile?.email) {
+        const { data: sameEmailProfiles } = await adminClient
+          .from('profiles')
+          .select('id')
+          .ilike('email', profile.email.trim());
+        sameEmailProfiles?.forEach((p: any) => ids.add(p.id));
+      }
+      if (profile?.phone) {
+        const cleanDigits = profile.phone.replace(/\D/g, '').slice(-10);
+        if (cleanDigits.length === 10) {
+          const { data: samePhoneProfiles } = await adminClient
+            .from('profiles')
+            .select('id')
+            .ilike('phone', `%${cleanDigits}%`);
+          samePhoneProfiles?.forEach((p: any) => ids.add(p.id));
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return Array.from(ids);
+}
+
 export async function getStudentEnrollmentsFromDatabase(studentId: string): Promise<Enrollment[]> {
   const localEnrs = db.getStudentEnrollments(studentId);
-  const associatedIds = db.resolveAssociatedStudentIds(studentId);
   if (isSupabaseConfigured()) {
     const admin = createAdminClient() || createClient();
     if (admin) {
       try {
+        const associatedIds = await resolveAllAssociatedStudentIds(studentId, admin);
         const { data, error } = await admin
           .from('enrollments')
           .select('*, course:courses(*), batch:batches(*)')
@@ -699,11 +733,11 @@ export async function getStudentEnrollmentsFromDatabase(studentId: string): Prom
 
 export async function getStudentOrdersFromDatabase(studentId: string): Promise<Order[]> {
   const localOrders = db.getStudentOrders(studentId);
-  const associatedIds = db.resolveAssociatedStudentIds(studentId);
   if (isSupabaseConfigured()) {
     const admin = createAdminClient() || createClient();
     if (admin) {
       try {
+        const associatedIds = await resolveAllAssociatedStudentIds(studentId, admin);
         const { data, error } = await admin
           .from('orders')
           .select('*, course:courses(*), batch:batches(*)')
@@ -737,11 +771,11 @@ export async function getStudentOrdersFromDatabase(studentId: string): Promise<O
 }
 
 export async function isStudentEnrolledInDatabase(studentId: string, courseId: string): Promise<boolean> {
-  const associatedIds = db.resolveAssociatedStudentIds(studentId);
   if (isSupabaseConfigured()) {
     const admin = createAdminClient() || createClient();
     if (admin) {
       try {
+        const associatedIds = await resolveAllAssociatedStudentIds(studentId, admin);
         const { data, error } = await admin
           .from('enrollments')
           .select('id')
