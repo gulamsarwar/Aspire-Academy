@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/components/auth/AuthContext';
 import { useSiteSettings } from '@/components/settings/SiteSettingsContext';
 import { YouTubePlayer } from '@/components/ui/YouTubePlayer';
+import { extractYouTubeVideoId } from '@/lib/youtube';
 import {
   Video,
   Clock,
@@ -16,7 +17,10 @@ import {
   CheckCircle2,
   Lock,
   MessageCircle,
+  MessageSquare,
   Loader2,
+  Sparkles,
+  Info,
 } from 'lucide-react';
 
 export default function LiveClassesPage() {
@@ -25,6 +29,14 @@ export default function LiveClassesPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeClassId, setActiveClassId] = useState<string>('');
+  const [rightTab, setRightTab] = useState<'chat' | 'schedule'>('chat');
+  const [embedDomain, setEmbedDomain] = useState<string>('localhost');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setEmbedDomain(window.location.hostname);
+    }
+  }, []);
 
   const rawPhone = (settings.whatsapp || settings.phone || '9123456789').replace(/[^0-9]/g, '');
   const cleanPhone = rawPhone.startsWith('91') ? rawPhone : `91${rawPhone}`;
@@ -58,6 +70,8 @@ export default function LiveClassesPage() {
   const enrolledCourseIds = new Set(enrollments.map((e: any) => e.course_id));
 
   const activeClass = liveClasses.find((lc: any) => lc.id === activeClassId) || liveClasses[0];
+  const cleanVideoId = extractYouTubeVideoId(activeClass?.youtube_video_id) || activeClass?.youtube_video_id;
+
   const isAccessible =
     activeClass &&
     (enrolledCourseIds.has(activeClass.course_id) ||
@@ -153,17 +167,33 @@ export default function LiveClassesPage() {
               </p>
 
               <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
-                <span>Faculty: <strong>{activeClass.instructor_name}</strong></span>
-                <span>Subject: <strong>{activeClass.course?.category || 'Biology'}</strong></span>
-                <a
-                  href={liveWhatsAppUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold transition"
-                >
-                  <MessageCircle className="w-3.5 h-3.5" />
-                  <span>Ask Live Doubt on WhatsApp</span>
-                </a>
+                <div className="flex items-center gap-3">
+                  <span>Faculty: <strong>{activeClass.instructor_name}</strong></span>
+                  <span>•</span>
+                  <span>Subject: <strong>{activeClass.course?.category || 'Board Batch'}</strong></span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRightTab('chat')}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 font-bold transition text-xs"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5 text-rose-600" />
+                    <span>YouTube Live Chat</span>
+                  </button>
+
+                  <a
+                    href={liveWhatsAppUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold transition text-xs"
+                    title="Send private question to Shekhar Sir"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>WhatsApp Doubt</span>
+                  </a>
+                </div>
               </div>
             </div>
 
@@ -171,63 +201,133 @@ export default function LiveClassesPage() {
             <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-start gap-2.5">
               <ShieldAlert className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-600" />
               <p>
-                <strong>Security Notice:</strong> Live streams are hosted securely via YouTube Live.
-                Please do not share stream links outside your enrolled batch community.
+                <strong>Live Batch Protocol:</strong> Live streams & chats are hosted securely inside Aspire Academy.
+                Please keep batch discussion respectful and focused on lecture concepts.
               </p>
             </div>
           </div>
 
-          {/* Schedule List / Past Classes */}
-          <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center justify-between">
-              <span>All Scheduled Sessions</span>
-              <span className="text-xs font-semibold text-[#046BD2]">
-                {liveClasses.length} Sessions
-              </span>
-            </h3>
+          {/* Interactive Right Column: YouTube Live Chat & Scheduled Sessions */}
+          <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm space-y-4 flex flex-col h-full min-h-[580px]">
+            {/* Header Tabs: YouTube Live Chat vs All Sessions */}
+            <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setRightTab('chat')}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition ${
+                  rightTab === 'chat'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <MessageSquare className="w-3.5 h-3.5 text-rose-500" />
+                <span>Live Chat</span>
+                {activeClass.status === 'live' && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
+                )}
+              </button>
 
-            <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
-              {liveClasses.map((lc: any) => {
-                const isSelected = lc.id === activeClassId;
+              <button
+                type="button"
+                onClick={() => setRightTab('schedule')}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition ${
+                  rightTab === 'schedule'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                <span>Sessions ({liveClasses.length})</span>
+              </button>
+            </div>
 
-                return (
-                  <div
-                    key={lc.id}
-                    onClick={() => setActiveClassId(lc.id)}
-                    className={`p-3.5 rounded-xl border cursor-pointer transition space-y-1.5 ${
-                      isSelected
-                        ? 'border-[#046BD2] bg-blue-50/70 shadow-sm'
-                        : 'border-slate-100 hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between text-[10px]">
-                      <span
-                        className={`font-bold uppercase ${
-                          lc.status === 'live'
-                            ? 'text-rose-600'
-                            : lc.status === 'completed'
-                            ? 'text-slate-500'
-                            : 'text-[#046BD2]'
-                        }`}
-                      >
-                        {lc.status === 'live' ? '● Live' : lc.status}
-                      </span>
-                      <span className="text-slate-400">
-                        {new Date(lc.scheduled_at).toLocaleDateString('en-IN')}
-                      </span>
-                    </div>
+            {/* Tab 1: Embedded YouTube Live Chat */}
+            {rightTab === 'chat' ? (
+              <div className="flex-1 flex flex-col space-y-3">
+                <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">
+                  <span className="font-semibold flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>Real-time Live Chat Feed</span>
+                  </span>
+                  <span className="text-[10px] text-slate-400">Powered by YouTube Live</span>
+                </div>
 
-                    <h4 className="text-xs font-bold text-slate-900 line-clamp-2">
-                      {lc.title}
-                    </h4>
-
-                    <p className="text-[11px] text-slate-500 line-clamp-1">
-                      Faculty: {lc.instructor_name}
+                {cleanVideoId ? (
+                  <div className="flex-1 rounded-xl overflow-hidden border border-slate-200 bg-slate-950 min-h-[460px] relative">
+                    <iframe
+                      src={`https://www.youtube.com/live_chat?v=${cleanVideoId}&embed_domain=${embedDomain}`}
+                      className="w-full h-full min-h-[460px] border-0"
+                      title="YouTube Live Chat Feed"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <MessageSquare className="w-8 h-8 text-slate-400" />
+                    <p className="text-xs font-semibold text-slate-700">No Live Chat Active</p>
+                    <p className="text-[11px] text-slate-400 max-w-xs">
+                      Live chat connects automatically when a YouTube Live broadcast is scheduled for this session.
                     </p>
                   </div>
-                );
-              })}
-            </div>
+                )}
+
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] text-slate-600 flex items-center justify-between">
+                  <span className="truncate">Need 1-on-1 private doubt help?</span>
+                  <a
+                    href={liveWhatsAppUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] transition shrink-0"
+                  >
+                    <MessageCircle className="w-3 h-3" />
+                    <span>WhatsApp</span>
+                  </a>
+                </div>
+              </div>
+            ) : (
+              /* Tab 2: Scheduled Sessions List */
+              <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
+                {liveClasses.map((lc: any) => {
+                  const isSelected = lc.id === activeClassId;
+
+                  return (
+                    <div
+                      key={lc.id}
+                      onClick={() => setActiveClassId(lc.id)}
+                      className={`p-3.5 rounded-xl border cursor-pointer transition space-y-1.5 ${
+                        isSelected
+                          ? 'border-[#046BD2] bg-blue-50/70 shadow-sm'
+                          : 'border-slate-100 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span
+                          className={`font-bold uppercase ${
+                            lc.status === 'live'
+                              ? 'text-rose-600'
+                              : lc.status === 'completed'
+                              ? 'text-slate-500'
+                              : 'text-[#046BD2]'
+                          }`}
+                        >
+                          {lc.status === 'live' ? '● Live Now' : lc.status}
+                        </span>
+                        <span className="text-slate-400">
+                          {new Date(lc.scheduled_at).toLocaleDateString('en-IN')}
+                        </span>
+                      </div>
+
+                      <h4 className="text-xs font-bold text-slate-900 line-clamp-2">
+                        {lc.title}
+                      </h4>
+
+                      <p className="text-[11px] text-slate-500 line-clamp-1">
+                        Faculty: {lc.instructor_name}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       ) : (
