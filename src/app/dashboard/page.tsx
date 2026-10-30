@@ -20,6 +20,7 @@ import {
   Bookmark,
   CheckSquare,
   Loader2,
+  Brain,
 } from 'lucide-react';
 
 export default function DashboardOverviewPage() {
@@ -190,7 +191,7 @@ export default function DashboardOverviewPage() {
       )}
 
       {/* Quick Feature Navigation Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
         <Link
           href="/dashboard/courses"
           className="p-3.5 bg-white rounded-xl border border-slate-200 hover:border-[#046BD2] hover:shadow-sm transition flex flex-col items-center text-center gap-2 group"
@@ -209,6 +210,16 @@ export default function DashboardOverviewPage() {
             <Calendar className="w-4 h-4" />
           </div>
           <span className="text-xs font-bold text-slate-800">My Batches</span>
+        </Link>
+
+        <Link
+          href="/dashboard/pi"
+          className="p-3.5 bg-gradient-to-b from-sky-50/50 to-white rounded-xl border border-sky-200 hover:border-[#046BD2] hover:shadow-sm transition flex flex-col items-center text-center gap-2 group"
+        >
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#046BD2] to-indigo-600 text-white shadow-sm group-hover:scale-105 transition flex items-center justify-center">
+            <Brain className="w-4 h-4" />
+          </div>
+          <span className="text-xs font-black text-[#046BD2]">Neuron AI</span>
         </Link>
 
         <Link

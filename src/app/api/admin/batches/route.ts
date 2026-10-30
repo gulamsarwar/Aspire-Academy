@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import crypto from 'crypto';
-import { isAuthorizedAdminId, isAuthorizedAdminEmail, verifyAdminRequest, verifyAdminToken } from '@/lib/auth/admin';
+import { checkServerAdminAuth } from '@/lib/auth/admin';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { db } from '@/lib/data/mock-db';
 import { Batch } from '@/lib/types';
@@ -10,28 +9,7 @@ import { Batch } from '@/lib/types';
 export const dynamic = 'force-dynamic';
 
 async function checkAdminAuth(req: NextRequest): Promise<boolean> {
-  const verified = verifyAdminRequest(req);
-  if (verified.isAuthorized) return true;
-
-  const cookieStore = await cookies();
-  const adminToken = cookieStore.get('aspire_admin_token')?.value;
-  if (adminToken && verifyAdminToken(adminToken).valid) return true;
-
-  const adminCookie = cookieStore.get('aspire_admin_session')?.value;
-  if (adminCookie && adminCookie.length > 5) return true;
-
-  const sessionCookie = cookieStore.get('aspire_session_id')?.value;
-  const candidateId = adminCookie || sessionCookie;
-  if (!candidateId) return false;
-
-  if (isAuthorizedAdminId(candidateId)) return true;
-
-  const candidateProfile = db.getProfileById(candidateId);
-  if (candidateProfile && isAuthorizedAdminEmail(candidateProfile.email)) {
-    return true;
-  }
-
-  return false;
+  return checkServerAdminAuth(req);
 }
 
 // GET: Fetch batches with live enrollment counts
@@ -69,6 +47,10 @@ export async function GET(req: NextRequest) {
           ...b,
           enrolled_count: countMap[b.id] ?? b.enrolled_count ?? 0,
         }));
+
+        if (!courseId || courseId === 'all') {
+          db.batches = enriched as Batch[];
+        }
 
         return NextResponse.json({ success: true, batches: enriched });
       }
@@ -121,9 +103,43 @@ export async function POST(req: NextRequest) {
         .eq('id', course_id)
         .single();
 
-      if (courseCheckErr || !parentCourse) {
+      let hasParent = !courseCheckErr && Boolean(parentCourse);
+
+      // Auto-heal: If parent course is in memory but not yet in Supabase, sync it now
+      if (!hasParent) {
+        const localCourse = db.getCourseById(course_id);
+        if (localCourse) {
+          try {
+            await admin.from('courses').upsert({
+              id: localCourse.id,
+              slug: localCourse.slug,
+              title: localCourse.title,
+              subtitle: localCourse.subtitle || 'Comprehensive Board & Entrance Preparation',
+              description: localCourse.description || 'Structured conceptual classes, NCERT line-by-line solutions and chapter tests.',
+              category: localCourse.category || 'Bihar Board',
+              target_class: localCourse.target_class || 'Class 12',
+              thumbnail_url: localCourse.thumbnail_url,
+              price: Number(localCourse.price) || 499,
+              original_price: Number(localCourse.original_price) || 1499,
+              currency: 'INR',
+              published: true,
+              featured: false,
+              language: 'Hinglish',
+              duration_weeks: Number(localCourse.duration_weeks) || 24,
+              instructor_name: localCourse.instructor_name || 'Shekhar Sir',
+              created_at: localCourse.created_at || new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+            hasParent = true;
+          } catch (syncErr) {
+            console.warn('Notice: Could not auto-sync parent course to Supabase:', syncErr);
+          }
+        }
+      }
+
+      if (!hasParent) {
         return NextResponse.json(
-          { error: 'Associated course was not found in database.' },
+          { error: 'Associated course was not found in database. Please ensure the course is created first.' },
           { status: 404 }
         );
       }
@@ -179,7 +195,9 @@ export async function POST(req: NextRequest) {
       revalidatePath('/courses');
       revalidatePath(`/courses/${course_id}`);
       revalidatePath('/batches');
+      revalidatePath('/dashboard');
       revalidatePath('/dashboard/batches');
+      revalidatePath('/dashboard/courses');
     } catch {}
 
     return NextResponse.json({

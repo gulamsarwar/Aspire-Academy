@@ -3,8 +3,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { db } from '@/lib/data/mock-db';
-import { getCourses } from '@/lib/data/supabase-service';
-import { Course } from '@/lib/types';
+import { getCourses, getAllBatchesFromDatabase } from '@/lib/data/supabase-service';
+import { Course, Batch } from '@/lib/types';
 import { useSiteSettings } from '@/components/settings/SiteSettingsContext';
 import { CourseCard } from '@/components/ui/CourseCard';
 import { TypewriterHeadline } from '@/components/home/TypewriterHeadline';
@@ -37,29 +37,30 @@ import {
 export default function HomePage() {
   const { settings } = useSiteSettings();
   const [coursesList, setCoursesList] = useState<Course[]>(() => db.getCourses(true));
+  const [batchesList, setBatchesList] = useState<Batch[]>(() => db.batches);
 
   useEffect(() => {
     let isMounted = true;
-    async function loadLiveCourses() {
+    async function loadLiveCoursesAndBatches() {
       try {
-        const live = await getCourses();
-        if (isMounted && live && live.length > 0) {
-          setCoursesList(live.filter((c) => Boolean(c.published)));
-          return;
-        }
-        // Direct server API fallback
-        const res = await fetch('/api/admin/courses');
-        if (res.ok) {
-          const json = await res.json();
-          if (json.courses && Array.isArray(json.courses) && isMounted) {
-            setCoursesList(json.courses.filter((c: Course) => Boolean(c.published)));
+        const [liveCourses, liveBatches] = await Promise.all([
+          getCourses(),
+          getAllBatchesFromDatabase(),
+        ]);
+
+        if (isMounted) {
+          if (liveCourses && liveCourses.length > 0) {
+            setCoursesList(liveCourses.filter((c) => Boolean(c.published)));
+          }
+          if (liveBatches && liveBatches.length > 0) {
+            setBatchesList(liveBatches);
           }
         }
       } catch (err) {
-        console.warn('Could not load live courses on home page:', err);
+        console.warn('Could not load live courses/batches on home page:', err);
       }
     }
-    loadLiveCourses();
+    loadLiveCoursesAndBatches();
     return () => {
       isMounted = false;
     };
@@ -492,8 +493,9 @@ export default function HomePage() {
           {/* Courses Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {displayedCourses.map((course) => {
-              const batches = db.getBatchesForCourse(course.id);
-              return <CourseCard key={course.id} course={course} batches={batches} />;
+              const liveCourseBatches = batchesList.filter((b) => b.course_id === course.id);
+              const courseBatches = liveCourseBatches.length > 0 ? liveCourseBatches : db.getBatchesForCourse(course.id);
+              return <CourseCard key={course.id} course={course} batches={courseBatches} />;
             })}
           </div>
         </div>

@@ -1,31 +1,29 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth/AuthContext';
 import { useSiteSettings } from '@/components/settings/SiteSettingsContext';
 import { MathRenderer } from '@/components/ui/MathRenderer';
 import {
+  Brain,
   Sparkles,
-  Bot,
   Send,
   HelpCircle,
-  BookOpen,
   ArrowRight,
-  MessageCircle,
-  Lightbulb,
-  CheckCircle2,
-  Share2,
   RefreshCw,
-  Search,
+  Copy,
+  Check,
+  Trash2,
+  Cpu,
 } from 'lucide-react';
 
 interface ChatMessage {
   id: string;
-  sender: 'user' | 'pi';
+  sender: 'user' | 'neuron';
   text: string;
   timestamp: string;
-  topic?: string;
+  provider?: string;
 }
 
 const FAQ_PROMPTS = [
@@ -51,24 +49,44 @@ const FAQ_PROMPTS = [
   },
 ];
 
-export default function PiAssistantPage() {
+export default function NeuronAIAssistantPage() {
   const { user } = useAuth();
   const { settings } = useSiteSettings();
   const [inputQuery, setInputQuery] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 'welcome',
-      sender: 'pi',
-      text: `नमस्ते ${user ? user.full_name : 'विद्यार्थी'}! मैं **Pi** हूँ — Aspire Academy का AI Study & Doubt Solver Assistant।\n\nआप मुझसे Biology, Physics, Chemistry या Math के प्रश्न पूछ सकते हैं। मैं Hindi और English दोनों में KaTeX गणितीय सूत्रों ($x^2, \\frac{a}{b}, \\sqrt{x}$) के साथ समझा सकता हूँ!`,
-      timestamp: 'Just now',
-    },
-  ]);
+  const initialGreeting: ChatMessage = {
+    id: 'welcome',
+    sender: 'neuron',
+    text: `नमस्ते ${user ? user.full_name : 'विद्यार्थी'}! मैं **Neuron AI** हूँ — Aspire Academy का AI Study & Doubt Solver Assistant।\n\nआप मुझसे Biology, Physics, Chemistry या Mathematics का कोई भी प्रश्न या कॉन्सेप्ट पूछ सकते हैं। मैं KaTeX गणितीय सूत्रों ($x^2, \\frac{a}{b}, \\sqrt{x}$) के साथ समझाता हूँ!`,
+    timestamp: 'Just now',
+  };
 
-  const handleSend = (textToSend?: string) => {
+  const [messages, setMessages] = useState<ChatMessage[]>([initialGreeting]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isTyping]);
+
+  const handleCopy = (id: string, text: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    }
+  };
+
+  const handleClearChat = () => {
+    if (window.confirm('Do you want to clear this chat history?')) {
+      setMessages([initialGreeting]);
+    }
+  };
+
+  const handleSend = async (textToSend?: string) => {
     const query = (textToSend || inputQuery).trim();
-    if (!query) return;
+    if (!query || isTyping) return;
 
     const userMsg: ChatMessage = {
       id: `user_${Date.now()}`,
@@ -77,76 +95,103 @@ export default function PiAssistantPage() {
       timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
     };
 
-    setMessages((prev) => [...prev, userMsg]);
+    const updatedMessages = [...messages, userMsg];
+    setMessages(updatedMessages);
     if (!textToSend) setInputQuery('');
     setIsTyping(true);
 
-    // Generate intelligent academic response with KaTeX math
-    setTimeout(() => {
-      let reply = '';
-      const qLower = query.toLowerCase();
+    try {
+      // Send conversation history to Neuron AI backend
+      const history = updatedMessages.slice(-8).map((m) => ({
+        role: m.sender === 'user' ? ('user' as const) : ('assistant' as const),
+        content: m.text,
+      }));
 
-      if (qLower.includes('mendel') || qLower.includes('dihybrid') || qLower.includes('द्विसंकर')) {
-        reply = `**मेंडल के द्विसंकर संकरण (Dihybrid Cross) का सिद्धांत:**\n\nजब दो जोड़ी विपरीत लक्षणों (जैसे पीले/गोल और हरे/झुर्रीदार बीज) वाले पौधों में क्रॉस कराया जाता है, तो $F_2$ पीढ़ी में लक्षणप्ररूपी अनुपात (Phenotypic Ratio) प्राप्त होता है:\n\n$$9 : 3 : 3 : 1$$\n\n- **9**: गोल एवं पीले (दोनों प्रभावी)\n- **3**: गोल एवं हरे (एक प्रभावी, एक अप्रभावी)\n- **3**: झुर्रीदार एवं पीले (एक अप्रभावी, एक प्रभावी)\n- **1**: झुर्रीदार एवं हरे (दोनों अप्रभावी)\n\nयह **स्वतंत्र अपव्यूहन के नियम (Law of Independent Assortment)** की पुष्टि करता है।`;
-      } else if (qLower.includes('hardy') || qLower.includes('हार्ड-वेनबर्ग') || qLower.includes('equilibrium')) {
-        reply = `**हार्ड-वेनबर्ग साम्यावस्था (Hardy-Weinberg Equilibrium):**\n\nएक आदर्श विशाल समष्टि में युग्मविकल्पी (Allele) आवृत्तियाँ पीढ़ी-दर-पीढ़ी स्थिर रहती हैं। इसका द्विपद सूत्र है:\n\n$$p^2 + 2pq + q^2 = 1$$\n\nजहाँ:\n- $p$ = प्रभावी युग्मविकल्पी (Dominant allele frequency)\n- $q$ = अप्रभावी युग्मविकल्पी (Recessive allele frequency)\n- $p^2$ = समयुग्मजी प्रभावी ($AA$)\n- $2pq$ = विषमयुग्मजी ($Aa$)\n- $q^2$ = समयुग्मजी अप्रभावी ($aa$)\n\nयदि $p + q = 1$ है, तो इसका वर्ग करने पर $(p + q)^2 = 1$ सिद्ध होता है।`;
-      } else if (qLower.includes('coulomb') || qLower.includes('कूलॉम') || qLower.includes('force')) {
-        reply = `**कूलॉम का नियम (Coulomb's Law of Electrostatics):**\n\nनिर्वात में दो स्थिर बिंदु आवेशों $q_1$ और $q_2$ के बीच लगने वाला आकर्षण या प्रतिकर्षण बल:\n\n$$F = \\frac{1}{4\\pi\\varepsilon_0} \\frac{q_1 q_2}{r^2}$$\n\n- $\\varepsilon_0$ = निर्वात की विद्युतशीलता ($8.854 \\times 10^{-12} \\text{ C}^2/\\text{N}\\cdot\\text{m}^2$)\n- $\\frac{1}{4\\pi\\varepsilon_0} \\approx 9 \\times 10^9 \\text{ N}\\cdot\\text{m}^2/\\text{C}^2$\n- $r$ = दोनों आवेशों के बीच की दूरी\n\nबल दूरी के वर्ग के व्युत्क्रमानुपाती ($F \\propto \\frac{1}{r^2}$) होता है।`;
-      } else if (qLower.includes('dna') || qLower.includes('pitch') || qLower.includes('watson')) {
-        reply = `**B-DNA की द्विकुंडली संरचना (Watson & Crick Model, 1953):**\n\n1. प्रत्येक पूर्ण घुमाव (Pitch) की लंबाई **$3.4\\text{ nm}$ ($34\\text{ \\AA}$)** होती है।\n2. प्रत्येक घुमाव में **10 बेस पेयर्स ($10\\text{ bp}$)** उपस्थित होते हैं।\n3. दो निकटतम बेस पेयर्स के बीच की दूरी: $$\\frac{3.4\\text{ nm}}{10} = 0.34\\text{ nm} = 3.4\\text{ \\AA}$$\n4. DNA के रज्जुक प्रतिसमांतर (Antiparallel, $5' \\to 3'$ एवं $3' \\to 5'$) होते हैं।`;
-      } else {
-        reply = `आपके प्रश्न का विश्लेषण:\n\n"${query}"\n\nयह संकल्पना Bihar Board एवं CBSE Class 12th के लिए बहुत महत्वपूर्ण है।\n\n- **मुख्य बिंदु**: इस विषय से संबंधित मुख्य NCERT सारांश और महत्वपूर्ण सूत्र को याद रखें।\n- यदि आपको विस्तृत हस्तलिखित समाधान चाहिए, तो आप नीचे **"Ask ${settings.lead_faculty || 'Shekhar Sir'} Directly"** पर क्लिक करके सीधे फैकल्टी से भी मार्गदर्शन प्राप्त कर सकते हैं!`;
-      }
+      const res = await fetch('/api/neuron/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: history, query }),
+      });
+
+      const data = await res.json().catch(() => null);
+      const replyText =
+        data?.reply ||
+        'नमस्ते! मैं Neuron AI हूँ। आपका प्रश्न प्राप्त हुआ। कृपया अपना प्रश्न थोड़ा और विस्तार से पूछें!';
 
       const botMsg: ChatMessage = {
-        id: `pi_${Date.now()}`,
-        sender: 'pi',
-        text: reply,
+        id: `neuron_${Date.now()}`,
+        sender: 'neuron',
+        text: replyText,
         timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+        provider: data?.provider,
       };
 
       setMessages((prev) => [...prev, botMsg]);
+    } catch (err) {
+      console.error('Neuron AI request error:', err);
+      const fallbackMsg: ChatMessage = {
+        id: `neuron_${Date.now()}`,
+        sender: 'neuron',
+        text: `नमस्ते! मैं **Neuron AI** हूँ। आपका प्रश्न:\n\n"${query}"\n\nयदि उत्तर लोड होने में कोई रुकावट आए, तो आप सीधे **"Faculty Doubts Desk"** पर शेखर सर से भी पूछ सकते हैं!`,
+        timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, fallbackMsg]);
+    } finally {
       setIsTyping(false);
-    }, 600);
+    }
   };
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-24 md:pb-8">
       {/* Header Banner */}
-      <div className="p-6 rounded-3xl bg-gradient-to-r from-[#0B192C] via-[#046BD2] to-[#1E3E62] text-white shadow-lg space-y-2">
+      <div className="p-6 sm:p-7 rounded-3xl bg-gradient-to-r from-[#0B192C] via-[#046BD2] to-[#1E3E62] text-white shadow-xl space-y-3 relative overflow-hidden">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center font-black text-2xl text-amber-300 shadow-inner">
-              π
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#046BD2] via-indigo-600 to-[#0B192C] text-cyan-300 flex items-center justify-center shadow-lg border border-white/20 flex-shrink-0">
+              <Brain className="w-7 h-7 text-cyan-300 animate-pulse" />
             </div>
             <div>
               <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/10 text-sky-200 text-[11px] font-bold">
                 <Sparkles className="w-3 h-3 text-amber-300" />
-                <span>Aspire Pi AI Study Assistant</span>
+                <span>Neuron AI • Aspire Study Assistant</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse ml-1" />
               </div>
-              <h1 className="text-xl sm:text-2xl font-black">
-                Ask Pi • Instant Doubt & Formula Solver
+              <h1 className="text-xl sm:text-2xl font-black tracking-tight">
+                Neuron AI • Instant Doubt & Formula Solver
               </h1>
             </div>
           </div>
 
-          <Link
-            href="/dashboard/doubts"
-            className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white text-[#046BD2] text-xs font-bold hover:bg-sky-50 transition shadow-sm"
-          >
-            <HelpCircle className="w-3.5 h-3.5" />
-            <span>Faculty Doubts Desk</span>
-          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleClearChat}
+              title="Clear Chat History"
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition text-xs flex items-center gap-1"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span className="hidden sm:inline text-xs font-semibold">Clear</span>
+            </button>
+
+            <Link
+              href="/dashboard/doubts"
+              className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white text-[#046BD2] text-xs font-bold hover:bg-sky-50 transition shadow-sm"
+            >
+              <HelpCircle className="w-3.5 h-3.5" />
+              <span>Faculty Desk</span>
+            </Link>
+          </div>
         </div>
-        <p className="text-xs text-sky-100 max-w-xl">
-          Biology, Physics, Chemistry aur Mathematics ke sawal Hindi ya English me puchein. KaTeX mathematical equations ke sath turant solution payein.
+
+        <p className="text-xs sm:text-sm text-sky-100 max-w-2xl leading-relaxed">
+          Ask Biology, Physics, Chemistry, and Mathematics questions in Hindi, Hinglish, or English.
+          Get instant conceptual explanations with accurate LaTeX &amp; KaTeX formulas.
         </p>
       </div>
 
       {/* Suggested Quick Prompts */}
       <div className="space-y-2">
         <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-          Frequent Bihar Board & NEET Questions:
+          Popular Bihar Board &amp; NEET Topics:
         </span>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
           {FAQ_PROMPTS.map((faq, i) => (
@@ -165,34 +210,60 @@ export default function PiAssistantPage() {
       </div>
 
       {/* Chat Messages Container */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-6 min-h-[380px] flex flex-col justify-between space-y-4">
-        <div className="space-y-4 overflow-y-auto max-h-[520px] pr-1">
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-6 min-h-[420px] flex flex-col justify-between space-y-4">
+        <div className="space-y-4 overflow-y-auto max-h-[560px] pr-1">
           {messages.map((m) => {
-            const isPi = m.sender === 'pi';
+            const isNeuron = m.sender === 'neuron';
 
             return (
               <div
                 key={m.id}
-                className={`flex gap-3 ${isPi ? 'justify-start' : 'justify-end'}`}
+                className={`flex gap-3 ${isNeuron ? 'justify-start' : 'justify-end'}`}
               >
-                {isPi && (
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#046BD2] to-[#0B192C] text-amber-300 font-black text-sm flex items-center justify-center flex-shrink-0 shadow-sm">
-                    π
+                {isNeuron && (
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#046BD2] to-indigo-700 text-cyan-200 flex items-center justify-center flex-shrink-0 shadow-sm border border-blue-400/30">
+                    <Brain className="w-4 h-4 text-cyan-200" />
                   </div>
                 )}
 
                 <div
-                  className={`max-w-[85%] sm:max-w-[75%] p-4 rounded-2xl text-xs sm:text-sm leading-relaxed shadow-sm ${
-                    isPi
+                  className={`max-w-[88%] sm:max-w-[78%] p-4 rounded-2xl text-xs sm:text-sm leading-relaxed shadow-sm relative group ${isNeuron
                       ? 'bg-slate-50 border border-slate-200 text-slate-900 rounded-tl-sm'
                       : 'bg-[#046BD2] text-white rounded-tr-sm'
-                  }`}
-                >
-                  <MathRenderer content={m.text} />
-                  <span
-                    className={`block text-[10px] mt-1.5 text-right ${
-                      isPi ? 'text-slate-400' : 'text-blue-200'
                     }`}
+                >
+                  {isNeuron && (
+                    <div className="flex items-center justify-between pb-1 mb-2 border-b border-slate-200/60">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-[#046BD2] flex items-center gap-1">
+                        <Sparkles className="w-2.5 h-2.5 text-amber-500" />
+                        <span>Neuron AI</span>
+                      </span>
+
+                      <button
+                        onClick={() => handleCopy(m.id, m.text)}
+                        title="Copy solution"
+                        className="text-slate-400 hover:text-slate-700 text-[10px] flex items-center gap-1 transition"
+                      >
+                        {copiedId === m.id ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-600" />
+                            <span className="text-emerald-600 font-bold">Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+
+                  <MathRenderer content={m.text} />
+
+                  <span
+                    className={`block text-[10px] mt-2 text-right ${isNeuron ? 'text-slate-400' : 'text-blue-200'
+                      }`}
                   >
                     {m.timestamp}
                   </span>
@@ -203,17 +274,19 @@ export default function PiAssistantPage() {
 
           {isTyping && (
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-[#046BD2] text-amber-300 font-bold text-sm flex items-center justify-center">
-                π
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#046BD2] to-indigo-700 text-cyan-200 flex items-center justify-center shadow-sm">
+                <Brain className="w-4 h-4 text-cyan-200 animate-spin" />
               </div>
-              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-500 flex items-center gap-2">
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-600 flex items-center gap-2 shadow-sm">
                 <span className="w-2 h-2 rounded-full bg-[#046BD2] animate-bounce" />
-                <span className="w-2 h-2 rounded-full bg-[#046BD2] animate-bounce [animation-delay:0.2s]" />
-                <span className="w-2 h-2 rounded-full bg-[#046BD2] animate-bounce [animation-delay:0.4s]" />
-                <span>Pi is formulating the answer...</span>
+                <span className="w-2 h-2 rounded-full bg-indigo-600 animate-bounce [animation-delay:0.2s]" />
+                <span className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce [animation-delay:0.4s]" />
+                <span className="font-semibold text-slate-700">Neuron AI is formulating the solution...</span>
               </div>
             </div>
           )}
+
+          <div ref={messagesEndRef} />
         </div>
 
         {/* Input Bar */}
@@ -225,30 +298,32 @@ export default function PiAssistantPage() {
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleSend();
             }}
-            placeholder="Type your question or formula (e.g. Mendel dihybrid cross or Coulomb law)..."
-            className="flex-1 px-4 py-3 rounded-2xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:border-[#046BD2] bg-slate-50/50"
+            placeholder="Type your question or formula (e.g. Mendel law, Coulomb force, or say Hello)..."
+            className="flex-1 px-4 py-3 rounded-2xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:border-[#046BD2] bg-slate-50/50 shadow-inner"
           />
 
           <button
             onClick={() => handleSend()}
-            disabled={!inputQuery.trim()}
-            className="p-3 sm:px-5 sm:py-3 rounded-2xl bg-[#046BD2] hover:bg-[#0352A0] text-white text-xs font-bold transition shadow-sm disabled:opacity-40 flex items-center gap-1.5"
+            disabled={!inputQuery.trim() || isTyping}
+            className="p-3 sm:px-5 sm:py-3 rounded-2xl bg-gradient-to-r from-[#046BD2] to-indigo-600 hover:from-[#0352A0] hover:to-indigo-700 text-white text-xs font-bold transition shadow-md disabled:opacity-40 flex items-center gap-1.5"
           >
             <Send className="w-4 h-4" />
-            <span className="hidden sm:inline">Ask Pi</span>
+            <span className="hidden sm:inline">Ask Neuron AI</span>
           </button>
         </div>
       </div>
 
       {/* Escalation to Shekhar Sir Banner */}
-      <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+      <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs shadow-sm">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold">
+          <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black shadow-sm">
             S
           </div>
           <div>
             <span className="font-bold text-indigo-950 block">Need Personalized Faculty Mentoring?</span>
-            <span className="text-slate-600">Submit complex board numericals directly to {settings.lead_faculty || 'Shekhar Sir'} and senior faculty.</span>
+            <span className="text-slate-600">
+              Submit complex board numericals and subjective queries directly to {settings.lead_faculty || 'Shekhar Sir'}.
+            </span>
           </div>
         </div>
 

@@ -9,7 +9,7 @@ import { useSiteSettings } from '@/components/settings/SiteSettingsContext';
 export default function NotFound() {
   const { settings } = useSiteSettings();
 
-  const rawPhone = (settings.whatsapp || settings.phone || '9123456789').replace(/[^0-9]/g, '');
+  const rawPhone = (settings?.whatsapp || settings?.phone || '9123456789').replace(/[^0-9]/g, '');
   const cleanPhone = rawPhone.startsWith('91') ? rawPhone : `91${rawPhone}`;
 
   return (
@@ -52,6 +52,15 @@ export default function NotFound() {
             <span>Browse Courses</span>
           </Link>
         </div>
+
+        <button
+          type="button"
+          onClick={() => typeof window !== 'undefined' && window.history.back()}
+          className="inline-flex items-center justify-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 font-semibold transition py-1 cursor-pointer"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Go back to previous page</span>
+        </button>
 
         {/* Helpdesk link */}
         <div className="pt-4 border-t border-slate-200/80 flex items-center justify-center gap-4 text-xs font-semibold text-slate-500">

@@ -39,7 +39,7 @@ export default function DashboardLayout({
     { label: 'All Classes', href: '/dashboard/classes', icon: PlayCircle },
     { label: 'Live Classes', href: '/dashboard/live', icon: Video },
     { label: 'All Tests', href: '/dashboard/tests', icon: CheckSquare },
-    { label: 'Pi AI Assistant', href: '/dashboard/pi', icon: Sparkles },
+    { label: 'Neuron AI', href: '/dashboard/neuron', icon: Sparkles },
     { label: 'PDF Bank', href: '/dashboard/materials', icon: FileText },
     { label: 'Ask Doubts', href: '/dashboard/doubts', icon: HelpCircle },
     { label: 'Weekly Schedule', href: '/dashboard/schedule', icon: Clock },
@@ -50,6 +50,7 @@ export default function DashboardLayout({
 
   const isActive = (href: string) => {
     if (href === '/dashboard') return pathname === '/dashboard';
+    if (href === '/dashboard/neuron' && (pathname === '/dashboard/neuron' || pathname === '/dashboard/pi')) return true;
     return pathname.startsWith(href);
   };
 

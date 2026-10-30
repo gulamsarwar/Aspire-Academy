@@ -151,6 +151,63 @@ export default function StudentBatchesPage() {
           </Link>
         </div>
       )}
+
+      {/* Available Batches to Join */}
+      {data?.allBatches && data.allBatches.length > 0 && (
+        <div className="pt-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-black text-slate-900 tracking-tight">Available Batches to Join</h2>
+              <p className="text-xs text-slate-500">Pick a schedule and enroll for live classes and mentorship</p>
+            </div>
+            <Link href="/batches" className="text-xs font-bold text-[#046BD2] hover:underline">
+              View All Timetables →
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {data.allBatches.slice(0, 4).map((batch: any) => {
+              const course = (data.allCourses || []).find((c: any) => c.id === batch.course_id);
+              return (
+                <div key={batch.id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3 flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-[#046BD2] bg-blue-50 px-2.5 py-0.5 rounded-lg">
+                        {course?.target_class || 'Academic Batch'}
+                      </span>
+                      <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
+                        Admissions Open
+                      </span>
+                    </div>
+                    <h3 className="font-bold text-slate-900 text-base">{batch.name}</h3>
+                    {course && (
+                      <p className="text-xs text-slate-500 font-medium">
+                        Course: <strong className="text-slate-800">{course.title}</strong>
+                      </p>
+                    )}
+                    <p className="text-xs text-slate-600 flex items-center gap-1.5 pt-1">
+                      <Clock className="w-3.5 h-3.5 text-[#046BD2]" />
+                      <span>{batch.schedule_description}</span>
+                    </p>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-500">
+                      Faculty: <strong>{batch.instructor_name || 'Shekhar Sir'}</strong>
+                    </span>
+                    <Link
+                      href={course?.slug ? `/courses/${course.slug}#enroll` : '/courses'}
+                      className="py-1.5 px-3.5 rounded-xl font-bold text-xs text-white bg-[#046BD2] hover:bg-[#0352A0] transition shadow-sm"
+                    >
+                      Join Batch
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

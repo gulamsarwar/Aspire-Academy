@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import crypto from 'crypto';
-import { isAuthorizedAdminId, isAuthorizedAdminEmail, verifyAdminRequest, verifyAdminToken } from '@/lib/auth/admin';
+import { checkServerAdminAuth } from '@/lib/auth/admin';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { db } from '@/lib/data/mock-db';
 import { Lesson, Module } from '@/lib/types';
@@ -10,28 +9,7 @@ import { Lesson, Module } from '@/lib/types';
 export const dynamic = 'force-dynamic';
 
 async function checkAdminAuth(req: NextRequest): Promise<boolean> {
-  const verified = verifyAdminRequest(req);
-  if (verified.isAuthorized) return true;
-
-  const cookieStore = await cookies();
-  const adminToken = cookieStore.get('aspire_admin_token')?.value;
-  if (adminToken && verifyAdminToken(adminToken).valid) return true;
-
-  const adminCookie = cookieStore.get('aspire_admin_session')?.value;
-  if (adminCookie && adminCookie.length > 5) return true;
-
-  const sessionCookie = cookieStore.get('aspire_session_id')?.value;
-  const candidateId = adminCookie || sessionCookie;
-  if (!candidateId) return false;
-
-  if (isAuthorizedAdminId(candidateId)) return true;
-
-  const candidateProfile = db.getProfileById(candidateId);
-  if (candidateProfile && isAuthorizedAdminEmail(candidateProfile.email)) {
-    return true;
-  }
-
-  return false;
+  return checkServerAdminAuth(req);
 }
 
 // GET: Fetch modules and lessons for a course
@@ -142,6 +120,9 @@ export async function POST(req: NextRequest) {
       title,
       description = '',
       youtube_video_id = '',
+      video_source_type = 'youtube',
+      r2_object_key,
+      video_url,
       duration_minutes = 45,
       material_path,
       material_name,
@@ -162,6 +143,9 @@ export async function POST(req: NextRequest) {
       title: title.trim(),
       description: (description || '').trim(),
       youtube_video_id: (youtube_video_id || '').trim(),
+      video_source_type: video_source_type || 'youtube',
+      r2_object_key: r2_object_key ? String(r2_object_key).trim() : null,
+      video_url: video_url ? String(video_url).trim() : null,
       duration_minutes: Number(duration_minutes) || 45,
       material_path: material_path ? String(material_path).trim() : null,
       material_name: material_name ? String(material_name).trim() : null,
@@ -215,6 +199,9 @@ export async function PUT(req: NextRequest) {
       'title',
       'description',
       'youtube_video_id',
+      'video_source_type',
+      'r2_object_key',
+      'video_url',
       'duration_minutes',
       'material_path',
       'material_name',

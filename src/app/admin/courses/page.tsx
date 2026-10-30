@@ -52,6 +52,7 @@ export default function AdminCoursesPage() {
   const [easyMode, setEasyMode] = useState(true);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [successToast, setSuccessToast] = useState('');
+  const [errorToast, setErrorToast] = useState('');
 
   // Fetch live courses from database on mount
   useEffect(() => {
@@ -121,6 +122,14 @@ export default function AdminCoursesPage() {
   const [editThumbnailR2Key, setEditThumbnailR2Key] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editPublished, setEditPublished] = useState(true);
+
+  // Dedicated Quick-Change Thumbnail Modal State
+  const [thumbModalCourse, setThumbModalCourse] = useState<Course | null>(null);
+  const [modalThumbUrl, setModalThumbUrl] = useState('');
+  const [modalThumbR2Key, setModalThumbR2Key] = useState('');
+  const [modalYoutubeUrl, setModalYoutubeUrl] = useState('');
+  const [isSavingThumbnail, setIsSavingThumbnail] = useState(false);
+  const [editYoutubeUrl, setEditYoutubeUrl] = useState('');
 
   // Detected video IDs
   const detectedNewVideoId = extractYouTubeVideoId(newVideoUrl);
@@ -208,73 +217,23 @@ export default function AdminCoursesPage() {
         }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.course) {
-          created = data.course;
-          hasVideoAdded = Boolean(data.lesson);
-          savedVideoTitle = data.lesson?.title || '';
-        }
-      }
-    } catch (err) {
-      console.error('Failed to create course via API:', err);
-    }
+      const data = await res.json().catch(() => null);
 
-    // Fallback if API was unavailable
-    if (!created) {
-      const slug = newTitle
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '');
-
-      let finalThumbnail = newThumbnail.trim();
-      if (detectedNewVideoId && (!finalThumbnail || finalThumbnail.includes('unsplash.com/photo-1434030216411'))) {
-        finalThumbnail = `https://img.youtube.com/vi/${detectedNewVideoId}/hqdefault.jpg`;
-      }
-      if (!finalThumbnail) {
-        finalThumbnail = 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=1200&q=80';
+      if (!res.ok) {
+        throw new Error(data?.error || `Failed to create course in database (Status: ${res.status}).`);
       }
 
-      created = await addCourseToDatabase({
-        slug,
-        title: newTitle.trim(),
-        subtitle: newSubtitle.trim() || 'Comprehensive Board & Entrance Preparation',
-        description: newDescription.trim() || 'Structured conceptual classes, NCERT line-by-line solutions and chapter tests.',
-        category: newCategory,
-        target_class: newClass,
-        thumbnail_url: finalThumbnail,
-        thumbnail_r2_key: newThumbnailR2Key || undefined,
-        price: Number(newPrice),
-        original_price: Number(newOriginalPrice),
-        currency: 'INR',
-        published: newPublished,
-        featured: false,
-        language: 'Hinglish',
-        duration_weeks: Number(newDuration),
-        instructor_name: newInstructor.trim() || 'Shekhar Sir',
-        instructor_title: 'Senior Faculty',
-        features: ['Full Syllabus Video Lectures', 'NCERT Handwritten Notes', 'Chapter PYQ Bank'],
-      });
-
-      if (detectedNewVideoId) {
-        try {
-          const mod = await addModuleToDatabase(created.id, 'Chapter 1: Foundation & Core Concepts');
-          savedVideoTitle = newLessonTitle.trim() || `${created.title} - Intro & Demo Lecture`;
-          await addLessonToDatabase({
-            module_id: mod.id,
-            title: savedVideoTitle,
-            description: 'Comprehensive introductory lecture, key chapter concepts, and syllabus walkthrough.',
-            youtube_video_id: detectedNewVideoId,
-            duration_minutes: 45,
-            sort_order: 1,
-            is_free_preview: newIsFreePreview,
-            published: true,
-          });
-          hasVideoAdded = true;
-        } catch (err) {
-          console.error('Fallback lesson error:', err);
-        }
+      if (data && data.course) {
+        created = data.course;
+        hasVideoAdded = Boolean(data.lesson);
+        savedVideoTitle = data.lesson?.title || '';
       }
+    } catch (err: any) {
+      console.error('Failed to create course:', err);
+      setErrorToast(err.message || 'Failed to create course in database.');
+      setTimeout(() => setErrorToast(''), 5000);
+      setIsCreatingCourse(false);
+      return;
     }
 
     setIsCreatingCourse(false);
@@ -346,6 +305,61 @@ export default function AdminCoursesPage() {
     setEditThumbnailR2Key(course.thumbnail_r2_key || '');
     setEditDescription(course.description || '');
     setEditPublished(course.published);
+    setEditYoutubeUrl('');
+  };
+
+  const handleOpenThumbnailModal = (course: Course) => {
+    setThumbModalCourse(course);
+    setModalThumbUrl(course.thumbnail_url || '');
+    setModalThumbR2Key(course.thumbnail_r2_key || '');
+    setModalYoutubeUrl('');
+  };
+
+  const handleSaveThumbnailOnly = async (courseId: string, newUrl: string, newKey?: string) => {
+    const cleanUrl = (newUrl || '').trim();
+    if (!cleanUrl) {
+      alert('Please select a preset, paste a valid image URL, or upload a file.');
+      return;
+    }
+    setIsSavingThumbnail(true);
+    try {
+      const res = await fetch('/api/admin/courses', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: courseId,
+          thumbnail_url: cleanUrl,
+          thumbnail_r2_key: newKey || undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to update thumbnail on server.');
+      }
+
+      setCourses((prev) =>
+        prev.map((c) =>
+          c.id === courseId
+            ? { ...c, thumbnail_url: cleanUrl, thumbnail_r2_key: newKey || c.thumbnail_r2_key }
+            : c
+        )
+      );
+
+      // If Edit modal is currently open for this course, sync it
+      if (editingCourse && editingCourse.id === courseId) {
+        setEditThumbnail(cleanUrl);
+        setEditThumbnailR2Key(newKey || '');
+      }
+
+      setThumbModalCourse(null);
+      setSuccessToast('Thumbnail updated and saved successfully! 🎉');
+      setTimeout(() => setSuccessToast(''), 3000);
+    } catch (err: any) {
+      alert(`Error updating thumbnail: ${err.message}`);
+    } finally {
+      setIsSavingThumbnail(false);
+    }
   };
 
   const handleSaveEdit = async (e: React.FormEvent) => {
@@ -382,9 +396,12 @@ export default function AdminCoursesPage() {
         setSuccessToast(`Course "${editTitle}" updated successfully.`);
         setTimeout(() => setSuccessToast(''), 3000);
         return;
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        console.warn('PUT /api/admin/courses failed:', errData);
       }
-    } catch {
-      // fallback
+    } catch (apiErr) {
+      console.warn('Network error during course update:', apiErr);
     }
 
     const updated = await updateCourseInDatabase(editingCourse.id, payload);
@@ -475,6 +492,13 @@ export default function AdminCoursesPage() {
         </div>
       )}
 
+      {errorToast && (
+        <div className="p-4 rounded-2xl bg-rose-50 border-2 border-rose-500/30 text-rose-900 text-xs sm:text-sm font-bold flex items-center gap-2.5 shadow-sm animate-in fade-in duration-200">
+          <XCircle className="w-5 h-5 text-rose-600 flex-shrink-0" />
+          <span>{errorToast}</span>
+        </div>
+      )}
+
       {/* 📱 MOBILE COURSE CARDS VIEW (Visible on mobile screens < 768px for supreme touch experience) */}
       <div className="md:hidden space-y-4">
         <div className="flex items-center justify-between px-1">
@@ -496,11 +520,23 @@ export default function AdminCoursesPage() {
             >
               {/* Top Row: Thumbnail + Info */}
               <div className="flex items-start gap-3">
-                <img
-                  src={course.thumbnail_url}
-                  alt={course.title}
-                  className="w-16 h-16 rounded-2xl object-cover flex-shrink-0 border border-slate-200 bg-slate-100"
-                />
+                <div
+                  className="relative group/thumb cursor-pointer flex-shrink-0"
+                  onClick={() => handleOpenThumbnailModal(course)}
+                  title="Click to change thumbnail"
+                >
+                  <img
+                    src={course.thumbnail_url}
+                    alt={course.title}
+                    className="w-16 h-16 rounded-2xl object-cover border border-slate-200 bg-slate-100 group-hover/thumb:opacity-85 transition"
+                  />
+                  <div className="absolute inset-0 bg-black/40 rounded-2xl opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center transition text-white">
+                    <ImageIcon className="w-5 h-5" />
+                  </div>
+                  <span className="absolute -bottom-1 -right-1 bg-[#046BD2] text-white p-1 rounded-full shadow-xs">
+                    <Edit className="w-2.5 h-2.5" />
+                  </span>
+                </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-50 text-[#046BD2]">
@@ -570,21 +606,29 @@ export default function AdminCoursesPage() {
                 </Link>
 
                 {/* 2. Secondary Actions Row */}
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+                  <button
+                    onClick={() => handleOpenThumbnailModal(course)}
+                    className="flex items-center justify-center gap-1 py-2 px-2 rounded-xl font-bold text-xs bg-blue-50 text-[#046BD2] hover:bg-blue-100 transition"
+                  >
+                    <ImageIcon className="w-3.5 h-3.5" />
+                    <span>Thumbnail</span>
+                  </button>
+
                   <Link
                     href={`/admin/batches?courseId=${course.id}`}
-                    className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl font-bold text-xs bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
+                    className="flex items-center justify-center gap-1 py-2 px-2 rounded-xl font-bold text-xs bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
                   >
                     <Users className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Batches ({batches.length})</span>
+                    <span>Batches</span>
                   </Link>
 
                   <button
                     onClick={() => handleOpenEdit(course)}
-                    className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl font-bold text-xs bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
+                    className="flex items-center justify-center gap-1 py-2 px-2 rounded-xl font-bold text-xs bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
                   >
                     <Edit className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Edit Details</span>
+                    <span>Edit</span>
                   </button>
                 </div>
               </div>
@@ -642,11 +686,23 @@ export default function AdminCoursesPage() {
                   <tr key={course.id} className="hover:bg-slate-50 transition">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <img
-                          src={course.thumbnail_url}
-                          alt={course.title}
-                          className="w-11 h-11 rounded-xl object-cover flex-shrink-0 border border-slate-200 bg-slate-100"
-                        />
+                        <div
+                          className="relative group/thumb cursor-pointer flex-shrink-0"
+                          onClick={() => handleOpenThumbnailModal(course)}
+                          title="Click to change course thumbnail"
+                        >
+                          <img
+                            src={course.thumbnail_url}
+                            alt={course.title}
+                            className="w-11 h-11 rounded-xl object-cover border border-slate-200 bg-slate-100 group-hover/thumb:opacity-85 transition"
+                          />
+                          <div className="absolute inset-0 bg-black/40 rounded-xl opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center transition text-white">
+                            <ImageIcon className="w-4 h-4" />
+                          </div>
+                          <span className="absolute -bottom-1 -right-1 bg-[#046BD2] text-white p-0.5 rounded-full shadow-xs">
+                            <Edit className="w-2 h-2" />
+                          </span>
+                        </div>
                         <div className="space-y-0.5 min-w-0">
                           <h4 className="font-bold text-slate-900 text-xs sm:text-sm max-w-[200px] lg:max-w-xs truncate" title={course.title}>
                             {course.title}
@@ -722,7 +778,17 @@ export default function AdminCoursesPage() {
                           <span>Lessons</span>
                         </Link>
 
-                        {/* 2. Manage Batches */}
+                        {/* 2. Change Thumbnail */}
+                        <button
+                          onClick={() => handleOpenThumbnailModal(course)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-blue-50 text-[#046BD2] hover:bg-blue-100 transition"
+                          title="Change course thumbnail image"
+                        >
+                          <ImageIcon className="w-3.5 h-3.5" />
+                          <span>Thumbnail</span>
+                        </button>
+
+                        {/* 3. Manage Batches */}
                         <Link
                           href={`/admin/batches?courseId=${course.id}`}
                           className="inline-flex items-center gap-1 px-2 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
@@ -732,7 +798,7 @@ export default function AdminCoursesPage() {
                           <span>Batches</span>
                         </Link>
 
-                        {/* 3. Edit Course */}
+                        {/* 4. Edit Course */}
                         <button
                           onClick={() => handleOpenEdit(course)}
                           className="inline-flex items-center gap-1 px-2 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
@@ -1612,9 +1678,12 @@ export default function AdminCoursesPage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-3 p-3.5 bg-slate-50/90 rounded-2xl border border-slate-200">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-700">Thumbnail URL</label>
+                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <ImageIcon className="w-4 h-4 text-[#046BD2]" />
+                    <span>Course Thumbnail Image</span>
+                  </label>
                   <button
                     type="button"
                     onClick={() => handlePasteToField(setEditThumbnail, 'Thumbnail URL')}
@@ -1624,6 +1693,76 @@ export default function AdminCoursesPage() {
                     <span>Paste URL</span>
                   </button>
                 </div>
+
+                {/* 1-Click Subject Presets */}
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                    Quick Preset Thumbnails:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {PRESET_THUMBNAILS.map((preset) => (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() => {
+                          setEditThumbnail(preset.url);
+                          setEditThumbnailR2Key('');
+                          setSuccessToast(`Selected ${preset.label} thumbnail!`);
+                          setTimeout(() => setSuccessToast(''), 2500);
+                        }}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition border ${
+                          editThumbnail === preset.url
+                            ? 'bg-[#046BD2] text-white border-[#046BD2] shadow-xs'
+                            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        <span>{preset.icon}</span>
+                        <span>{preset.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* YouTube Link Extractor */}
+                <div className="space-y-1 pt-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      placeholder="Paste YouTube Video URL to extract thumbnail..."
+                      value={editYoutubeUrl}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setEditYoutubeUrl(val);
+                        const ytId = extractYouTubeVideoId(val);
+                        if (ytId) {
+                          setEditThumbnail(`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`);
+                          setEditThumbnailR2Key('');
+                          setSuccessToast('Extracted YouTube Thumbnail! 🎬');
+                          setTimeout(() => setSuccessToast(''), 2500);
+                        }
+                      }}
+                      className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 text-xs bg-white"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const ytId = extractYouTubeVideoId(editYoutubeUrl);
+                        if (ytId) {
+                          setEditThumbnail(`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`);
+                          setEditThumbnailR2Key('');
+                          setSuccessToast('Extracted YouTube Thumbnail! 🎬');
+                          setTimeout(() => setSuccessToast(''), 2500);
+                        } else {
+                          alert('Please enter a valid YouTube video URL or ID.');
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition"
+                    >
+                      Extract
+                    </button>
+                  </div>
+                </div>
+
                 {/* Supabase Storage / Cloudflare R2 Image Upload for Edit Modal */}
                 <R2MediaUpload
                   type="thumbnail"
@@ -1632,26 +1771,45 @@ export default function AdminCoursesPage() {
                   onSuccess={({ key, url }) => {
                     setEditThumbnail(url);
                     setEditThumbnailR2Key(key);
-                    setSuccessToast('Thumbnail updated successfully!');
+                    setSuccessToast('Thumbnail uploaded and applied! Click "Save Changes" below.');
                     setTimeout(() => setSuccessToast(''), 3000);
                   }}
                 />
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 pt-1">
                   <input
                     type="text"
                     value={editThumbnail}
+                    placeholder="https://... image URL"
                     onChange={(e) => setEditThumbnail(e.target.value)}
-                    className="flex-1 px-3.5 py-2 rounded-xl border border-slate-200 text-xs"
+                    className="flex-1 px-3.5 py-2 rounded-xl border border-slate-200 text-xs bg-white font-mono"
                   />
                   {editThumbnail && (
                     <img
                       src={editThumbnail}
-                      alt=""
-                      className="w-10 h-8 rounded-lg object-cover border border-slate-200 flex-shrink-0"
+                      alt="Thumbnail Preview"
+                      className="w-14 h-10 rounded-lg object-cover border border-slate-200 flex-shrink-0 shadow-xs"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=1200&q=80';
+                      }}
                     />
                   )}
                 </div>
+
+                {/* Direct Save Thumbnail Button */}
+                {editingCourse && (
+                  <div className="flex justify-end pt-1">
+                    <button
+                      type="button"
+                      disabled={isSavingThumbnail}
+                      onClick={() => handleSaveThumbnailOnly(editingCourse.id, editThumbnail, editThumbnailR2Key)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition disabled:opacity-50"
+                    >
+                      {isSavingThumbnail ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                      <span>Save Thumbnail Directly to Database</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -1694,6 +1852,214 @@ export default function AdminCoursesPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 🖼️ DEDICATED QUICK-CHANGE THUMBNAIL MODAL */}
+      {thumbModalCourse && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full max-h-[92vh] overflow-y-auto shadow-2xl border border-slate-100 flex flex-col animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur-md z-10">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-blue-50 text-[#046BD2] flex items-center justify-center font-bold">
+                  <ImageIcon className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-sm sm:text-base leading-tight">
+                    Change Course Thumbnail
+                  </h3>
+                  <p className="text-[11px] text-slate-500 truncate max-w-xs sm:max-w-sm">
+                    {thumbModalCourse.title}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setThumbModalCourse(null)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 sm:p-5 space-y-4 flex-1">
+              {/* Current / Active Preview */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">Preview</label>
+                <div className="relative aspect-[16/9] w-full rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 shadow-sm">
+                  {modalThumbUrl ? (
+                    <img
+                      src={modalThumbUrl}
+                      alt="Thumbnail Preview"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src =
+                          'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=1200&q=80';
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 text-xs gap-1">
+                      <ImageIcon className="w-8 h-8 opacity-40" />
+                      <span>No thumbnail selected</span>
+                    </div>
+                  )}
+                  <div className="absolute bottom-2 left-2 right-2 px-2.5 py-1 rounded-xl bg-black/60 backdrop-blur-md text-white text-[11px] font-medium flex items-center justify-between">
+                    <span className="truncate max-w-[240px] font-mono text-[10px]">
+                      {modalThumbUrl || 'Default Aspire Academy'}
+                    </span>
+                    <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">
+                      Live Preview
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Option 1: Quick Subject Presets */}
+              <div className="space-y-2 p-3 bg-slate-50 rounded-2xl border border-slate-200/80">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800">
+                    Option 1: Choose Subject Preset (1-Click)
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-medium">Instant High-Res</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                  {PRESET_THUMBNAILS.map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => {
+                        setModalThumbUrl(preset.url);
+                        setModalThumbR2Key('');
+                        setSuccessToast(`Selected ${preset.label} preset!`);
+                        setTimeout(() => setSuccessToast(''), 2500);
+                      }}
+                      className={`flex items-center gap-1.5 p-2 rounded-xl text-xs font-bold transition border text-left ${
+                        modalThumbUrl === preset.url
+                          ? 'bg-[#046BD2] text-white border-[#046BD2] shadow-xs'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
+                      }`}
+                    >
+                      <span className="text-base">{preset.icon}</span>
+                      <span className="truncate">{preset.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Option 2: Upload Image File (Supabase / Local) */}
+              <div className="space-y-1.5 p-3 bg-slate-50 rounded-2xl border border-slate-200/80">
+                <span className="text-xs font-bold text-slate-800 block">
+                  Option 2: Upload File From Device
+                </span>
+                <R2MediaUpload
+                  type="thumbnail"
+                  resourceId={thumbModalCourse.id}
+                  currentValue={modalThumbUrl}
+                  onSuccess={({ key, url }) => {
+                    setModalThumbUrl(url);
+                    setModalThumbR2Key(key);
+                    setSuccessToast('Thumbnail uploaded! Click "Save & Update Thumbnail" below.');
+                    setTimeout(() => setSuccessToast(''), 3000);
+                  }}
+                />
+              </div>
+
+              {/* Option 3: Extract from YouTube Video */}
+              <div className="space-y-1.5 p-3 bg-slate-50 rounded-2xl border border-slate-200/80">
+                <span className="text-xs font-bold text-slate-800 block">
+                  Option 3: Extract from YouTube Lecture Link
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    value={modalYoutubeUrl}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setModalYoutubeUrl(val);
+                      const ytId = extractYouTubeVideoId(val);
+                      if (ytId) {
+                        setModalThumbUrl(`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`);
+                        setModalThumbR2Key('');
+                        setSuccessToast('Extracted YouTube Thumbnail! 🎬');
+                        setTimeout(() => setSuccessToast(''), 2500);
+                      }
+                    }}
+                    className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const ytId = extractYouTubeVideoId(modalYoutubeUrl);
+                      if (ytId) {
+                        setModalThumbUrl(`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`);
+                        setModalThumbR2Key('');
+                        setSuccessToast('Extracted YouTube Thumbnail! 🎬');
+                        setTimeout(() => setSuccessToast(''), 2500);
+                      } else {
+                        alert('Please enter a valid YouTube video URL or ID.');
+                      }
+                    }}
+                    className="px-3 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition whitespace-nowrap"
+                  >
+                    Extract
+                  </button>
+                </div>
+              </div>
+
+              {/* Option 4: Paste Custom Image URL */}
+              <div className="space-y-1.5 p-3 bg-slate-50 rounded-2xl border border-slate-200/80">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800">
+                    Option 4: Custom Image Link
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handlePasteToField(setModalThumbUrl, 'Custom Thumbnail URL')}
+                    className="text-[11px] font-bold text-[#046BD2] hover:underline flex items-center gap-1"
+                  >
+                    <ClipboardPaste className="w-3 h-3" />
+                    <span>Paste Link</span>
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  placeholder="https://images.unsplash.com/... or any public image URL"
+                  value={modalThumbUrl}
+                  onChange={(e) => setModalThumbUrl(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs bg-white font-mono"
+                />
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 sm:p-5 border-t border-slate-100 flex items-center justify-between sticky bottom-0 bg-white z-10 gap-2">
+              <button
+                type="button"
+                onClick={() => setThumbModalCourse(null)}
+                className="px-4 py-2 rounded-xl font-bold text-xs text-slate-600 hover:bg-slate-100 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSavingThumbnail || !modalThumbUrl}
+                onClick={() =>
+                  handleSaveThumbnailOnly(thumbModalCourse.id, modalThumbUrl, modalThumbR2Key)
+                }
+                className="px-5 py-2.5 rounded-xl font-black text-xs text-white bg-[#046BD2] hover:bg-[#0352A0] disabled:opacity-50 transition shadow-md shadow-blue-500/20 flex items-center gap-2 cursor-pointer"
+              >
+                {isSavingThumbnail ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Check className="w-4 h-4" />
+                )}
+                <span>Save & Apply Thumbnail</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

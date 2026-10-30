@@ -25,6 +25,7 @@ import {
   Upload,
   Paperclip,
   Sparkles,
+  Loader2,
 } from 'lucide-react';
 
 import { extractYouTubeVideoId } from '@/lib/youtube';

@@ -25,6 +25,11 @@ const nextConfig: NextConfig = {
         hostname: "i.ytimg.com",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "img.youtube.com",
+        pathname: "/**",
+      },
     ],
   },
   async headers() {
@@ -61,9 +66,6 @@ const nextConfig: NextConfig = {
         ],
       },
     ];
-  },
-  typescript: {
-    ignoreBuildErrors: true,
   },
   turbopack: {
     rules: {

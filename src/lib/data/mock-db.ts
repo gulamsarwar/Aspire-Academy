@@ -861,6 +861,19 @@ class MockDatabase {
     return this.batches.find((b) => b.id === id);
   }
 
+  getProfileById(id: string): Profile | null {
+    if (!id || !id.trim()) return null;
+    const norm = normalizeStudentId(id);
+    return (
+      this.profiles.find(
+        (p) =>
+          p.id === id ||
+          normalizeStudentId(p.id) === norm ||
+          p.email?.toLowerCase() === id.toLowerCase()
+      ) || null
+    );
+  }
+
   // Modules & Lessons
   getCurriculumForCourse(courseId: string) {
     const courseModules = this.modules
@@ -1210,6 +1223,19 @@ class MockDatabase {
     if (!course) return null;
     Object.assign(course, updates, { updated_at: new Date().toISOString() });
     return course;
+  }
+
+  deleteCourse(id: string): boolean {
+    const idx = this.courses.findIndex((c) => c.id === id);
+    if (idx >= 0) {
+      this.courses.splice(idx, 1);
+      this.batches = this.batches.filter((b) => b.course_id !== id);
+      const moduleIds = new Set(this.modules.filter((m) => m.course_id === id).map((m) => m.id));
+      this.modules = this.modules.filter((m) => m.course_id !== id);
+      this.lessons = this.lessons.filter((l) => !moduleIds.has(l.module_id));
+      return true;
+    }
+    return false;
   }
 
   addBatch(batchData: Omit<Batch, 'id' | 'enrolled_count' | 'created_at'>) {

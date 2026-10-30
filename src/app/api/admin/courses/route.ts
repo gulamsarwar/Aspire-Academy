@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import crypto from 'crypto';
-import { isAuthorizedAdminId, isAuthorizedAdminEmail, verifyAdminRequest } from '@/lib/auth/admin';
+import { checkServerAdminAuth } from '@/lib/auth/admin';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { db } from '@/lib/data/mock-db';
 import { extractYouTubeVideoId } from '@/lib/youtube';
@@ -11,28 +10,7 @@ import { Course } from '@/lib/types';
 export const dynamic = 'force-dynamic';
 
 async function checkAdminAuth(req: NextRequest): Promise<boolean> {
-  const verified = verifyAdminRequest(req);
-  if (verified.isAuthorized) return true;
-
-  const cookieStore = await cookies();
-  const adminCookie = cookieStore.get('aspire_admin_session')?.value;
-  const adminToken = cookieStore.get('aspire_admin_token')?.value;
-  const sessionCookie = cookieStore.get('aspire_session_id')?.value;
-
-  if (adminCookie && adminCookie.length > 5) return true;
-  if (adminToken && adminToken.length > 10) return true;
-
-  const candidateId = adminCookie || sessionCookie;
-  if (!candidateId) return false;
-
-  if (isAuthorizedAdminId(candidateId)) return true;
-
-  const candidateProfile = db.getProfileById(candidateId);
-  if (candidateProfile && isAuthorizedAdminEmail(candidateProfile.email)) {
-    return true;
-  }
-
-  return false;
+  return checkServerAdminAuth(req);
 }
 
 // GET: Fetch all courses for Admin
@@ -274,7 +252,7 @@ export async function PUT(req: NextRequest) {
     // Sanitize updates to allowed table columns
     const allowedCols = [
       'title', 'subtitle', 'description', 'category', 'target_class',
-      'thumbnail_url', 'price', 'original_price', 'currency', 'published',
+      'thumbnail_url', 'thumbnail_r2_key', 'price', 'original_price', 'currency', 'published',
       'featured', 'language', 'duration_weeks', 'instructor_name',
       'instructor_title', 'instructor_avatar', 'features', 'updated_at', 'slug'
     ];
@@ -300,7 +278,13 @@ export async function PUT(req: NextRequest) {
     try {
       revalidatePath('/');
       revalidatePath('/courses');
+      const targetCourse = db.getCourseById(id);
+      if (targetCourse?.slug) {
+        revalidatePath(`/courses/${targetCourse.slug}`);
+      }
+      revalidatePath('/dashboard');
       revalidatePath('/dashboard/courses');
+      revalidatePath('/batches');
     } catch {
       // ignore
     }
@@ -359,8 +343,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     // Remove from in-memory DB
-    db.courses = db.courses.filter((c) => c.id !== courseId);
-    db.batches = db.batches.filter((b) => b.course_id !== courseId);
+    db.deleteCourse(courseId);
 
     try {
       revalidatePath('/');

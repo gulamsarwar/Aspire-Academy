@@ -40,6 +40,7 @@ export interface Course {
   total_lectures?: number;
   created_at: string;
   updated_at: string;
+  modules?: Module[];
 }
 
 export interface Batch {

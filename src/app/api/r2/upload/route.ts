@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { isAuthorizedAdminId, verifyAdminRequest } from '@/lib/auth/admin';
+import { checkServerAdminAuth } from '@/lib/auth/admin';
+import { db } from '@/lib/data/mock-db';
+import { createAdminClient } from '@/lib/supabase/admin';
 import {
   getR2Diagnostic,
   createPresignedUploadUrl,
@@ -10,17 +11,7 @@ import {
 export const dynamic = 'force-dynamic';
 
 async function checkAdminAuth(req: NextRequest): Promise<boolean> {
-  const verified = verifyAdminRequest(req);
-  if (verified.isAuthorized) return true;
-
-  const cookieStore = await cookies();
-  const adminCookie = cookieStore.get('aspire_admin_session')?.value;
-  const sessionCookie = cookieStore.get('aspire_session_id')?.value;
-
-  const candidateId = adminCookie || sessionCookie;
-  if (!candidateId) return false;
-
-  return isAuthorizedAdminId(candidateId);
+  return checkServerAdminAuth(req);
 }
 
 export async function POST(req: NextRequest) {

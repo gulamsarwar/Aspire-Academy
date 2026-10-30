@@ -31,6 +31,9 @@ function normalizeMathText(text: string): string {
     .replace(/([A-Za-z])₂/g, '$1_2')
     .replace(/([A-Za-z])₃/g, '$1_3')
     .replace(/([A-Za-z])₄/g, '$1_4')
+    // Convert standard LaTeX bracket delimiters \[ \] and \( \) to $$ and $
+    .replace(/\\\[([\s\S]*?)\\\]/g, '$$$$$1$$$$')
+    .replace(/\\\(([\s\S]*?)\\\)/g, '$$$1$$')
     // Greek and symbol replacements
     .replace(/±/g, '\\pm ')
     .replace(/≤/g, '\\le ')

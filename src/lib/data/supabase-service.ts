@@ -179,6 +179,23 @@ export async function getCourses(): Promise<Course[]> {
       }
     }
   }
+
+  // If in browser and direct Supabase query returned nothing or failed, try server API
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch('/api/admin/courses');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.courses && Array.isArray(json.courses) && json.courses.length > 0) {
+          db.courses = json.courses as Course[];
+          return json.courses as Course[];
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   return db.courses;
 }
 
@@ -263,7 +280,7 @@ export async function updateCourseInDatabase(id: string, updates: Partial<Course
         const sanitized: Record<string, any> = {};
         const allowedColumns = [
           'title', 'subtitle', 'description', 'category', 'target_class',
-          'thumbnail_url', 'price', 'original_price', 'published', 'featured',
+          'thumbnail_url', 'thumbnail_r2_key', 'price', 'original_price', 'published', 'featured',
           'instructor_name', 'duration_weeks'
         ];
         for (const col of allowedColumns) {
@@ -464,6 +481,45 @@ export async function addBatchToDatabase(
     }
   }
   return created;
+}
+
+export async function getAllBatchesFromDatabase(): Promise<Batch[]> {
+  if (isSupabaseConfigured()) {
+    const client = createAdminClient() || createClient();
+    if (client) {
+      try {
+        const { data, error } = await client
+          .from('batches')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!error && data && data.length > 0) {
+          db.batches = data as Batch[];
+          return data as Batch[];
+        }
+      } catch {
+        // Fallback to local
+      }
+    }
+  }
+
+  // If in browser, try server batches API
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch('/api/admin/batches');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.batches && Array.isArray(json.batches) && json.batches.length > 0) {
+          db.batches = json.batches as Batch[];
+          return json.batches as Batch[];
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return db.batches;
 }
 
 export async function getBatchesForCourseFromDatabase(courseId: string): Promise<Batch[]> {

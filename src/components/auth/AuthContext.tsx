@@ -17,6 +17,7 @@ import {
   normalizeIndianPhoneNumber,
   formatSupabasePhoneError,
 } from '@/lib/auth/phone';
+import { CONFIG } from '@/lib/config';
 
 interface AuthContextType {
   user: Profile | null;
@@ -71,6 +72,15 @@ const AuthContext = createContext<AuthContextType>({
   registerWithPhonePassword: async () => ({ user: null, session: null }),
   resetPasswordWithPhoneOtp: async () => {},
 });
+
+function syncAuthCookies(canonicalId: string, isAdmin: boolean) {
+  if (typeof document !== 'undefined') {
+    document.cookie = `aspire_session_id=${canonicalId}; path=/; max-age=2592000; SameSite=Lax;`;
+    if (isAdmin) {
+      document.cookie = `aspire_admin_session=${canonicalId}; path=/; max-age=604800; SameSite=Lax;`;
+    }
+  }
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<Profile | null>(() => {
@@ -156,9 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setRole(isAdmin ? 'admin' : 'student');
               localStorage.setItem('aspire_user', JSON.stringify(canonical));
               localStorage.setItem('aspire_role', isAdmin ? 'admin' : 'student');
-              if (typeof document !== 'undefined') {
-                document.cookie = `aspire_session_id=${canonical.id}; path=/; max-age=2592000; SameSite=Lax;`;
-              }
+              syncAuthCookies(canonical.id, isAdmin);
             }
           });
           unsubscribe = () => subscription.unsubscribe();
@@ -186,9 +194,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setRole(isAdmin ? 'admin' : 'student');
             localStorage.setItem('aspire_user', JSON.stringify(canonical));
             localStorage.setItem('aspire_role', isAdmin ? 'admin' : 'student');
-            if (typeof document !== 'undefined') {
-              document.cookie = `aspire_session_id=${canonical.id}; path=/; max-age=2592000; SameSite=Lax;`;
-            }
+            syncAuthCookies(canonical.id, isAdmin);
             setIsAuthReady(true);
             return;
           }
@@ -275,9 +281,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsAuthReady(true);
     localStorage.setItem('aspire_user', JSON.stringify(adminProfile));
     localStorage.setItem('aspire_role', 'admin');
-    if (typeof document !== 'undefined') {
-      document.cookie = `aspire_admin_session=${adminProfile.id}; path=/; max-age=604800; SameSite=Lax;`;
-    }
+    syncAuthCookies(adminProfile.id, true);
   };
 
   const customLogin = (email: string, fullName: string, newRole: UserRoleType, phone?: string) => {
@@ -286,6 +290,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const effectiveRole: UserRoleType = newRole === 'admin' && isAdmin ? 'admin' : 'student';
 
     const profile = db.resolveOrCreateProfile({
+      id: isAdmin ? CANONICAL_ADMIN_ID : undefined,
       email: cleanEmail,
       fullName,
       phone,
@@ -296,10 +301,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsAuthReady(true);
     localStorage.setItem('aspire_user', JSON.stringify(profile));
     localStorage.setItem('aspire_role', effectiveRole);
-
-    if (typeof document !== 'undefined') {
-      document.cookie = `aspire_session_id=${profile.id}; path=/; max-age=2592000; SameSite=Lax;`;
-    }
+    syncAuthCookies(profile.id, effectiveRole === 'admin');
   };
 
   // Official Google OAuth integration with Supabase
@@ -485,9 +487,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setRole(isAdmin ? 'admin' : 'student');
           localStorage.setItem('aspire_user', JSON.stringify(canonical));
           localStorage.setItem('aspire_role', isAdmin ? 'admin' : 'student');
-          if (typeof document !== 'undefined') {
-            document.cookie = `aspire_session_id=${canonical.id}; path=/; max-age=2592000; SameSite=Lax;`;
-          }
+          syncAuthCookies(canonical.id, isAdmin);
           return;
         }
       }
