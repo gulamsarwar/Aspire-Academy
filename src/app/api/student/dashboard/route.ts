@@ -58,27 +58,56 @@ export async function GET(req: NextRequest) {
       isAccessible: enrolledCourseIds.has(lc.course_id),
     }));
 
-    // 4. Authorized Study Materials
-    const materials = db.lessons
-      .filter((l) => l.material_path)
-      .map((lesson) => {
-        const module = db.modules.find((m) => m.id === lesson.module_id);
-        const course = db.getCourseById(module?.course_id || '');
-        const isAccessible =
-          enrolledCourseIds.has(course?.id || '') || lesson.is_free_preview;
+    // 4. Authorized Study Materials from live Supabase database
+    const { createAdminClient } = await import('@/lib/supabase/admin');
+    const admin = createAdminClient();
+    let lessonsWithNotes: any[] = db.lessons.filter((l) => l.material_path);
+    let allModules: any[] = db.modules;
+    let allCourses: any[] = db.courses;
 
-        return {
-          id: lesson.id,
-          lessonTitle: lesson.title,
-          materialName: lesson.material_name || `${lesson.title} Notes`,
-          materialPath: lesson.material_path,
-          courseId: course?.id,
-          courseTitle: course?.title,
-          courseCategory: course?.category,
-          isAccessible,
-          isFreePreview: lesson.is_free_preview,
-        };
-      });
+    if (admin) {
+      try {
+        const [lRes, mRes, cRes] = await Promise.all([
+          admin.from('lessons').select('*').not('material_path', 'is', null),
+          admin.from('modules').select('*'),
+          admin.from('courses').select('*'),
+        ]);
+
+        if (lRes.data && lRes.data.length > 0) {
+          lessonsWithNotes = lRes.data;
+        }
+        if (mRes.data && mRes.data.length > 0) {
+          allModules = mRes.data;
+        }
+        if (cRes.data && cRes.data.length > 0) {
+          allCourses = cRes.data;
+        }
+      } catch (err) {
+        console.warn('Dashboard live notes fetch notice:', err);
+      }
+    }
+
+    const courseMap = new Map(allCourses.map((c) => [c.id, c]));
+    const moduleMap = new Map(allModules.map((m) => [m.id, m]));
+
+    const materials = lessonsWithNotes.map((lesson) => {
+      const parentMod = moduleMap.get(lesson.module_id);
+      const parentCourse = parentMod ? courseMap.get(parentMod.course_id) : null;
+      const isAccessible =
+        enrolledCourseIds.has(parentCourse?.id || '') || Boolean(lesson.is_free_preview);
+
+      return {
+        id: lesson.id,
+        lessonTitle: lesson.title,
+        materialName: lesson.material_name || `${lesson.title} Notes`,
+        materialPath: lesson.material_path,
+        courseId: parentCourse?.id,
+        courseTitle: parentCourse?.title,
+        courseCategory: parentCourse?.category,
+        isAccessible,
+        isFreePreview: Boolean(lesson.is_free_preview),
+      };
+    });
 
     // 5. Course Learning Progress
     const progressList = enrollments.map((enr) => {

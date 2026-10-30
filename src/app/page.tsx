@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { db } from '@/lib/data/mock-db';
+import { getCourses } from '@/lib/data/supabase-service';
+import { Course } from '@/lib/types';
 import { useSiteSettings } from '@/components/settings/SiteSettingsContext';
 import { CourseCard } from '@/components/ui/CourseCard';
 import { TypewriterHeadline } from '@/components/home/TypewriterHeadline';
@@ -34,7 +36,35 @@ import {
 
 export default function HomePage() {
   const { settings } = useSiteSettings();
-  const allCourses = db.getCourses(true);
+  const [coursesList, setCoursesList] = useState<Course[]>(() => db.getCourses(true));
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadLiveCourses() {
+      try {
+        const live = await getCourses();
+        if (isMounted && live && live.length > 0) {
+          setCoursesList(live.filter((c) => Boolean(c.published)));
+          return;
+        }
+        // Direct server API fallback
+        const res = await fetch('/api/admin/courses');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.courses && Array.isArray(json.courses) && isMounted) {
+            setCoursesList(json.courses.filter((c: Course) => Boolean(c.published)));
+          }
+        }
+      } catch (err) {
+        console.warn('Could not load live courses on home page:', err);
+      }
+    }
+    loadLiveCourses();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const liveClasses = db.liveClasses.filter((lc) => lc.status === 'scheduled');
   const upcomingLive = liveClasses[0];
 
@@ -50,21 +80,21 @@ export default function HomePage() {
 
   const displayedCourses = useMemo(() => {
     if (selectedGoal === '12th') {
-      return allCourses.filter((c) => c.target_class === 'Class 12');
+      return coursesList.filter((c) => c.target_class === 'Class 12');
     }
     if (selectedGoal === '10th') {
-      return allCourses.filter((c) => c.target_class === 'Class 10');
+      return coursesList.filter((c) => c.target_class === 'Class 10');
     }
     if (selectedGoal === 'neet') {
-      return allCourses.filter(
+      return coursesList.filter(
         (c) =>
           c.category.toLowerCase().includes('neet') ||
           c.title.toLowerCase().includes('biology') ||
           c.slug.includes('biology')
       );
     }
-    return allCourses;
-  }, [allCourses, selectedGoal]);
+    return coursesList;
+  }, [coursesList, selectedGoal]);
 
   const rawPhone = (settings.whatsapp || settings.phone || '919123456789').replace(/[^0-9]/g, '');
   const cleanNumber = rawPhone.startsWith('91') ? rawPhone : `91${rawPhone}`;

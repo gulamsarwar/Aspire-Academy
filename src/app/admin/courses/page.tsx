@@ -49,6 +49,7 @@ const PRESET_THUMBNAILS = [
 export default function AdminCoursesPage() {
   const [courses, setCourses] = useState<Course[]>([...db.courses]);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [easyMode, setEasyMode] = useState(true);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [successToast, setSuccessToast] = useState('');
 
@@ -279,8 +280,22 @@ export default function AdminCoursesPage() {
     setIsCreatingCourse(false);
 
     if (created) {
-      setCourses((prev) => [created!, ...prev]);
+      setCourses((prev) => [created!, ...prev.filter((c) => c.id !== created!.id)]);
       setShowAddModal(false);
+
+      // Refresh live courses from server API immediately
+      try {
+        fetch('/api/admin/courses')
+          .then((r) => r.ok ? r.json() : null)
+          .then((rData) => {
+            if (rData?.courses && Array.isArray(rData.courses)) {
+              setCourses(rData.courses);
+            }
+          })
+          .catch(() => {});
+      } catch {
+        // ignore
+      }
 
       // Reset Form Fields
       setNewTitle('');
@@ -775,9 +790,14 @@ export default function AdminCoursesPage() {
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <h3 className="text-lg sm:text-xl font-black text-slate-900">Create New Course</h3>
+                <h3 className="text-lg sm:text-xl font-black text-slate-900 flex items-center gap-2">
+                  <span>Create New Course</span>
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    Auto-Sync
+                  </span>
+                </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Enter details and paste your introductory video lecture link below.
+                  Publish courses and video lectures directly to the website & student login.
                 </p>
               </div>
               <button
@@ -788,9 +808,255 @@ export default function AdminCoursesPage() {
               </button>
             </div>
 
+            {/* Easy Mode vs Advanced Mode Switcher */}
+            <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-2xl">
+              <button
+                type="button"
+                onClick={() => setEasyMode(true)}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 ${
+                  easyMode
+                    ? 'bg-white text-[#046BD2] shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>⚡ Easy Quick Mode (2-Min Setup)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setEasyMode(false)}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                  !easyMode
+                    ? 'bg-white text-[#046BD2] shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>⚙️ Detailed / Advanced Settings</span>
+              </button>
+            </div>
+
             <form onSubmit={handleCreateCourse} className="space-y-4">
-              {/* 1. Course Title */}
-              <div className="space-y-1.5">
+              {easyMode ? (
+                <div className="space-y-4">
+                  {/* 1-Click Fast Course Presets */}
+                  <div className="p-3 bg-blue-50/70 border border-blue-200/80 rounded-2xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black text-[#046BD2] flex items-center gap-1">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                        <span>1-Click Presets (Tap to Auto-fill):</span>
+                      </span>
+                      <span className="text-[10px] text-slate-500">Quick Start</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { label: '🧬 12th Biology', title: 'Class 12 Biology — Complete Board & NEET Preparation', cat: 'Bihar Board', cls: 'Class 12', price: 499, thumb: PRESET_THUMBNAILS[0].url },
+                        { label: '⚛️ 12th Physics', title: 'Class 12 Physics — Concept, Numerical & PYQ Mastery', cat: 'Bihar Board', cls: 'Class 12', price: 499, thumb: PRESET_THUMBNAILS[1].url },
+                        { label: '🧪 12th Chemistry', title: 'Class 12 Chemistry — Physical, Organic & Inorganic', cat: 'Bihar Board', cls: 'Class 12', price: 499, thumb: PRESET_THUMBNAILS[2].url },
+                        { label: '📐 10th Topper', title: 'Class 10 Science & Mathematics — Topper Batch', cat: 'Bihar Board', cls: 'Class 10', price: 299, thumb: PRESET_THUMBNAILS[4].url },
+                        { label: '🩺 NEET Target', title: 'NEET Foundation & Entrance Special Batch', cat: 'NEET', cls: 'Class 12', price: 999, thumb: PRESET_THUMBNAILS[0].url },
+                      ].map((preset) => (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => {
+                            setNewTitle(preset.title);
+                            setNewCategory(preset.cat as any);
+                            setNewClass(preset.cls as any);
+                            setNewPrice(preset.price);
+                            setNewOriginalPrice(preset.price * 3);
+                            setNewThumbnail(preset.thumb);
+                          }}
+                          className="text-[11px] font-bold px-2.5 py-1 rounded-xl bg-white border border-blue-200 text-slate-700 hover:bg-blue-600 hover:text-white transition shadow-xs active:scale-95"
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Course Title */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
+                      <span>Course Title / Name <span className="text-red-500">*</span></span>
+                      <span className="text-[11px] text-slate-400">e.g. Class 12 Physics Topper Batch</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Class 12 Biology — Complete Board & NEET Preparation"
+                      value={newTitle}
+                      onChange={(e) => setNewTitle(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:outline-none focus:border-[#046BD2] font-semibold text-slate-900 bg-white"
+                    />
+                  </div>
+
+                  {/* Target Class Pills */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-800">Target Class (कक्षा चुनें)</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(['Class 12', 'Class 11', 'Class 10'] as const).map((cls) => (
+                        <button
+                          key={cls}
+                          type="button"
+                          onClick={() => setNewClass(cls)}
+                          className={`py-2 px-3 rounded-xl text-xs font-bold border transition ${
+                            newClass === cls
+                              ? 'bg-[#046BD2] text-white border-[#046BD2] shadow-sm'
+                              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          {cls}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Board / Category Pills */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-800">Board / Category (बोर्ड चुनें)</label>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {(['Bihar Board', 'CBSE', 'NEET', 'Foundation'] as const).map((cat) => (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => setNewCategory(cat)}
+                          className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border transition truncate ${
+                            newCategory === cat
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Price (Quick Pills + Input) */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
+                      <span>Course Fee / Price (₹) <span className="text-red-500">*</span></span>
+                      <span className="text-[11px] text-slate-400">कोर्स फीस</span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">₹</span>
+                        <input
+                          type="number"
+                          required
+                          value={newPrice}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setNewPrice(val);
+                            setNewOriginalPrice(val * 3);
+                          }}
+                          className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-300 text-xs sm:text-sm font-black text-slate-900"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {[299, 499, 799, 999].map((p) => (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => {
+                              setNewPrice(p);
+                              setNewOriginalPrice(p * 3);
+                            }}
+                            className={`px-2.5 py-2 rounded-xl text-xs font-bold border transition ${
+                              newPrice === p
+                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            ₹{p}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* YouTube Video Link (Direct Paste) */}
+                  <div className="p-3.5 rounded-2xl bg-gradient-to-br from-rose-50/70 via-white to-blue-50/70 border-2 border-rose-200 shadow-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                        <Film className="w-3.5 h-3.5 text-rose-600" />
+                        <span>YouTube Demo Video (Optional - वीडियो लिंक)</span>
+                      </label>
+                      <span className="text-[10px] text-slate-500">Optional</span>
+                    </div>
+                    <div className="flex items-stretch gap-2">
+                      <input
+                        type="text"
+                        placeholder="Paste YouTube Link (https://youtube.com/watch?v=...)"
+                        value={newVideoUrl}
+                        onChange={(e) => setNewVideoUrl(e.target.value)}
+                        className="flex-1 px-3 py-2 rounded-xl border border-rose-200 text-xs font-mono text-slate-800 focus:outline-none focus:border-rose-500 bg-white"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handlePasteToField(setNewVideoUrl, 'Video Link')}
+                        className="px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs inline-flex items-center gap-1 shadow-xs transition active:scale-95 whitespace-nowrap"
+                      >
+                        <ClipboardPaste className="w-3.5 h-3.5" />
+                        <span>Paste</span>
+                      </button>
+                    </div>
+
+                    {detectedNewVideoId && (
+                      <div className="flex items-center gap-2 p-2 bg-emerald-50 border border-emerald-200 rounded-xl">
+                        <img
+                          src={`https://img.youtube.com/vi/${detectedNewVideoId}/mqdefault.jpg`}
+                          alt="Preview"
+                          className="w-16 h-10 object-cover rounded-lg border border-emerald-300"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[11px] font-black text-emerald-900">✓ Video Detected!</div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNewThumbnail(`https://img.youtube.com/vi/${detectedNewVideoId}/hqdefault.jpg`);
+                              setSuccessToast('YouTube thumbnail copied!');
+                              setTimeout(() => setSuccessToast(''), 2500);
+                            }}
+                            className="text-[10px] text-blue-600 font-bold hover:underline"
+                          >
+                            Use this video thumbnail for course cover
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Thumbnail quick presets */}
+                    <div className="flex items-center gap-1 pt-1 overflow-x-auto">
+                      <span className="text-[10px] font-bold text-slate-500 flex-shrink-0">Cover Image:</span>
+                      {PRESET_THUMBNAILS.map((preset) => (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => setNewThumbnail(preset.url)}
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border flex-shrink-0 transition ${
+                            newThumbnail === preset.url
+                              ? 'bg-blue-600 text-white border-blue-600'
+                              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          {preset.icon} {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 text-[11px] text-slate-600 space-y-1">
+                    <div className="font-bold text-slate-800">✨ Automatic 1-Click Setup:</div>
+                    <div>• Default <strong>Target 2026-27 Batch</strong> will be created automatically.</div>
+                    <div>• Faculty set to <strong>Shekhar Sir</strong> with 24-week full syllabus duration.</div>
+                    <div>• Course will be published live instantly on homepage, public catalog, and student login.</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* 1. Course Title */}
+                  <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
                   <span>Course Title <span className="text-red-500">*</span></span>
                   <span className="text-[11px] text-slate-400 font-normal">e.g. Class 12 Biology</span>
@@ -1115,6 +1381,8 @@ export default function AdminCoursesPage() {
                   Publish immediately to student catalog
                 </label>
               </div>
+            </div>
+          )}
 
               {/* Action Buttons */}
               <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
@@ -1138,7 +1406,7 @@ export default function AdminCoursesPage() {
                   ) : (
                     <>
                       <Plus className="w-4 h-4" />
-                      <span>Create Course</span>
+                      <span>{easyMode ? '🚀 Create & Publish Course Now' : 'Create Course'}</span>
                     </>
                   )}
                 </button>

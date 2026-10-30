@@ -16,7 +16,16 @@ export default function CoursesPage() {
       try {
         const live = await getCourses();
         if (isMounted && live && live.length > 0) {
-          setCoursesList(live.filter((c) => c.published));
+          setCoursesList(live.filter((c) => Boolean(c.published)));
+          return;
+        }
+        // Direct server API fallback
+        const res = await fetch('/api/admin/courses');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.courses && Array.isArray(json.courses) && isMounted) {
+            setCoursesList(json.courses.filter((c: Course) => Boolean(c.published)));
+          }
         }
       } catch (err) {
         console.warn('Could not load live courses:', err);

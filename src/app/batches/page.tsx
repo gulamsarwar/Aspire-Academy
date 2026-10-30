@@ -1,15 +1,43 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { db } from '@/lib/data/mock-db';
+import { getCourses } from '@/lib/data/supabase-service';
+import { Batch, Course } from '@/lib/types';
 import { useSiteSettings } from '@/components/settings/SiteSettingsContext';
 import { Calendar, Users, Clock, ArrowRight, CheckCircle2, Sparkles, Filter, Flame } from 'lucide-react';
 
 export default function BatchesPage() {
   const { settings } = useSiteSettings();
-  const batches = db.batches;
-  const courses = db.courses;
+  const [batchesList, setBatchesList] = useState<Batch[]>(() => db.batches);
+  const [coursesList, setCoursesList] = useState<Course[]>(() => db.courses);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadLiveBatchesAndCourses() {
+      try {
+        const [batchesRes, liveCourses] = await Promise.all([
+          fetch('/api/admin/batches').then((r) => (r.ok ? r.json() : null)),
+          getCourses(),
+        ]);
+        if (isMounted) {
+          if (batchesRes?.batches && Array.isArray(batchesRes.batches) && batchesRes.batches.length > 0) {
+            setBatchesList(batchesRes.batches);
+          }
+          if (liveCourses && liveCourses.length > 0) {
+            setCoursesList(liveCourses);
+          }
+        }
+      } catch (err) {
+        console.warn('Could not load live batches or courses:', err);
+      }
+    }
+    loadLiveBatchesAndCourses();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const [selectedFilter, setSelectedFilter] = useState<string>('All');
 
@@ -22,8 +50,8 @@ export default function BatchesPage() {
   ];
 
   const filteredBatches = useMemo(() => {
-    return batches.filter((batch) => {
-      const course = courses.find((c) => c.id === batch.course_id);
+    return batchesList.filter((batch) => {
+      const course = coursesList.find((c) => c.id === batch.course_id);
       if (selectedFilter === 'All') return true;
       if (selectedFilter === 'Class 12') return course?.target_class === 'Class 12';
       if (selectedFilter === 'Class 10') return course?.target_class === 'Class 10';
@@ -37,7 +65,7 @@ export default function BatchesPage() {
       }
       return true;
     });
-  }, [batches, courses, selectedFilter]);
+  }, [batchesList, coursesList, selectedFilter]);
 
   return (
     <div className="min-h-screen bg-slate-50 py-10 sm:py-14">
@@ -82,7 +110,7 @@ export default function BatchesPage() {
         {/* Batches Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {filteredBatches.map((batch) => {
-            const course = courses.find((c) => c.id === batch.course_id);
+            const course = coursesList.find((c) => c.id === batch.course_id);
             const fillPercent = Math.min(
               100,
               Math.round((batch.enrolled_count / (batch.capacity || 100)) * 100)

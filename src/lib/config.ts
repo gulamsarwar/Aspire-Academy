@@ -6,17 +6,32 @@
  */
 
 export function getCanonicalAppUrl(): string {
-  if (typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('localhost')) {
+  // 1. Client-side browser execution: always use the real active origin
+  if (typeof window !== 'undefined' && window.location?.origin) {
     return window.location.origin;
   }
-  const envUrl = process.env.NEXT_PUBLIC_APP_URL;
-  if (envUrl && !envUrl.includes('localhost')) {
-    return envUrl;
+
+  // 2. Explicit environment variable configured by deployment owner
+  const envUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
+  if (envUrl && envUrl.trim()) {
+    return envUrl.trim().replace(/\/$/, '');
   }
-  if (typeof window !== 'undefined' && window.location.origin) {
-    return window.location.origin;
+
+  // 3. Auto-detect Vercel preview or production URLs
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL.replace(/\/$/, '')}`;
   }
-  return 'https://aspire-academy.pages.dev';
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL.replace(/\/$/, '')}`;
+  }
+
+  // 4. Auto-detect Cloudflare Pages system URL
+  if (process.env.CF_PAGES_URL) {
+    return process.env.CF_PAGES_URL.replace(/\/$/, '');
+  }
+
+  // 5. Default fallback for local development or Node.js server
+  return 'http://localhost:3000';
 }
 
 export const CONFIG = {
@@ -38,9 +53,7 @@ export const CONFIG = {
   SUPABASE_SERVICE_ROLE_KEY:
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
     process.env.SUPABASE_SECRET_KEY ||
-    (typeof Buffer !== 'undefined'
-      ? Buffer.from('c2Jfc2VjcmV0X21SR2hEWURvSHhYMHpDVHpGT2JLTVFfS09wSmt6QlI=', 'base64').toString('utf8')
-      : ''),
+    '',
 
   // Razorpay Payment Gateway (Test / Live)
   RAZORPAY_KEY_ID:

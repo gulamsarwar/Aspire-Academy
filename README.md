@@ -89,6 +89,23 @@ The platform features authentic Indian student authentication workflows:
 - **Mobile Number & OTP / Password**: India `+91` mobile registration and login with SMS OTP verification.
 - **Admin Control Center**: Access restricted to authorized instructors and staff at `/admin`. Direct Razorpay keys management available inside `/admin/settings`.
 
+### 🌐 Google OAuth Configuration & Domain Whitelisting (Supabase)
+To ensure Google Login succeeds in production and never redirects to `localhost:3000` with `ERR_CONNECTION_REFUSED`:
+1. Log in to your [Supabase Dashboard](https://supabase.com/dashboard) and select your project.
+2. In the left sidebar, navigate to **Authentication** ➔ **URL Configuration**:
+   - **Site URL**: Set to your production domain (e.g. `https://aspireacademyonline.in` or `https://your-app.vercel.app`).
+   - **Redirect URLs (Allowlist)**: Add:
+     ```text
+     http://localhost:3000/**
+     https://your-production-domain.com/**
+     https://*.vercel.app/**
+     https://*.pages.dev/**
+     ```
+3. In **Google Cloud Console** (APIs & Services ➔ Credentials ➔ OAuth 2.0 Client IDs):
+   - Set **Authorized redirect URIs** to your Supabase callback URL:
+     `https://<your-supabase-project-ref>.supabase.co/auth/v1/callback`
+   *(Google redirects to Supabase, which then redirects to your application callback).*
+
 ---
 
 ## 🗄️ Database Setup & Security (Supabase)

@@ -49,3 +49,4 @@ supabase/.temp/
 .vercel
 
 .aspire_data/
+public/images/course-thumbnails/course_thumb_*

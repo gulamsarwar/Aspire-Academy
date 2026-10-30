@@ -162,7 +162,7 @@ export async function testSupabaseConnection(): Promise<{
  */
 export async function getCourses(): Promise<Course[]> {
   if (isSupabaseConfigured()) {
-    const client = createClient();
+    const client = createAdminClient() || createClient();
     if (client) {
       try {
         const { data, error } = await client
@@ -171,6 +171,7 @@ export async function getCourses(): Promise<Course[]> {
           .order('created_at', { ascending: false });
 
         if (!error && data && data.length > 0) {
+          db.courses = data as Course[];
           return data as Course[];
         }
       } catch {
@@ -183,7 +184,7 @@ export async function getCourses(): Promise<Course[]> {
 
 export async function getCourseBySlug(slug: string): Promise<Course | undefined> {
   if (isSupabaseConfigured()) {
-    const client = createClient();
+    const client = createAdminClient() || createClient();
     if (client) {
       try {
         const { data, error } = await client
@@ -233,9 +234,16 @@ export async function addCourseToDatabase(courseData: Omit<Course, 'id' | 'creat
           created_at: created.created_at,
           updated_at: created.updated_at,
         };
-        if (created.thumbnail_r2_key) coursePayload.thumbnail_r2_key = created.thumbnail_r2_key;
 
-        await admin.from('courses').insert(coursePayload);
+        const { error } = await admin.from('courses').insert(coursePayload);
+        if (error) {
+          console.warn('Could not persist course to Supabase:', error.message);
+        } else {
+          // Keep in-memory cache in sync
+          if (!db.courses.some((c) => c.id === created.id)) {
+            db.courses.unshift(created);
+          }
+        }
       } catch (err) {
         console.warn('Could not persist course to Supabase:', err);
       }
@@ -248,11 +256,23 @@ export async function addCourseToDatabase(courseData: Omit<Course, 'id' | 'creat
 export async function updateCourseInDatabase(id: string, updates: Partial<Course>): Promise<Course | null> {
   const updated = db.updateCourse(id, updates);
 
-  if (isSupabaseConfigured()) {
+  if (isSupabaseConfigured() && updated) {
     const admin = createAdminClient() || createClient();
     if (admin) {
       try {
-        await admin.from('courses').update(updates).eq('id', id);
+        const sanitized: Record<string, any> = {};
+        const allowedColumns = [
+          'title', 'subtitle', 'description', 'category', 'target_class',
+          'thumbnail_url', 'price', 'original_price', 'published', 'featured',
+          'instructor_name', 'duration_weeks'
+        ];
+        for (const col of allowedColumns) {
+          if ((updates as any)[col] !== undefined) {
+            sanitized[col] = (updates as any)[col];
+          }
+        }
+        sanitized.updated_at = new Date().toISOString();
+        await admin.from('courses').update(sanitized).eq('id', id);
       } catch (err) {
         console.warn('Could not update course in Supabase:', err);
       }
@@ -260,6 +280,21 @@ export async function updateCourseInDatabase(id: string, updates: Partial<Course
   }
 
   return updated;
+}
+
+export async function deleteCourseFromDatabase(id: string): Promise<boolean> {
+  const localSuccess = db.deleteCourse(id);
+  if (isSupabaseConfigured()) {
+    const admin = createAdminClient() || createClient();
+    if (admin) {
+      try {
+        await admin.from('courses').delete().eq('id', id);
+      } catch (err) {
+        console.warn('Could not delete course from Supabase:', err);
+      }
+    }
+  }
+  return localSuccess;
 }
 
 /**
@@ -420,7 +455,6 @@ export async function addBatchToDatabase(
           start_at: created.start_at,
           end_at: created.end_at,
           capacity: created.capacity,
-          enrolled_count: created.enrolled_count,
           enrollment_open: created.enrollment_open,
           instructor_name: created.instructor_name,
         });
@@ -435,7 +469,7 @@ export async function addBatchToDatabase(
 export async function getBatchesForCourseFromDatabase(courseId: string): Promise<Batch[]> {
   const localBatches = db.getBatchesForCourse(courseId);
   if (isSupabaseConfigured()) {
-    const client = createClient();
+    const client = createAdminClient() || createClient();
     if (client) {
       try {
         const { data, error } = await client
@@ -460,7 +494,7 @@ export async function getCurriculumForCourseFromDatabase(
 ): Promise<(Module & { lessons: Lesson[] })[]> {
   const localCurriculum = db.getCurriculumForCourse(courseId);
   if (isSupabaseConfigured()) {
-    const client = createClient();
+    const client = createAdminClient() || createClient();
     if (client) {
       try {
         const { data: modules, error: modErr } = await client
@@ -706,15 +740,27 @@ export async function getStudentEnrollmentsFromDatabase(studentId: string): Prom
           .eq('status', 'active');
 
         if (!error && data) {
-          const supabaseEnrs = (data as unknown as Enrollment[]).map((e) => {
-            const course = e.course || db.getCourseById(e.course_id);
-            const batch = e.batch || db.getBatchById(e.batch_id);
-            return {
-              ...e,
-              course,
-              batch,
-            };
-          });
+          const supabaseEnrs = await Promise.all(
+            (data as unknown as Enrollment[]).map(async (e) => {
+              let course = e.course || db.getCourseById(e.course_id);
+              const batch = e.batch || db.getBatchById(e.batch_id);
+              if (course && (!course.modules || course.modules.length === 0)) {
+                try {
+                  const curriculum = await getCurriculumForCourseFromDatabase(course.id);
+                  if (curriculum && curriculum.length > 0) {
+                    course = { ...course, modules: curriculum };
+                  }
+                } catch {
+                  // ignore
+                }
+              }
+              return {
+                ...e,
+                course,
+                batch,
+              };
+            })
+          );
           const combined = [...supabaseEnrs];
           for (const le of localEnrs) {
             if (!combined.some((e) => e.course_id === le.course_id)) {

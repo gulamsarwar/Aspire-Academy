@@ -41,7 +41,29 @@ function AuthCallbackContent() {
           throw new Error(decodeURIComponent(urlError));
         }
 
-        const redirectTarget = searchParams.get('redirect') || '/dashboard';
+        // Resolve intended redirect destination (from query param, sessionStorage, or fallback cookie)
+        let redirectTarget = searchParams.get('redirect');
+        if (!redirectTarget && typeof window !== 'undefined') {
+          try {
+            redirectTarget = sessionStorage.getItem('aspire_auth_redirect');
+            if (redirectTarget) {
+              sessionStorage.removeItem('aspire_auth_redirect');
+            }
+          } catch (_) {}
+        }
+        if (!redirectTarget && typeof document !== 'undefined') {
+          try {
+            const match = document.cookie.match(/aspire_auth_redirect=([^;]+)/);
+            if (match) {
+              redirectTarget = decodeURIComponent(match[1]);
+              document.cookie = 'aspire_auth_redirect=; path=/; max-age=0;';
+            }
+          } catch (_) {}
+        }
+        if (!redirectTarget || !redirectTarget.startsWith('/')) {
+          redirectTarget = '/dashboard';
+        }
+
         const supabase = createClient();
 
         if (!supabase) {

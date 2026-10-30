@@ -316,24 +316,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      // Resolve dynamic public origin
-      const origin =
-        typeof window !== 'undefined' && window.location.origin
-          ? window.location.origin
-          : 'https://aspire-academy.pages.dev';
+      // 1. Resolve dynamic public origin
+      // In the browser, always use the real active origin (e.g. https://clientdomain.com, https://your-app.vercel.app, or http://localhost:3000)
+      const isBrowser = typeof window !== 'undefined';
+      let origin = isBrowser && window.location.origin ? window.location.origin : CONFIG.APP_URL;
+      if (!origin || origin === 'null') {
+        origin = 'http://localhost:3000';
+      }
 
-      // Check if accessed from a private LAN IP on mobile (e.g. 192.168.x.x)
-      // Supabase whitelists https://aspire-academy.pages.dev and http://localhost:3000.
-      // If on mobile LAN, bridge through the whitelisted production callback to prevent dead localhost redirects!
+      // 2. Persist target redirect destination in client storage before navigation.
+      // This eliminates query parameters from the OAuth redirect_to URL, ensuring 100%
+      // compatibility with Supabase Dashboard allowed Redirect URLs allowlist matching.
+      if (isBrowser) {
+        try {
+          sessionStorage.setItem('aspire_auth_redirect', redirectPath);
+        } catch (_) {}
+        try {
+          document.cookie = `aspire_auth_redirect=${encodeURIComponent(
+            redirectPath
+          )}; path=/; max-age=900; SameSite=Lax;`;
+        } catch (_) {}
+      }
+
+      // 3. Check for private LAN IP mobile testing (e.g. 192.168.x.x)
+      // Google OAuth rejects raw IP redirect URIs. If a public production URL is configured in NEXT_PUBLIC_APP_URL,
+      // route via that bridge; otherwise use active origin.
       const isPrivateLanIp =
-        typeof window !== 'undefined' &&
+        isBrowser &&
         /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(window.location.hostname);
 
-      const redirectUrl = isPrivateLanIp
-        ? `https://aspire-academy.pages.dev/auth/callback?return_to=${encodeURIComponent(
-            origin
-          )}&redirect=${encodeURIComponent(redirectPath)}`
-        : `${origin}/auth/callback?redirect=${encodeURIComponent(redirectPath)}`;
+      const configuredPublicUrl =
+        process.env.NEXT_PUBLIC_APP_URL &&
+        process.env.NEXT_PUBLIC_APP_URL.startsWith('https://')
+          ? process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')
+          : null;
+
+      const redirectUrl =
+        isPrivateLanIp && configuredPublicUrl
+          ? `${configuredPublicUrl}/auth/callback?return_to=${encodeURIComponent(origin)}`
+          : `${origin}/auth/callback`;
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',

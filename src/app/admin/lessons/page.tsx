@@ -111,15 +111,45 @@ export default function AdminLessonsPage() {
     }
   }, [courses]);
 
-  // Update modules and selectedModuleId when selectedCourseId changes
+  const [isUploadingPdf, setIsUploadingPdf] = useState(false);
+  const [materialPath, setMaterialPath] = useState('');
+  const [editMaterialPath, setEditMaterialPath] = useState('');
+
+  // Fetch live modules and lessons from database when selectedCourseId changes
   useEffect(() => {
-    const courseMods = db.modules.filter((m) => m.course_id === selectedCourseId);
-    setModules(courseMods);
-    if (courseMods.length > 0) {
-      setSelectedModuleId(courseMods[0].id);
-    } else {
-      setSelectedModuleId('');
+    if (!selectedCourseId) return;
+    let isMounted = true;
+    async function fetchCourseData() {
+      try {
+        const res = await fetch(`/api/admin/lessons?courseId=${encodeURIComponent(selectedCourseId)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted) {
+            if (data.modules && Array.isArray(data.modules)) {
+              setModules(data.modules);
+              if (data.modules.length > 0) {
+                setSelectedModuleId(data.modules[0].id);
+              } else {
+                setSelectedModuleId('');
+              }
+            }
+            if (data.lessons && Array.isArray(data.lessons)) {
+              setLessons((prev) => {
+                const currentModIds = new Set((data.modules || []).map((m: any) => m.id));
+                const retained = prev.filter((l) => !currentModIds.has(l.module_id));
+                return [...retained, ...data.lessons];
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Could not load lessons from database:', err);
+      }
     }
+    fetchCourseData();
+    return () => {
+      isMounted = false;
+    };
   }, [selectedCourseId]);
 
   // Current selected course object
@@ -127,7 +157,7 @@ export default function AdminLessonsPage() {
 
   // Lessons for currently selected course
   const currentLessons = lessons.filter((l) => {
-    const parentModule = db.modules.find((m) => m.id === l.module_id);
+    const parentModule = modules.find((m) => m.id === l.module_id) || db.modules.find((m) => m.id === l.module_id);
     return parentModule?.course_id === selectedCourseId;
   });
 
@@ -147,6 +177,39 @@ export default function AdminLessonsPage() {
 
   const detectedVideoId = extractVideoId(youtubeVideoId);
   const editDetectedVideoId = extractVideoId(editYoutubeLink);
+
+  const handleUploadPdf = async (file: File, isEdit = false) => {
+    try {
+      setIsUploadingPdf(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('title', file.name.replace(/\.[^/.]+$/, ''));
+
+      const res = await fetch('/api/admin/notes/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to upload PDF file.');
+      }
+
+      if (isEdit) {
+        setEditMaterialPath(data.material_path);
+        setEditMaterialName(data.material_name);
+      } else {
+        setMaterialPath(data.material_path);
+        setMaterialName(data.material_name);
+      }
+      setSuccessToast(`PDF "${data.material_name}" uploaded successfully!`);
+      setTimeout(() => setSuccessToast(''), 3500);
+    } catch (err: any) {
+      alert(err.message || 'PDF upload failed.');
+    } finally {
+      setIsUploadingPdf(false);
+    }
+  };
 
   // Paste from clipboard handlers with mobile touch awareness
   const handlePasteClipboard = async () => {
@@ -183,18 +246,37 @@ export default function AdminLessonsPage() {
     }
   };
 
-  // Add a new Chapter / Module
-  const handleCreateChapter = (e: React.FormEvent) => {
+  // Add a new Chapter / Module directly to Supabase
+  const handleCreateChapter = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newChapterTitle.trim()) return;
 
-    const newMod = db.addModule(selectedCourseId, newChapterTitle.trim());
-    setModules([...db.modules.filter((m) => m.course_id === selectedCourseId)]);
-    setSelectedModuleId(newMod.id);
-    setNewChapterTitle('');
-    setShowAddChapter(false);
-    setSuccessToast(`Chapter "${newMod.title}" created successfully!`);
-    setTimeout(() => setSuccessToast(''), 3000);
+    try {
+      const res = await fetch('/api/admin/lessons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create_chapter',
+          course_id: selectedCourseId,
+          title: newChapterTitle.trim(),
+          sort_order: modules.length + 1,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create chapter in database.');
+
+      if (data.module) {
+        setModules((prev) => [...prev, data.module]);
+        setSelectedModuleId(data.module.id);
+        setNewChapterTitle('');
+        setShowAddChapter(false);
+        setSuccessToast(`Chapter "${data.module.title}" created in database!`);
+        setTimeout(() => setSuccessToast(''), 3000);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to create chapter.');
+    }
   };
 
   // Create & Save Lesson with YouTube or Cloudflare R2
@@ -216,40 +298,72 @@ export default function AdminLessonsPage() {
 
     let targetModuleId = selectedModuleId;
     if (!targetModuleId) {
-      // Auto-create a default chapter if course has none yet
-      const defMod = db.addModule(selectedCourseId, 'Chapter 1: Core Concepts & Introduction');
-      setModules([...db.modules.filter((m) => m.course_id === selectedCourseId)]);
-      targetModuleId = defMod.id;
-      setSelectedModuleId(defMod.id);
+      // Auto-create a default chapter in database if course has none yet
+      try {
+        const resMod = await fetch('/api/admin/lessons', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'create_chapter',
+            course_id: selectedCourseId,
+            title: 'Chapter 1: Core Concepts & Introduction',
+            sort_order: 1,
+          }),
+        });
+        const mData = await resMod.json();
+        if (mData.module) {
+          setModules((prev) => [...prev, mData.module]);
+          targetModuleId = mData.module.id;
+          setSelectedModuleId(mData.module.id);
+        }
+      } catch {}
     }
 
-    const created = await addLessonToDatabase({
-      module_id: targetModuleId,
-      title: title.trim(),
-      description: description.trim() || 'Conceptual lecture and practice walkthrough.',
-      youtube_video_id: cleanVideoId,
-      video_source_type: videoSourceType,
-      r2_object_key: r2ObjectKey || undefined,
-      duration_minutes: Number(durationMinutes) || 45,
-      material_path: materialName ? `/notes/${materialName.toLowerCase().replace(/\s+/g, '-')}` : undefined,
-      material_name: materialName.trim() || undefined,
-      sort_order: Number(lessonOrder) || currentLessons.length + 1,
-      is_free_preview: isFreePreview,
-      published: isPublished,
-      quiz_id: attachedQuizId || undefined,
-    });
+    if (!targetModuleId) {
+      targetModuleId = db.addModule(selectedCourseId, 'Chapter 1: Core Concepts & Introduction').id;
+    }
 
-    setLessons([...db.lessons]);
-    setTitle('');
-    setDescription('');
-    setYoutubeVideoId('');
-    setR2ObjectKey('');
-    setMaterialName('');
-    setAttachedQuizId('');
-    setIsFreePreview(false);
+    try {
+      const res = await fetch('/api/admin/lessons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create_lesson',
+          module_id: targetModuleId,
+          title: title.trim(),
+          description: description.trim() || 'Conceptual lecture and practice walkthrough.',
+          youtube_video_id: cleanVideoId,
+          video_source_type: videoSourceType,
+          r2_object_key: r2ObjectKey || undefined,
+          duration_minutes: Number(durationMinutes) || 45,
+          material_path: materialPath || (materialName ? `/notes/${materialName.toLowerCase().replace(/\s+/g, '-')}` : null),
+          material_name: materialName.trim() || null,
+          sort_order: Number(lessonOrder) || currentLessons.length + 1,
+          is_free_preview: isFreePreview,
+          published: isPublished,
+          quiz_id: attachedQuizId || undefined,
+        }),
+      });
 
-    setSuccessToast(`Lesson "${created.title}" and YouTube video link saved successfully for ${currentCourse?.title}!`);
-    setTimeout(() => setSuccessToast(''), 4500);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save lesson in database.');
+
+      if (data.lesson) {
+        setLessons((prev) => [...prev, data.lesson]);
+        setTitle('');
+        setDescription('');
+        setYoutubeVideoId('');
+        setR2ObjectKey('');
+        setMaterialName('');
+        setMaterialPath('');
+        setAttachedQuizId('');
+        setIsFreePreview(false);
+        setSuccessToast(`Lesson "${data.lesson.title}" saved to database!`);
+        setTimeout(() => setSuccessToast(''), 4500);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to save lesson.');
+    }
   };
 
   const handleOpenEdit = (lesson: Lesson) => {
@@ -262,6 +376,7 @@ export default function AdminLessonsPage() {
     setEditYoutubeLink(lesson.youtube_video_id ? `https://www.youtube.com/watch?v=${lesson.youtube_video_id}` : '');
     setEditDuration(lesson.duration_minutes);
     setEditMaterialName(lesson.material_name || '');
+    setEditMaterialPath(lesson.material_path || '');
     setEditLessonOrder(lesson.sort_order);
     setEditFreePreview(lesson.is_free_preview);
     setEditPublished(lesson.published);
@@ -286,34 +401,61 @@ export default function AdminLessonsPage() {
       }
     }
 
-    await updateLessonInDatabase(editingLesson.id, {
-      title: editTitle.trim(),
-      description: editDescription.trim(),
-      module_id: editModuleId || editingLesson.module_id,
-      youtube_video_id: cleanVideoId,
-      video_source_type: editVideoSourceType,
-      r2_object_key: editR2ObjectKey || undefined,
-      duration_minutes: Number(editDuration) || 45,
-      sort_order: Number(editLessonOrder) || 1,
-      is_free_preview: editFreePreview,
-      published: editPublished,
-      material_name: editMaterialName.trim() || undefined,
-      material_path: editMaterialName ? `/notes/${editMaterialName.toLowerCase().replace(/\s+/g, '-')}` : undefined,
-      quiz_id: editQuizId || undefined,
-    });
+    try {
+      const res = await fetch('/api/admin/lessons', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingLesson.id,
+          title: editTitle.trim(),
+          description: editDescription.trim(),
+          module_id: editModuleId || editingLesson.module_id,
+          youtube_video_id: cleanVideoId,
+          video_source_type: editVideoSourceType,
+          r2_object_key: editR2ObjectKey || undefined,
+          duration_minutes: Number(editDuration) || 45,
+          sort_order: Number(editLessonOrder) || 1,
+          is_free_preview: editFreePreview,
+          published: editPublished,
+          material_name: editMaterialName.trim() || null,
+          material_path: editMaterialPath || (editMaterialName ? `/notes/${editMaterialName.toLowerCase().replace(/\s+/g, '-')}` : null),
+          quiz_id: editQuizId || null,
+        }),
+      });
 
-    setLessons([...db.lessons]);
-    setEditingLesson(null);
-    setSuccessToast(`Lesson "${editTitle}" updated successfully!`);
-    setTimeout(() => setSuccessToast(''), 4000);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update lesson.');
+
+      setLessons((prev) =>
+        prev.map((l) =>
+          l.id === editingLesson.id
+            ? { ...l, ...data.updated }
+            : l
+        )
+      );
+      setEditingLesson(null);
+      setSuccessToast(`Lesson "${editTitle}" updated in database!`);
+      setTimeout(() => setSuccessToast(''), 4000);
+    } catch (err: any) {
+      alert(err.message || 'Failed to update lesson.');
+    }
   };
 
   const handleDeleteLesson = async (lessonId: string, lessonTitle: string) => {
     if (confirm(`Are you sure you want to delete lesson "${lessonTitle}"?`)) {
-      await deleteLessonFromDatabase(lessonId);
-      setLessons([...db.lessons]);
-      setSuccessToast(`Lesson "${lessonTitle}" removed.`);
-      setTimeout(() => setSuccessToast(''), 3000);
+      try {
+        const res = await fetch(`/api/admin/lessons?id=${encodeURIComponent(lessonId)}`, {
+          method: 'DELETE',
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to delete lesson.');
+
+        setLessons((prev) => prev.filter((l) => l.id !== lessonId));
+        setSuccessToast(`Lesson "${lessonTitle}" removed from database.`);
+        setTimeout(() => setSuccessToast(''), 3000);
+      } catch (err: any) {
+        alert(err.message || 'Failed to delete lesson.');
+      }
     }
   };
 
@@ -619,18 +761,17 @@ export default function AdminLessonsPage() {
                 <span>PDF Study Material & Chapter Notes</span>
               </label>
               <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-sm transition">
-                <Upload className="w-3.5 h-3.5 text-[#046BD2]" />
-                <span>Browse PDF File</span>
+                {isUploadingPdf ? <Loader2 className="w-3.5 h-3.5 text-[#046BD2] animate-spin" /> : <Upload className="w-3.5 h-3.5 text-[#046BD2]" />}
+                <span>{isUploadingPdf ? 'Uploading...' : 'Browse PDF File'}</span>
                 <input
                   type="file"
                   accept=".pdf,.doc,.docx"
+                  disabled={isUploadingPdf}
                   className="hidden"
                   onChange={(e) => {
                     const f = e.target.files?.[0];
                     if (f) {
-                      setMaterialName(f.name);
-                      setSuccessToast(`Selected file: "${f.name}"`);
-                      setTimeout(() => setSuccessToast(''), 3000);
+                      handleUploadPdf(f, false);
                     }
                   }}
                 />
@@ -1219,15 +1360,16 @@ export default function AdminLessonsPage() {
                       <span>PDF Notes Attachment</span>
                     </label>
                     <label className="cursor-pointer inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-bold bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs">
-                      <Upload className="w-3 h-3 text-[#046BD2]" />
-                      <span>Browse File</span>
+                      {isUploadingPdf ? <Loader2 className="w-3 h-3 text-[#046BD2] animate-spin" /> : <Upload className="w-3 h-3 text-[#046BD2]" />}
+                      <span>{isUploadingPdf ? 'Uploading...' : 'Browse File'}</span>
                       <input
                         type="file"
                         accept=".pdf,.doc,.docx"
+                        disabled={isUploadingPdf}
                         className="hidden"
                         onChange={(e) => {
                           const f = e.target.files?.[0];
-                          if (f) setEditMaterialName(f.name);
+                          if (f) handleUploadPdf(f, true);
                         }}
                       />
                     </label>

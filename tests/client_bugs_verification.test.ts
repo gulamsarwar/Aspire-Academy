@@ -649,5 +649,41 @@ Explanation: 1953 खोज.
       assert.ok(lesson.youtube_video_id || lesson.video_url || lesson.r2_object_key);
     });
   });
+
+  // --------------------------------------------------------------------------
+  // GOOGLE OAUTH REDIRECT RESOLUTION
+  // --------------------------------------------------------------------------
+  test('GOOGLE OAUTH: Dynamic origin resolution returns production domain and isolates localhost to local dev', async () => {
+    const { getCanonicalAppUrl } = await import('../src/lib/config');
+
+    const prevEnv = process.env.NEXT_PUBLIC_APP_URL;
+    const prevVercel = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+    const prevCf = process.env.CF_PAGES_URL;
+
+    try {
+      // 1. Explicit production URL configured
+      process.env.NEXT_PUBLIC_APP_URL = 'https://aspireacademyonline.in';
+      assert.strictEqual(getCanonicalAppUrl(), 'https://aspireacademyonline.in');
+
+      // 2. Auto-detect Vercel deployment URL
+      delete process.env.NEXT_PUBLIC_APP_URL;
+      process.env.VERCEL_PROJECT_PRODUCTION_URL = 'aspire-academy.vercel.app';
+      assert.strictEqual(getCanonicalAppUrl(), 'https://aspire-academy.vercel.app');
+
+      // 3. Auto-detect Cloudflare Pages URL
+      delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
+      process.env.CF_PAGES_URL = 'https://aspire-academy.pages.dev';
+      assert.strictEqual(getCanonicalAppUrl(), 'https://aspire-academy.pages.dev');
+    } finally {
+      if (prevEnv !== undefined) process.env.NEXT_PUBLIC_APP_URL = prevEnv;
+      else delete process.env.NEXT_PUBLIC_APP_URL;
+
+      if (prevVercel !== undefined) process.env.VERCEL_PROJECT_PRODUCTION_URL = prevVercel;
+      else delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
+
+      if (prevCf !== undefined) process.env.CF_PAGES_URL = prevCf;
+      else delete process.env.CF_PAGES_URL;
+    }
+  });
 });
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useSiteSettings } from '@/components/settings/SiteSettingsContext';
 import { Download, ArrowRight, CheckCircle2, Search, Filter, BookOpen, Sparkles, FileText, Star } from 'lucide-react';
@@ -84,10 +84,52 @@ export default function NotesPage() {
     },
   ];
 
+  const [notesList, setNotesList] = useState<any[]>(freeNotes);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadLiveMaterials() {
+      try {
+        const res = await fetch('/api/student/dashboard');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.materials && Array.isArray(json.materials) && isMounted) {
+            const mappedLiveNotes = json.materials
+              .filter((m: any) => m.materialPath)
+              .map((m: any) => ({
+                id: `live-${m.id}`,
+                title: m.materialName || `${m.lessonTitle} Notes`,
+                subject: m.courseCategory || 'Study Notes',
+                category: m.courseTitle || 'Curriculum Notes',
+                pages: 'PDF Handout',
+                fileSize: 'Official PDF',
+                downloads: '1.2k+',
+                description: `Official lecture notes and problem bank for "${m.lessonTitle}". Prepared by faculty.`,
+                materialPath: m.materialPath,
+              }));
+            if (mappedLiveNotes.length > 0) {
+              setNotesList((prev) => {
+                const existing = new Set(prev.map((p) => p.materialPath || p.id));
+                const newItems = mappedLiveNotes.filter((m: any) => !existing.has(m.materialPath));
+                return [...newItems, ...prev];
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Could not load live notes:', err);
+      }
+    }
+    loadLiveMaterials();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const subjects = ['All', 'Biology', 'Physics', 'Chemistry', 'Class 10', 'Question Bank'];
 
   const filteredNotes = useMemo(() => {
-    return freeNotes.filter((note) => {
+    return notesList.filter((note) => {
       const matchesSearch =
         note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         note.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -97,10 +139,15 @@ export default function NotesPage() {
 
       return matchesSearch && matchesSubject;
     });
-  }, [searchQuery, selectedSubject]);
+  }, [notesList, searchQuery, selectedSubject]);
 
-  const handleDownload = (note: (typeof freeNotes)[0]) => {
-    setDownloadToast(`Downloading: "${note.title}"... File ready!`);
+  const handleDownload = (note: any) => {
+    setDownloadToast(`Opening: "${note.title}"... File ready!`);
+    if (note.materialPath) {
+      window.open(note.materialPath, '_blank');
+      setTimeout(() => setDownloadToast(''), 3000);
+      return;
+    }
     const content = `${settings.academy_name.toUpperCase()} — HIGH-YIELD STUDY NOTES & PYQ BANK
 ======================================================================
 Topic / Course: ${note.title}
