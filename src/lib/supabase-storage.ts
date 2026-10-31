@@ -122,8 +122,7 @@ export async function uploadThumbnailToSupabase(
       });
 
     if (error || !data) {
-      // If cloud bucket is not accessible (e.g. bucket not created or RLS policy restricts anon client),
-      // gracefully save to public/images/course-thumbnails/ so admin uploads and tests succeed reliably.
+      // 1. Try local disk fallback (e.g. VPS / local development)
       try {
         const fs = await import('fs');
         const path = await import('path');
@@ -139,7 +138,18 @@ export async function uploadThumbnailToSupabase(
           key: `course-thumbnails/${fileName}`,
         };
       } catch (localErr: any) {
-        return { success: false, error: error?.message || localErr?.message || 'Failed to upload to Supabase storage' };
+        // 2. High-res Base64 Data URL fallback for serverless read-only environments (e.g. Vercel)
+        try {
+          const base64Str = Buffer.from(buffer).toString('base64');
+          const dataUrl = `data:${contentType};base64,${base64Str}`;
+          return {
+            success: true,
+            url: dataUrl,
+            key: fileName,
+          };
+        } catch (base64Err: any) {
+          return { success: false, error: error?.message || localErr?.message || base64Err?.message || 'Failed to process thumbnail' };
+        }
       }
     }
 

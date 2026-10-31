@@ -18,9 +18,9 @@ export function createAdminClient() {
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
     CONFIG.SUPABASE_ANON_KEY;
 
-  // Use service key if available and not a placeholder/expired key; otherwise use the working anon key
+  // Use service key if available to bypass RLS policies; otherwise fallback to anon key
   const key =
-    envServiceKey && envServiceKey.length > 20 && !envServiceKey.includes('sb_secret_mRGh')
+    envServiceKey && envServiceKey.length > 20
       ? envServiceKey
       : anonKey;
 
