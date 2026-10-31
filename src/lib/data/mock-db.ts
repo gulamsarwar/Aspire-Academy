@@ -697,6 +697,8 @@ export const initialSiteSettings: SiteSettings = {
   hero_headline: 'Learn Today. Lead Tomorrow.',
   hero_subheadline:
     'Aspire Academy provides top-tier education for Bihar Board, CBSE, NEET, and Foundation students through experienced faculty, smart digital classes, chapter-wise tests, and personal mentoring led by renowned Shekhar Sir.',
+  gemini_api_key: '',
+  groq_api_key: '',
   updated_at: '2026-04-01T00:00:00Z',
 };
 

@@ -110,7 +110,12 @@ export default function NeuronAIAssistantPage() {
       const res = await fetch('/api/neuron/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: history, query }),
+        body: JSON.stringify({
+          messages: history,
+          query,
+          geminiApiKey: settings.gemini_api_key,
+          groqApiKey: settings.groq_api_key,
+        }),
       });
 
       const data = await res.json().catch(() => null);

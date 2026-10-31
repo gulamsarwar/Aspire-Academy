@@ -192,6 +192,8 @@ export interface SiteSettings {
   stat_success: string;
   hero_headline: string;
   hero_subheadline: string;
+  gemini_api_key?: string;
+  groq_api_key?: string;
   updated_at: string;
 }
 
