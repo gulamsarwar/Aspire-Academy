@@ -122,34 +122,21 @@ export async function uploadThumbnailToSupabase(
       });
 
     if (error || !data) {
-      // 1. Try local disk fallback (e.g. VPS / local development)
+      console.warn('Supabase storage direct upload warning:', error?.message);
+      // Safe Instant Fallback: Base64 Data URL ensures course thumbnail change NEVER fails on any serverless or local host
       try {
-        const fs = await import('fs');
-        const path = await import('path');
-        const localDir = path.join(process.cwd(), 'public', 'images', 'course-thumbnails');
-        if (!fs.existsSync(localDir)) {
-          fs.mkdirSync(localDir, { recursive: true });
-        }
-        const localFilePath = path.join(localDir, fileName);
-        fs.writeFileSync(localFilePath, Buffer.from(buffer));
+        const base64Str = Buffer.from(buffer).toString('base64');
+        const dataUrl = `data:${contentType};base64,${base64Str}`;
         return {
           success: true,
-          url: `/images/course-thumbnails/${fileName}`,
-          key: `course-thumbnails/${fileName}`,
+          url: dataUrl,
+          key: fileName,
         };
-      } catch (localErr: any) {
-        // 2. High-res Base64 Data URL fallback for serverless read-only environments (e.g. Vercel)
-        try {
-          const base64Str = Buffer.from(buffer).toString('base64');
-          const dataUrl = `data:${contentType};base64,${base64Str}`;
-          return {
-            success: true,
-            url: dataUrl,
-            key: fileName,
-          };
-        } catch (base64Err: any) {
-          return { success: false, error: error?.message || localErr?.message || base64Err?.message || 'Failed to process thumbnail' };
-        }
+      } catch (fallbackErr: any) {
+        return {
+          success: false,
+          error: error?.message || fallbackErr?.message || 'Failed to process thumbnail',
+        };
       }
     }
 

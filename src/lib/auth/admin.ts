@@ -8,6 +8,8 @@ import { db } from '@/lib/data/mock-db';
 export const DEFAULT_ADMIN_EMAILS = [
   'aspireacademyamba@gmail.com',
   'admin@aspireacademy.in',
+  'shekharedutech@gmail.com',
+  'deepka2772@gmail.com',
   'shekhar@aspireacademy.in',
   'shekhar.sir@aspireacademy.in',
   'shekharsir@gmail.com',
@@ -303,6 +305,17 @@ export async function checkServerAdminAuth(req: any): Promise<boolean> {
         return true;
       }
       if (pData?.role === 'admin') {
+        return true;
+      }
+
+      // Check user_roles table in Supabase Cloud
+      const { data: roleData } = await admin
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', candidateId)
+        .eq('role', 'admin')
+        .maybeSingle();
+      if (roleData) {
         return true;
       }
     }

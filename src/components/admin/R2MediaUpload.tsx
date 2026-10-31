@@ -147,28 +147,35 @@ export function R2MediaUpload({
         xhr.send(formData);
       });
     } catch (err: any) {
-      console.error('Thumbnail upload failed:', err);
-      // Client-side fail-safe fallback: Convert image to Data URL so thumbnail change NEVER fails
-      try {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const dataUrl = e.target?.result as string;
-          if (dataUrl) {
-            setUploadSuccessKey('base64-thumbnail');
-            setUploadSuccessProvider('Instant Safe Fallback');
-            setPreviewUrl(dataUrl);
-            setSelectedFile(null);
-            onSuccess({
-              key: 'base64-thumbnail',
-              url: dataUrl,
-            });
-            setErrorMessage('');
-          }
-        };
-        reader.readAsDataURL(file);
-      } catch {
-        setErrorMessage(err?.message || 'Failed to upload thumbnail.');
-      }
+      console.warn('Thumbnail upload issue, applying client fail-safe fallback:', err);
+      await new Promise<void>((resolveFallback) => {
+        try {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const dataUrl = e.target?.result as string;
+            if (dataUrl) {
+              setUploadSuccessKey('safe-thumbnail');
+              setUploadSuccessProvider('Instant Safe Fallback');
+              setPreviewUrl(dataUrl);
+              setSelectedFile(null);
+              onSuccess({
+                key: 'safe-thumbnail',
+                url: dataUrl,
+              });
+              setErrorMessage('');
+            }
+            resolveFallback();
+          };
+          reader.onerror = () => {
+            setErrorMessage(err?.message || 'Failed to upload thumbnail.');
+            resolveFallback();
+          };
+          reader.readAsDataURL(file);
+        } catch {
+          setErrorMessage(err?.message || 'Failed to upload thumbnail.');
+          resolveFallback();
+        }
+      });
     } finally {
       setIsUploading(false);
     }
@@ -330,29 +337,37 @@ export function R2MediaUpload({
         url: playbackOrStreamUrl,
       });
     } catch (err: any) {
-      console.error('Upload failed:', err);
+      console.warn('Upload issue, applying client fail-safe fallback:', err);
       if (type === 'thumbnail' && selectedFile) {
-        try {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const dataUrl = e.target?.result as string;
-            if (dataUrl) {
-              setUploadSuccessKey('base64-thumbnail');
-              setUploadSuccessProvider('Instant Safe Fallback');
-              setPreviewUrl(dataUrl);
-              setSelectedFile(null);
-              onSuccess({
-                key: 'base64-thumbnail',
-                url: dataUrl,
-              });
-              setErrorMessage('');
-            }
-          };
-          reader.readAsDataURL(selectedFile);
-          return;
-        } catch {
-          // fall through to error message
-        }
+        await new Promise<void>((resolveFallback) => {
+          try {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const dataUrl = e.target?.result as string;
+              if (dataUrl) {
+                setUploadSuccessKey('safe-thumbnail');
+                setUploadSuccessProvider('Instant Safe Fallback');
+                setPreviewUrl(dataUrl);
+                setSelectedFile(null);
+                onSuccess({
+                  key: 'safe-thumbnail',
+                  url: dataUrl,
+                });
+                setErrorMessage('');
+              }
+              resolveFallback();
+            };
+            reader.onerror = () => {
+              setErrorMessage(err?.message || 'Failed to upload media.');
+              resolveFallback();
+            };
+            reader.readAsDataURL(selectedFile);
+          } catch {
+            setErrorMessage(err?.message || 'Failed to upload media.');
+            resolveFallback();
+          }
+        });
+        return;
       }
       setErrorMessage(err?.message || 'Failed to upload media.');
     } finally {
