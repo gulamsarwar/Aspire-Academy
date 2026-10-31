@@ -74,9 +74,23 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
     }
 
     // Async sync to Supabase Cloud PostgreSQL
+    const syncHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (typeof window !== 'undefined') {
+      try {
+        const savedUser = localStorage.getItem('aspire_user');
+        if (savedUser) {
+          const u = JSON.parse(savedUser);
+          if (u.id) syncHeaders['x-aspire-admin-id'] = u.id;
+          if (u.email) syncHeaders['x-aspire-admin-email'] = u.email;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     fetch('/api/admin/settings', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: syncHeaders,
       body: JSON.stringify(updated),
     }).catch(() => null);
   };

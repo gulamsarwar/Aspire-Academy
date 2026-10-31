@@ -31,10 +31,34 @@ import {
 import { extractYouTubeVideoId } from '@/lib/youtube';
 import { YouTubePlayer } from '@/components/ui/YouTubePlayer';
 import { R2MediaUpload } from '@/components/admin/R2MediaUpload';
+import { useAuth } from '@/components/auth/AuthContext';
 
 export default function AdminLessonsPage() {
+  const { user } = useAuth();
   const [courses, setCourses] = useState<Course[]>([...db.courses]);
   const [selectedCourseId, setSelectedCourseId] = useState(db.courses[0]?.id || '');
+
+  // Helper to ensure admin authorization headers are sent
+  const getAdminHeaders = (): Record<string, string> => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (user?.id) headers['x-aspire-admin-id'] = user.id;
+    if (user?.email) headers['x-aspire-admin-email'] = user.email;
+    if (!headers['x-aspire-admin-id'] && typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('aspire_user');
+        if (saved) {
+          const u = JSON.parse(saved);
+          if (u.id) headers['x-aspire-admin-id'] = u.id;
+          if (u.email) headers['x-aspire-admin-email'] = u.email;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return headers;
+  };
 
   const [modules, setModules] = useState<Module[]>([]);
   const [selectedModuleId, setSelectedModuleId] = useState('');
@@ -255,7 +279,7 @@ export default function AdminLessonsPage() {
     try {
       const res = await fetch('/api/admin/lessons', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify({
           action: 'create_chapter',
           course_id: selectedCourseId,
@@ -303,7 +327,7 @@ export default function AdminLessonsPage() {
       try {
         const resMod = await fetch('/api/admin/lessons', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAdminHeaders(),
           body: JSON.stringify({
             action: 'create_chapter',
             course_id: selectedCourseId,
@@ -327,7 +351,7 @@ export default function AdminLessonsPage() {
     try {
       const res = await fetch('/api/admin/lessons', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify({
           action: 'create_lesson',
           module_id: targetModuleId,
@@ -405,7 +429,7 @@ export default function AdminLessonsPage() {
     try {
       const res = await fetch('/api/admin/lessons', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify({
           id: editingLesson.id,
           title: editTitle.trim(),

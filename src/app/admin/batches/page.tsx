@@ -19,10 +19,34 @@ import {
   Loader2,
   AlertCircle,
 } from 'lucide-react';
+import { useAuth } from '@/components/auth/AuthContext';
 
 export default function AdminBatchesPage() {
+  const { user } = useAuth();
   const [courses, setCourses] = useState<Course[]>([...db.courses]);
   const [batches, setBatches] = useState<Batch[]>([...db.batches]);
+
+  // Helper to ensure admin authorization headers are sent
+  const getAdminHeaders = (): Record<string, string> => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (user?.id) headers['x-aspire-admin-id'] = user.id;
+    if (user?.email) headers['x-aspire-admin-email'] = user.email;
+    if (!headers['x-aspire-admin-id'] && typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('aspire_user');
+        if (saved) {
+          const u = JSON.parse(saved);
+          if (u.id) headers['x-aspire-admin-id'] = u.id;
+          if (u.email) headers['x-aspire-admin-email'] = u.email;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return headers;
+  };
   const [isLoading, setIsLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingBatch, setEditingBatch] = useState<Batch | null>(null);
@@ -115,7 +139,7 @@ export default function AdminBatchesPage() {
     try {
       const res = await fetch('/api/admin/batches', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify({ id: batchId, enrollment_open: newStatus }),
       });
 
@@ -141,7 +165,7 @@ export default function AdminBatchesPage() {
     try {
       const res = await fetch('/api/admin/batches', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify({
           course_id: selectedCourseId,
           name: name.trim(),
@@ -187,7 +211,7 @@ export default function AdminBatchesPage() {
     try {
       const res = await fetch('/api/admin/batches', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify({
           id: editingBatch.id,
           name: editName.trim(),

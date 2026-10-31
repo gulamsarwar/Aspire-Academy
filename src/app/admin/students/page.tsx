@@ -15,9 +15,32 @@ import {
   Lock,
   Unlock,
 } from 'lucide-react';
+import { useAuth } from '@/components/auth/AuthContext';
 
 export default function AdminStudentsPage() {
+  const { user } = useAuth();
   const [students, setStudents] = useState<Profile[]>([...db.profiles]);
+
+  const getAdminHeaders = (): Record<string, string> => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (user?.id) headers['x-aspire-admin-id'] = user.id;
+    if (user?.email) headers['x-aspire-admin-email'] = user.email;
+    if (!headers['x-aspire-admin-id'] && typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('aspire_user');
+        if (saved) {
+          const u = JSON.parse(saved);
+          if (u.id) headers['x-aspire-admin-id'] = u.id;
+          if (u.email) headers['x-aspire-admin-email'] = u.email;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return headers;
+  };
   const [search, setSearch] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<Profile | null>(null);
 
@@ -69,7 +92,7 @@ export default function AdminStudentsPage() {
       // Also persist to Supabase & audit trail asynchronously
       fetch('/api/admin/students/override', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify({
           studentId: overrideStudent!.id,
           courseId: targetCourseId,
