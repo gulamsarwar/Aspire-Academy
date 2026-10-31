@@ -90,10 +90,14 @@ export async function POST(req: NextRequest) {
     }
 
     if (!writtenToDisk && finalUrl === publicPath) {
-      return NextResponse.json(
-        { error: 'Storage unavailable. Please configure Supabase Storage or writable disk.' },
-        { status: 500 }
-      );
+      if (buffer.length < 5 * 1024 * 1024) {
+        finalUrl = `data:${file.type || 'application/pdf'};base64,${buffer.toString('base64')}`;
+      } else {
+        return NextResponse.json(
+          { error: 'Storage unavailable. Please configure Supabase Storage or writable disk.' },
+          { status: 500 }
+        );
+      }
     }
 
     return NextResponse.json({

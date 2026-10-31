@@ -9,7 +9,13 @@ import { useSiteSettings } from '@/components/settings/SiteSettingsContext';
 export default function NotFound() {
   const { settings } = useSiteSettings();
 
-  const rawPhone = (settings?.whatsapp || settings?.phone || '9123456789').replace(/[^0-9]/g, '');
+  const rawPhone = (
+    settings?.whatsapp ||
+    (settings as any)?.whatsapp_number ||
+    settings?.phone ||
+    (settings as any)?.primary_phone ||
+    '9876543210'
+  ).replace(/[^0-9]/g, '');
   const cleanPhone = rawPhone.startsWith('91') ? rawPhone : `91${rawPhone}`;
 
   return (
@@ -55,7 +61,15 @@ export default function NotFound() {
 
         <button
           type="button"
-          onClick={() => typeof window !== 'undefined' && window.history.back()}
+          onClick={() => {
+            if (typeof window !== 'undefined') {
+              if (window.history.length > 1) {
+                window.history.back();
+              } else {
+                window.location.href = '/';
+              }
+            }
+          }}
           className="inline-flex items-center justify-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 font-semibold transition py-1 cursor-pointer"
         >
           <ArrowLeft className="w-3.5 h-3.5" />

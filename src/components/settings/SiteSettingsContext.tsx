@@ -22,6 +22,7 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
   });
 
   useEffect(() => {
+    // 1. Instant load from localStorage for zero initial latency
     try {
       const saved = localStorage.getItem('aspire_site_settings');
       if (saved) {
@@ -34,6 +35,33 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
     } catch {
       // ignore
     }
+
+    // 2. Fetch live settings from Supabase Cloud PostgreSQL via /api/settings
+    let isMounted = true;
+    async function loadLiveSettings() {
+      try {
+        const res = await fetch('/api/settings');
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && data?.settings) {
+            setSettings(data.settings);
+            if (db && typeof db.updateSettings === 'function') {
+              db.updateSettings(data.settings);
+            }
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('aspire_site_settings', JSON.stringify(data.settings));
+            }
+          }
+        }
+      } catch {
+        // network offline, continue with cached settings
+      }
+    }
+    loadLiveSettings();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const updateSettings = (updates: Partial<SiteSettings>) => {
@@ -44,6 +72,13 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
     if (typeof window !== 'undefined') {
       localStorage.setItem('aspire_site_settings', JSON.stringify(updated));
     }
+
+    // Async sync to Supabase Cloud PostgreSQL
+    fetch('/api/admin/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated),
+    }).catch(() => null);
   };
 
   const resetToDefaults = () => {

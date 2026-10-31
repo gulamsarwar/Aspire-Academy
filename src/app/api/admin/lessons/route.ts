@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { checkServerAdminAuth } from '@/lib/auth/admin';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { db } from '@/lib/data/mock-db';
+import { extractYouTubeVideoId } from '@/lib/youtube';
 import { Lesson, Module } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -145,13 +146,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Chapter (module_id) and lesson title are required.' }, { status: 400 });
     }
 
+    let finalVideoId = (youtube_video_id || '').trim();
+    if (!finalVideoId && video_url) {
+      finalVideoId = extractYouTubeVideoId(video_url) || '';
+    } else if (finalVideoId.includes('/') || finalVideoId.includes('?')) {
+      finalVideoId = extractYouTubeVideoId(finalVideoId) || finalVideoId;
+    }
+
     const lessonId = crypto.randomUUID();
     const lessonPayload: Record<string, any> = {
       id: lessonId,
       module_id,
       title: title.trim(),
       description: (description || '').trim(),
-      youtube_video_id: (youtube_video_id || '').trim(),
+      youtube_video_id: finalVideoId,
       video_source_type: video_source_type || 'youtube',
       r2_object_key: r2_object_key ? String(r2_object_key).trim() : null,
       video_url: video_url ? String(video_url).trim() : null,
@@ -234,6 +242,15 @@ export async function PUT(req: NextRequest) {
       if (allowedCols.includes(key)) {
         sanitized[key] = updates[key];
       }
+    }
+
+    // Auto-extract valid 11-char YouTube ID if a full link was passed
+    if (sanitized.youtube_video_id && (sanitized.youtube_video_id.includes('/') || sanitized.youtube_video_id.includes('?'))) {
+      const extracted = extractYouTubeVideoId(sanitized.youtube_video_id);
+      if (extracted) sanitized.youtube_video_id = extracted;
+    } else if (!sanitized.youtube_video_id && sanitized.video_url) {
+      const extracted = extractYouTubeVideoId(sanitized.video_url);
+      if (extracted) sanitized.youtube_video_id = extracted;
     }
 
     const admin = createAdminClient();
