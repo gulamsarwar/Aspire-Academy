@@ -209,6 +209,20 @@ export async function POST(req: NextRequest) {
     }
 
     // 6. Invalidate Next.js cache so the public courses page and student dashboard update immediately
+    if (admin) {
+      try {
+        await admin.from('audit_logs').insert({
+          admin_id: '5afc6ea6-cb57-4591-a477-e5e820e5066f',
+          action: 'COURSE_CREATED',
+          target_resource: `course:${coursePayload.id}`,
+          reason: `Admin created course "${coursePayload.title}"`,
+          metadata: { slug: coursePayload.slug, price: coursePayload.price },
+        });
+      } catch {
+        // ignore
+      }
+    }
+
     try {
       revalidatePath('/');
       revalidatePath('/courses');
@@ -269,6 +283,18 @@ export async function PUT(req: NextRequest) {
       if (error) {
         console.error('Supabase update course error:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+
+      try {
+        await admin.from('audit_logs').insert({
+          admin_id: '5afc6ea6-cb57-4591-a477-e5e820e5066f',
+          action: 'COURSE_UPDATED',
+          target_resource: `course:${id}`,
+          reason: `Admin updated course details`,
+          metadata: sanitizedUpdates,
+        });
+      } catch {
+        // ignore
       }
     }
 
@@ -339,6 +365,17 @@ export async function DELETE(req: NextRequest) {
       const { error: delErr } = await admin.from('courses').delete().eq('id', courseId);
       if (delErr) {
         return NextResponse.json({ error: delErr.message }, { status: 500 });
+      }
+
+      try {
+        await admin.from('audit_logs').insert({
+          admin_id: '5afc6ea6-cb57-4591-a477-e5e820e5066f',
+          action: 'COURSE_DELETED',
+          target_resource: `course:${courseId}`,
+          reason: `Admin deleted course "${courseId}"`,
+        });
+      } catch {
+        // ignore
       }
     }
 

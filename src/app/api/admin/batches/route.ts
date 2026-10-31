@@ -185,6 +185,16 @@ export async function POST(req: NextRequest) {
           { status: 500 }
         );
       }
+
+      try {
+        await admin.from('audit_logs').insert({
+          admin_id: '5afc6ea6-cb57-4591-a477-e5e820e5066f',
+          action: 'BATCH_CREATED',
+          target_resource: `batch:${batchId}`,
+          reason: `Admin created batch "${dbBatchPayload.name}"`,
+          metadata: { course_id, capacity: dbBatchPayload.capacity },
+        });
+      } catch {}
     }
 
     // Sync in-memory database
@@ -247,6 +257,16 @@ export async function PUT(req: NextRequest) {
       if (updErr) {
         return NextResponse.json({ error: updErr.message }, { status: 500 });
       }
+
+      try {
+        await admin.from('audit_logs').insert({
+          admin_id: '5afc6ea6-cb57-4591-a477-e5e820e5066f',
+          action: 'BATCH_UPDATED',
+          target_resource: `batch:${id}`,
+          reason: `Admin updated batch details`,
+          metadata: sanitized,
+        });
+      } catch {}
     }
 
     // Sync in-memory DB
@@ -303,6 +323,15 @@ export async function DELETE(req: NextRequest) {
       if (delErr) {
         return NextResponse.json({ error: delErr.message }, { status: 500 });
       }
+
+      try {
+        await admin.from('audit_logs').insert({
+          admin_id: '5afc6ea6-cb57-4591-a477-e5e820e5066f',
+          action: 'BATCH_DELETED',
+          target_resource: `batch:${batchId}`,
+          reason: `Admin deleted batch "${batchId}"`,
+        });
+      } catch {}
     }
 
     // Remove from in-memory DB

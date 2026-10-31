@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, normalizeStudentId } from '@/lib/data/mock-db';
+import { normalizeStudentId } from '@/lib/data/mock-db';
+import { toggleLessonProgressInDatabase } from '@/lib/data/supabase-service';
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,11 +14,7 @@ export async function POST(req: NextRequest) {
     }
 
     const studentId = normalizeStudentId(rawStudentId || '');
-    const completed = db.toggleLessonProgress(studentId, lessonId);
-
-    const progress = courseId
-      ? db.getStudentProgressForCourse(studentId, courseId)
-      : null;
+    const { completed, progress } = await toggleLessonProgressInDatabase(studentId, lessonId, courseId);
 
     return NextResponse.json({
       success: true,

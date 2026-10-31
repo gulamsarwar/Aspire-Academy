@@ -103,6 +103,15 @@ export async function POST(req: NextRequest) {
           console.error('Supabase module insert error:', insErr);
           return NextResponse.json({ error: `Database error: ${insErr.message}` }, { status: 500 });
         }
+
+        try {
+          await admin.from('audit_logs').insert({
+            admin_id: '5afc6ea6-cb57-4591-a477-e5e820e5066f',
+            action: 'MODULE_CREATED',
+            target_resource: `module:${moduleId}`,
+            reason: `Admin created chapter "${modulePayload.title}"`,
+          });
+        } catch {}
       }
 
       db.modules.push(modulePayload);
@@ -162,6 +171,15 @@ export async function POST(req: NextRequest) {
         console.error('Supabase lesson insert error:', insErr);
         return NextResponse.json({ error: `Database error: ${insErr.message}` }, { status: 500 });
       }
+
+      try {
+        await admin.from('audit_logs').insert({
+          admin_id: '5afc6ea6-cb57-4591-a477-e5e820e5066f',
+          action: 'LESSON_CREATED',
+          target_resource: `lesson:${lessonId}`,
+          reason: `Admin added lesson "${lessonPayload.title}"`,
+        });
+      } catch {}
     }
 
     db.lessons.push(lessonPayload as any);
@@ -225,6 +243,16 @@ export async function PUT(req: NextRequest) {
         console.error('Supabase lesson update error:', updErr);
         return NextResponse.json({ error: updErr.message }, { status: 500 });
       }
+
+      try {
+        await admin.from('audit_logs').insert({
+          admin_id: '5afc6ea6-cb57-4591-a477-e5e820e5066f',
+          action: 'LESSON_UPDATED',
+          target_resource: `lesson:${id}`,
+          reason: `Admin updated lesson details`,
+          metadata: sanitized,
+        });
+      } catch {}
     }
 
     // Sync in-memory DB
@@ -271,6 +299,14 @@ export async function DELETE(req: NextRequest) {
         if (modErr) {
           return NextResponse.json({ error: modErr.message }, { status: 500 });
         }
+        try {
+          await admin.from('audit_logs').insert({
+            admin_id: '5afc6ea6-cb57-4591-a477-e5e820e5066f',
+            action: 'MODULE_DELETED',
+            target_resource: `module:${id}`,
+            reason: `Admin deleted chapter "${id}"`,
+          });
+        } catch {}
       }
       db.lessons = db.lessons.filter((l) => l.module_id !== id);
       db.modules = db.modules.filter((m) => m.id !== id);
@@ -280,6 +316,14 @@ export async function DELETE(req: NextRequest) {
         if (lErr) {
           return NextResponse.json({ error: lErr.message }, { status: 500 });
         }
+        try {
+          await admin.from('audit_logs').insert({
+            admin_id: '5afc6ea6-cb57-4591-a477-e5e820e5066f',
+            action: 'LESSON_DELETED',
+            target_resource: `lesson:${id}`,
+            reason: `Admin deleted lesson "${id}"`,
+          });
+        } catch {}
       }
       db.lessons = db.lessons.filter((l) => l.id !== id);
     }

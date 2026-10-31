@@ -20,7 +20,18 @@ import {
 export default function AdminOverviewPage() {
   const metrics = db.getAdminMetrics();
   const recentOrders = db.orders.slice(0, 5);
-  const auditLogs = db.auditLogs.slice(0, 4);
+  const [auditLogs, setAuditLogs] = React.useState(db.auditLogs.slice(0, 6));
+
+  React.useEffect(() => {
+    fetch('/api/admin/audit-logs')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.logs) && data.logs.length > 0) {
+          setAuditLogs(data.logs.slice(0, 6));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">

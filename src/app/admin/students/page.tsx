@@ -66,6 +66,19 @@ export default function AdminStudentsPage() {
         reason: overrideReason,
       });
 
+      // Also persist to Supabase & audit trail asynchronously
+      fetch('/api/admin/students/override', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentId: overrideStudent!.id,
+          courseId: targetCourseId,
+          batchId: targetBatchId,
+          action: overrideAction,
+          reason: overrideReason,
+        }),
+      }).catch((err) => console.warn('Supabase override sync notice:', err));
+
       setOverrideSuccess(
         `Access successfully ${overrideAction === 'grant' ? 'granted' : 'revoked'} with audit log recorded.`
       );

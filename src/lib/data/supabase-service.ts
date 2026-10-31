@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/client';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { CONFIG } from '@/lib/config';
-import { db } from './mock-db';
+import { db, normalizeStudentId } from './mock-db';
 import {
   Course,
   Batch,
@@ -935,64 +935,553 @@ export async function submitQuizAttemptInDatabase(data: {
   answers: Record<string, string>;
   timeTakenSeconds?: number;
 }): Promise<QuizAttempt> {
-  return db.submitQuizAttempt(data);
+  const normStudentId = normalizeStudentId(data.studentId);
+  const attempt = db.submitQuizAttempt({
+    ...data,
+    studentId: normStudentId,
+  });
+
+  if (isSupabaseConfigured()) {
+    const admin = createAdminClient() || createClient();
+    if (admin) {
+      try {
+        await admin.from('profiles').upsert(
+          {
+            id: normStudentId,
+            email: `student_${normStudentId.slice(0, 8)}@aspireacademyonline.in`,
+            full_name: 'Aspire Student',
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'id', ignoreDuplicates: true }
+        );
+
+        const validQuizId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.quizId)
+          ? data.quizId
+          : normalizeStudentId(data.quizId);
+
+        await admin.from('quiz_attempts').insert({
+          id: attempt.id.startsWith('qa_') ? normalizeStudentId(attempt.id) : attempt.id,
+          student_id: normStudentId,
+          quiz_id: validQuizId,
+          answers: data.answers,
+          score: attempt.score,
+          total_marks: attempt.total_marks,
+          passed: attempt.passed,
+          time_taken_seconds: data.timeTakenSeconds || 0,
+          attempted_at: attempt.completed_at || new Date().toISOString(),
+        });
+      } catch (err) {
+        console.warn('Could not sync quiz attempt to Supabase:', err);
+      }
+    }
+  }
+
+  return attempt;
 }
 
 export async function getStudentAttemptsFromDatabase(studentId: string): Promise<QuizAttempt[]> {
-  return db.getStudentQuizAttempts(studentId);
+  const normStudentId = normalizeStudentId(studentId);
+  if (isSupabaseConfigured()) {
+    const admin = createAdminClient() || createClient();
+    if (admin) {
+      try {
+        const { data: attempts, error } = await admin
+          .from('quiz_attempts')
+          .select('*')
+          .eq('student_id', normStudentId)
+          .order('attempted_at', { ascending: false });
+
+        if (!error && attempts && attempts.length > 0) {
+          return attempts.map((a: any) => ({
+            id: a.id,
+            student_id: a.student_id,
+            quiz_id: a.quiz_id,
+            answers: a.answers || {},
+            score: a.score || 0,
+            total_marks: a.total_marks || 10,
+            percentage: a.total_marks ? Math.round(((a.score || 0) / a.total_marks) * 100) : 0,
+            passed: Boolean(a.passed),
+            time_taken_seconds: a.time_taken_seconds || 0,
+            started_at: a.attempted_at || new Date().toISOString(),
+            completed_at: a.attempted_at || new Date().toISOString(),
+          }));
+        }
+      } catch {
+        // Fallback to local
+      }
+    }
+  }
+  return db.getStudentQuizAttempts(normStudentId);
 }
 
 /**
  * Doubts Operations
  */
 export async function getStudentDoubtsFromDatabase(studentId?: string): Promise<StudentDoubt[]> {
+  if (isSupabaseConfigured()) {
+    const admin = createAdminClient() || createClient();
+    if (admin) {
+      try {
+        let query = admin.from('student_doubts').select('*').order('created_at', { ascending: false });
+        if (studentId) {
+          const normId = normalizeStudentId(studentId);
+          query = query.eq('student_id', normId);
+        }
+        const { data: supaDoubts, error } = await query;
+        if (!error && supaDoubts && supaDoubts.length > 0) {
+          return supaDoubts.map((d: any) => ({
+            id: d.id,
+            student_id: d.student_id,
+            student_name: 'Student',
+            course_id: d.course_id,
+            question: d.question_text,
+            answer: d.answer_text,
+            faculty_name: d.faculty_name,
+            status: d.status,
+            created_at: d.created_at,
+            answered_at: d.answered_at,
+          }));
+        }
+      } catch {
+        // Fallback to local
+      }
+    }
+  }
   return db.getDoubts(studentId);
 }
 
 export async function saveStudentDoubtToDatabase(
   data: Omit<StudentDoubt, 'id' | 'created_at' | 'status'>
 ): Promise<StudentDoubt> {
-  return db.addDoubt(data);
+  const normStudentId = normalizeStudentId(data.student_id);
+  const localDoubt = db.addDoubt({ ...data, student_id: normStudentId });
+
+  if (isSupabaseConfigured()) {
+    const admin = createAdminClient() || createClient();
+    if (admin) {
+      try {
+        await admin.from('profiles').upsert(
+          {
+            id: normStudentId,
+            email: `student_${normStudentId.slice(0, 8)}@aspireacademyonline.in`,
+            full_name: data.student_name || 'Aspire Student',
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'id', ignoreDuplicates: true }
+        );
+
+        await admin.from('student_doubts').insert({
+          student_id: normStudentId,
+          course_id: data.course_id,
+          question_text: data.question,
+          faculty_name: 'Shekhar Sir',
+          status: 'open',
+          created_at: localDoubt.created_at,
+        });
+      } catch (err) {
+        console.warn('Could not persist doubt to Supabase:', err);
+      }
+    }
+  }
+
+  return localDoubt;
 }
 
 export async function answerStudentDoubtInDatabase(
   doubtId: string,
   answer: string,
-  facultyName?: string
+  facultyName: string = 'Shekhar Sir'
 ): Promise<StudentDoubt | null> {
-  return db.answerDoubt(doubtId, answer, facultyName);
+  const localAnswered = db.answerDoubt(doubtId, answer, facultyName);
+
+  if (isSupabaseConfigured()) {
+    const admin = createAdminClient() || createClient();
+    if (admin) {
+      try {
+        await admin
+          .from('student_doubts')
+          .update({
+            answer_text: answer,
+            faculty_name: facultyName,
+            status: 'answered',
+            answered_at: new Date().toISOString(),
+          })
+          .or(`id.eq.${doubtId},question_text.eq.${localAnswered?.question || ''}`);
+      } catch (err) {
+        console.warn('Could not sync doubt answer to Supabase:', err);
+      }
+    }
+  }
+
+  return localAnswered;
+}
+
+/**
+ * Lesson Progress Operations
+ */
+export async function toggleLessonProgressInDatabase(
+  studentId: string,
+  lessonId: string,
+  courseId?: string
+): Promise<{ completed: boolean; progress: any }> {
+  const normStudentId = normalizeStudentId(studentId);
+  const completed = db.toggleLessonProgress(normStudentId, lessonId);
+  const progress = courseId ? db.getStudentProgressForCourse(normStudentId, courseId) : null;
+
+  if (isSupabaseConfigured()) {
+    const admin = createAdminClient() || createClient();
+    if (admin) {
+      try {
+        await admin.from('profiles').upsert(
+          {
+            id: normStudentId,
+            email: `student_${normStudentId.slice(0, 8)}@aspireacademyonline.in`,
+            full_name: 'Aspire Student',
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'id', ignoreDuplicates: true }
+        );
+
+        const validLessonId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lessonId)
+          ? lessonId
+          : normalizeStudentId(lessonId);
+
+        await admin.from('lesson_progress').upsert(
+          {
+            student_id: normStudentId,
+            lesson_id: validLessonId,
+            completed,
+            completed_at: completed ? new Date().toISOString() : null,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'student_id,lesson_id' }
+        );
+      } catch (err) {
+        console.warn('Could not sync lesson progress to Supabase:', err);
+      }
+    }
+  }
+
+  return { completed, progress };
 }
 
 /**
  * Bookmark Operations
  */
 export async function getStudentBookmarksFromDatabase(studentId: string): Promise<Bookmark[]> {
-  return db.getBookmarks(studentId);
+  const normStudentId = normalizeStudentId(studentId);
+  if (isSupabaseConfigured()) {
+    const admin = createAdminClient() || createClient();
+    if (admin) {
+      try {
+        const { data: bookmarks, error } = await admin
+          .from('student_bookmarks')
+          .select('*')
+          .eq('student_id', normStudentId);
+
+        if (!error && bookmarks && bookmarks.length > 0) {
+          return bookmarks.map((b: any) => ({
+            id: b.id,
+            student_id: b.student_id,
+            resource_type: 'lesson',
+            resource_id: b.lesson_id,
+            title: b.lesson_title || 'Lesson',
+            url: `/dashboard/classes`,
+            created_at: b.created_at,
+          }));
+        }
+      } catch {
+        // Fallback to local
+      }
+    }
+  }
+  return db.getBookmarks(normStudentId);
 }
 
 export async function saveStudentBookmarkToDatabase(
   data: Omit<Bookmark, 'id' | 'created_at'>
 ): Promise<Bookmark> {
-  return db.addBookmark(data);
+  const normStudentId = normalizeStudentId(data.student_id);
+  const bookmark = db.addBookmark({ ...data, student_id: normStudentId });
+
+  if (isSupabaseConfigured()) {
+    const admin = createAdminClient() || createClient();
+    if (admin) {
+      try {
+        await admin.from('profiles').upsert(
+          {
+            id: normStudentId,
+            email: `student_${normStudentId.slice(0, 8)}@aspireacademyonline.in`,
+            full_name: 'Aspire Student',
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'id', ignoreDuplicates: true }
+        );
+
+        const validLessonId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.resource_id)
+          ? data.resource_id
+          : normalizeStudentId(data.resource_id);
+
+        await admin.from('student_bookmarks').insert({
+          student_id: normStudentId,
+          course_id: 'c0000000-0000-0000-0000-000000000001',
+          lesson_id: validLessonId,
+          lesson_title: data.title,
+        });
+      } catch (err) {
+        console.warn('Could not sync bookmark to Supabase:', err);
+      }
+    }
+  }
+
+  return bookmark;
 }
 
 export async function deleteStudentBookmarkFromDatabase(
   studentId: string,
   resourceId: string
 ): Promise<boolean> {
-  return db.removeBookmark(studentId, resourceId);
+  const normStudentId = normalizeStudentId(studentId);
+  const removed = db.removeBookmark(normStudentId, resourceId);
+
+  if (isSupabaseConfigured()) {
+    const admin = createAdminClient() || createClient();
+    if (admin) {
+      try {
+        const validLessonId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(resourceId)
+          ? resourceId
+          : normalizeStudentId(resourceId);
+
+        await admin
+          .from('student_bookmarks')
+          .delete()
+          .eq('student_id', normStudentId)
+          .eq('lesson_id', validLessonId);
+      } catch (err) {
+        console.warn('Could not sync bookmark deletion to Supabase:', err);
+      }
+    }
+  }
+
+  return removed;
 }
 
 /**
  * Downloads Operations
  */
 export async function getStudentDownloadsFromDatabase(studentId: string): Promise<DownloadedMaterial[]> {
-  return db.getDownloads(studentId);
+  const normStudentId = normalizeStudentId(studentId);
+  if (isSupabaseConfigured()) {
+    const admin = createAdminClient() || createClient();
+    if (admin) {
+      try {
+        const { data: downloads, error } = await admin
+          .from('downloaded_materials')
+          .select('*')
+          .eq('student_id', normStudentId);
+
+        if (!error && downloads && downloads.length > 0) {
+          return downloads.map((dm: any) => ({
+            id: dm.id,
+            student_id: dm.student_id,
+            lesson_id: 'l0000000-0000-0000-0000-000000000001',
+            title: dm.material_name,
+            file_name: dm.material_name,
+            file_size: '3.5 MB',
+            downloaded_at: dm.downloaded_at,
+          }));
+        }
+      } catch {
+        // Fallback to local
+      }
+    }
+  }
+  return db.getDownloads(normStudentId);
 }
 
 export async function recordStudentDownloadInDatabase(
   data: Omit<DownloadedMaterial, 'id' | 'downloaded_at'>
 ): Promise<DownloadedMaterial> {
-  return db.recordDownload(data);
+  const normStudentId = normalizeStudentId(data.student_id);
+  const download = db.recordDownload({ ...data, student_id: normStudentId });
+
+  if (isSupabaseConfigured()) {
+    const admin = createAdminClient() || createClient();
+    if (admin) {
+      try {
+        await admin.from('profiles').upsert(
+          {
+            id: normStudentId,
+            email: `student_${normStudentId.slice(0, 8)}@aspireacademyonline.in`,
+            full_name: 'Aspire Student',
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'id', ignoreDuplicates: true }
+        );
+
+        await admin.from('downloaded_materials').insert({
+          student_id: normStudentId,
+          material_name: data.file_name,
+          material_path: `/notes/${data.file_name}`,
+        });
+      } catch (err) {
+        console.warn('Could not sync download to Supabase:', err);
+      }
+    }
+  }
+
+  return download;
+}
+
+/**
+ * Admin Audit Logs
+ */
+export async function recordAuditLogInDatabase({
+  adminId,
+  action,
+  targetUserId,
+  targetResource,
+  reason,
+  metadata = {},
+}: {
+  adminId?: string;
+  action: string;
+  targetUserId?: string;
+  targetResource?: string;
+  reason: string;
+  metadata?: Record<string, any>;
+}): Promise<void> {
+  const normAdminId = adminId ? normalizeStudentId(adminId) : '5afc6ea6-cb57-4591-a477-e5e820e5066f'; // Shekhar Sir ID
+  const normTargetId = targetUserId ? normalizeStudentId(targetUserId) : null;
+  const resource = targetResource || 'academy_general';
+
+  db.auditLogs.unshift({
+    id: `al_${Date.now()}`,
+    admin_id: normAdminId,
+    action,
+    target_user_id: normTargetId || '',
+    target_resource: resource,
+    reason,
+    created_at: new Date().toISOString(),
+  });
+
+  if (isSupabaseConfigured()) {
+    const admin = createAdminClient() || createClient();
+    if (admin) {
+      try {
+        await admin.from('audit_logs').insert({
+          admin_id: normAdminId,
+          action,
+          target_user_id: normTargetId,
+          target_resource: resource,
+          reason,
+          metadata,
+          created_at: new Date().toISOString(),
+        });
+      } catch (err) {
+        console.warn('Could not persist audit log to Supabase:', err);
+      }
+    }
+  }
+}
+
+export async function getAuditLogsFromDatabase(limit = 20): Promise<any[]> {
+  if (isSupabaseConfigured()) {
+    const admin = createAdminClient() || createClient();
+    if (admin) {
+      try {
+        const { data: logs, error } = await admin
+          .from('audit_logs')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(limit);
+
+        if (!error && logs && logs.length > 0) {
+          return logs;
+        }
+      } catch {
+        // Fallback to local
+      }
+    }
+  }
+  return db.auditLogs.slice(0, limit);
+}
+
+/**
+ * Manual Enrollment Override with Audit Trail
+ */
+export async function manualEnrollmentOverrideInDatabase({
+  adminId,
+  studentId,
+  courseId,
+  batchId,
+  action,
+  reason,
+}: {
+  adminId: string;
+  studentId: string;
+  courseId: string;
+  batchId: string;
+  action: 'grant' | 'revoke';
+  reason: string;
+}): Promise<boolean> {
+  const normStudentId = normalizeStudentId(studentId);
+  const result = db.manualEnrollmentOverride({
+    adminId,
+    studentId: normStudentId,
+    courseId,
+    batchId,
+    action,
+    reason,
+  });
+
+  if (isSupabaseConfigured()) {
+    const admin = createAdminClient() || createClient();
+    if (admin) {
+      try {
+        await admin.from('profiles').upsert(
+          {
+            id: normStudentId,
+            email: `student_${normStudentId.slice(0, 8)}@aspireacademyonline.in`,
+            full_name: 'Aspire Student',
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'id', ignoreDuplicates: true }
+        );
+
+        if (action === 'grant') {
+          await admin.from('enrollments').upsert(
+            {
+              student_id: normStudentId,
+              course_id: courseId,
+              batch_id: batchId,
+              status: 'active',
+              enrolled_at: new Date().toISOString(),
+            },
+            { onConflict: 'student_id,course_id,batch_id' }
+          );
+        } else {
+          await admin
+            .from('enrollments')
+            .update({ status: 'revoked' })
+            .eq('student_id', normStudentId)
+            .eq('course_id', courseId)
+            .eq('batch_id', batchId);
+        }
+
+        await recordAuditLogInDatabase({
+          adminId,
+          action: action === 'grant' ? 'MANUAL_ACCESS_GRANTED' : 'MANUAL_ACCESS_REVOKED',
+          targetUserId: normStudentId,
+          targetResource: `course:${courseId},batch:${batchId}`,
+          reason,
+        });
+      } catch (err) {
+        console.warn('Could not sync manual override to Supabase:', err);
+      }
+    }
+  }
+
+  return result;
 }
 
