@@ -28,13 +28,13 @@ interface ChatMessage {
 
 const FAQ_PROMPTS = [
   {
-    title: 'Mendel 9:3:3:1 Ratio',
-    query: 'द्विसंकर संकरण (Dihybrid Cross) का 9:3:3:1 लक्षणप्ररूपी अनुपात क्या है और कैसे आता है?',
+    title: 'Janan (Reproduction)',
+    query: 'जनन किसे कहते हैं? इसके प्रकार (अलैंगिक एवं लैंगिक जनन) उदाहरण सहित समझाइए।',
     subject: 'Biology',
   },
   {
-    title: 'Hardy-Weinberg Equation',
-    query: 'हार्ड-वेनबर्ग साम्यावस्था का समीकरण $p^2 + 2pq + q^2 = 1$ समझाइए।',
+    title: 'Mendel 9:3:3:1 Ratio',
+    query: 'द्विसंकर संकरण (Dihybrid Cross) का 9:3:3:1 लक्षणप्ररूपी अनुपात क्या है और कैसे आता है?',
     subject: 'Biology',
   },
   {
@@ -43,7 +43,17 @@ const FAQ_PROMPTS = [
     subject: 'Physics',
   },
   {
-    title: 'DNA Double Helix Pitch',
+    title: 'Ohm Law & Resistance',
+    query: 'ओम का नियम $V = IR$ और प्रतिरोधकता का सूत्र समझाइए।',
+    subject: 'Physics',
+  },
+  {
+    title: 'Photosynthesis Reaction',
+    query: 'प्रकाश संश्लेषण का संतुलित रासायनिक समीकरण $6CO_2 + 12H_2O \\to C_6H_{12}O_6 + 6O_2 + 6H_2O$ समझाइए।',
+    subject: 'Biology',
+  },
+  {
+    title: 'DNA Double Helix',
     query: 'B-DNA की पिच $3.4\\text{ nm}$ और 10 बेस पेयर प्रति घुमाव का क्या महत्व है?',
     subject: 'Biology',
   },
@@ -198,7 +208,7 @@ export default function NeuronAIAssistantPage() {
         <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
           Popular Bihar Board &amp; NEET Topics:
         </span>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
           {FAQ_PROMPTS.map((faq, i) => (
             <button
               key={i}

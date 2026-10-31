@@ -84,13 +84,13 @@ export function Navbar() {
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full">
+    <header className="sticky top-0 z-50 w-full bg-white shadow-xs">
       {/* Top Announcement Bar - PhysicsWallah / Unacademy Style */}
       {settings.announcement_active && (
-        <div className="bg-gradient-to-r from-[#0352A0] via-[#046BD2] to-[#0284C7] text-white px-4 py-2 text-xs font-semibold shadow-sm">
+        <div className="bg-gradient-to-r from-[#0352A0] via-[#046BD2] to-[#0284C7] text-white px-4 py-2 text-xs font-semibold shadow-xs">
           <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <span className="bg-white/20 text-white px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider text-[10px] shadow-sm">
+              <span className="bg-white/20 text-white px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider text-[10px] shadow-xs">
                 {settings.announcement_tag}
               </span>
               <span className="hidden sm:inline text-white/95 font-medium">
@@ -111,8 +111,8 @@ export function Navbar() {
         </div>
       )}
 
-      {/* Main Navigation Bar */}
-      <div className="glass-header">
+      {/* Main Navigation Bar - Solid 100% Opaque Pure White */}
+      <div className="w-full bg-white border-b border-slate-200/90 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.06)]">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-20 gap-4">
             {/* Logo */}

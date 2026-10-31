@@ -22,6 +22,7 @@ import {
   Clock,
   Bookmark,
   Download,
+  Brain,
 } from 'lucide-react';
 
 export default function DashboardLayout({
@@ -39,7 +40,7 @@ export default function DashboardLayout({
     { label: 'All Classes', href: '/dashboard/classes', icon: PlayCircle },
     { label: 'Live Classes', href: '/dashboard/live', icon: Video },
     { label: 'All Tests', href: '/dashboard/tests', icon: CheckSquare },
-    { label: 'Neuron AI', href: '/dashboard/neuron', icon: Sparkles },
+    { label: 'Neuron AI', href: '/dashboard/neuron', icon: Brain },
     { label: 'PDF Bank', href: '/dashboard/materials', icon: FileText },
     { label: 'Ask Doubts', href: '/dashboard/doubts', icon: HelpCircle },
     { label: 'Weekly Schedule', href: '/dashboard/schedule', icon: Clock },
@@ -56,8 +57,8 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-slate-100/70 flex flex-col lg:flex-row w-full max-w-full overflow-x-hidden">
-      {/* Mobile Top Sub-nav */}
-      <div className="lg:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between overflow-x-auto space-x-2">
+      {/* Mobile Top Sub-nav - Solid White & Clean Scroll */}
+      <div className="lg:hidden bg-white border-b border-slate-200/90 px-4 py-2.5 flex items-center overflow-x-auto space-x-2 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden shadow-xs">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);

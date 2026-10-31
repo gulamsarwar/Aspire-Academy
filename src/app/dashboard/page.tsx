@@ -213,7 +213,7 @@ export default function DashboardOverviewPage() {
         </Link>
 
         <Link
-          href="/dashboard/pi"
+          href="/dashboard/neuron"
           className="p-3.5 bg-gradient-to-b from-sky-50/50 to-white rounded-xl border border-sky-200 hover:border-[#046BD2] hover:shadow-sm transition flex flex-col items-center text-center gap-2 group"
         >
           <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#046BD2] to-indigo-600 text-white shadow-sm group-hover:scale-105 transition flex items-center justify-center">
