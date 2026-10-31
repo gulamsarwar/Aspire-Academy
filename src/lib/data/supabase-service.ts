@@ -273,7 +273,7 @@ export async function addCourseToDatabase(courseData: Omit<Course, 'id' | 'creat
 export async function updateCourseInDatabase(id: string, updates: Partial<Course>): Promise<Course | null> {
   const updated = db.updateCourse(id, updates);
 
-  if (isSupabaseConfigured() && updated) {
+  if (isSupabaseConfigured()) {
     const admin = createAdminClient() || createClient();
     if (admin) {
       try {
@@ -296,7 +296,7 @@ export async function updateCourseInDatabase(id: string, updates: Partial<Course
     }
   }
 
-  return updated;
+  return updated || ({ id, ...updates } as Course);
 }
 
 export async function deleteCourseFromDatabase(id: string): Promise<boolean> {

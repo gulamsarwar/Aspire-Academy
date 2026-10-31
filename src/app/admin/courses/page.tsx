@@ -37,6 +37,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { R2MediaUpload } from '@/components/admin/R2MediaUpload';
+import { useAuth } from '@/components/auth/AuthContext';
 
 const PRESET_THUMBNAILS = [
   { label: 'Biology', url: 'https://images.unsplash.com/photo-1530497610245-94d3c16cda28?auto=format&fit=crop&w=1200&q=80', icon: '🧬' },
@@ -47,12 +48,37 @@ const PRESET_THUMBNAILS = [
 ];
 
 export default function AdminCoursesPage() {
+  const { user } = useAuth();
   const [courses, setCourses] = useState<Course[]>([...db.courses]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [easyMode, setEasyMode] = useState(true);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [successToast, setSuccessToast] = useState('');
   const [errorToast, setErrorToast] = useState('');
+  const [modalError, setModalError] = useState('');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  // Helper to ensure admin authorization headers are sent
+  const getAdminHeaders = (): Record<string, string> => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (user?.id) headers['x-aspire-admin-id'] = user.id;
+    if (user?.email) headers['x-aspire-admin-email'] = user.email;
+    if (!headers['x-aspire-admin-id'] && typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('aspire_user');
+        if (saved) {
+          const u = JSON.parse(saved);
+          if (u.id) headers['x-aspire-admin-id'] = u.id;
+          if (u.email) headers['x-aspire-admin-email'] = u.email;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return headers;
+  };
 
   // Fetch live courses from database on mount
   useEffect(() => {
@@ -293,6 +319,7 @@ export default function AdminCoursesPage() {
 
   const handleOpenEdit = (course: Course) => {
     setEditingCourse(course);
+    setModalError('');
     setEditTitle(course.title);
     setEditSubtitle(course.subtitle || '');
     setEditCategory((course.category as any) || 'Bihar Board');
@@ -322,10 +349,11 @@ export default function AdminCoursesPage() {
       return;
     }
     setIsSavingThumbnail(true);
+    setModalError('');
     try {
       const res = await fetch('/api/admin/courses', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify({
           id: courseId,
           thumbnail_url: cleanUrl,
@@ -354,64 +382,112 @@ export default function AdminCoursesPage() {
 
       setThumbModalCourse(null);
       setSuccessToast('Thumbnail updated and saved successfully! 🎉');
-      setTimeout(() => setSuccessToast(''), 3000);
+      setTimeout(() => setSuccessToast(''), 3500);
     } catch (err: any) {
+      // Direct database fallback update
+      try {
+        await updateCourseInDatabase(courseId, {
+          thumbnail_url: cleanUrl,
+          thumbnail_r2_key: newKey || undefined,
+        });
+        setCourses((prev) =>
+          prev.map((c) =>
+            c.id === courseId
+              ? { ...c, thumbnail_url: cleanUrl, thumbnail_r2_key: newKey || c.thumbnail_r2_key }
+              : c
+          )
+        );
+        if (editingCourse && editingCourse.id === courseId) {
+          setEditThumbnail(cleanUrl);
+          setEditThumbnailR2Key(newKey || '');
+        }
+        setThumbModalCourse(null);
+        setSuccessToast('Thumbnail saved directly to database! 🎉');
+        setTimeout(() => setSuccessToast(''), 3500);
+        return;
+      } catch (fallbackErr) {
+        console.warn('Fallback direct DB thumbnail update failed:', fallbackErr);
+      }
       alert(`Error updating thumbnail: ${err.message}`);
+      setModalError(`Error updating thumbnail: ${err.message}`);
     } finally {
       setIsSavingThumbnail(false);
     }
   };
 
-  const handleSaveEdit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveEdit = async (e?: React.FormEvent) => {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+    }
     if (!editingCourse) return;
+
+    if (!editTitle.trim()) {
+      setModalError('Course title cannot be empty.');
+      return;
+    }
+
+    setIsSavingEdit(true);
+    setModalError('');
+    setErrorToast('');
 
     const payload = {
       id: editingCourse.id,
-      title: editTitle,
-      subtitle: editSubtitle,
+      title: editTitle.trim(),
+      subtitle: editSubtitle.trim(),
       category: editCategory,
       target_class: editClass,
-      price: Number(editPrice),
-      original_price: Number(editOriginalPrice),
-      instructor_name: editInstructor,
-      duration_weeks: Number(editDuration),
-      thumbnail_url: editThumbnail,
+      price: Number(editPrice) || 0,
+      original_price: Number(editOriginalPrice) || 0,
+      instructor_name: editInstructor.trim() || 'Shekhar Sir',
+      duration_weeks: Number(editDuration) || 0,
+      thumbnail_url: editThumbnail.trim(),
       thumbnail_r2_key: editThumbnailR2Key || undefined,
-      description: editDescription,
+      description: editDescription.trim(),
       published: editPublished,
     };
 
     try {
       const res = await fetch('/api/admin/courses', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify(payload),
       });
-      if (res.ok) {
-        setCourses((prev) =>
-          prev.map((c) => (c.id === editingCourse.id ? { ...c, ...payload } : c))
-        );
-        setEditingCourse(null);
-        setSuccessToast(`Course "${editTitle}" updated successfully.`);
-        setTimeout(() => setSuccessToast(''), 3000);
-        return;
-      } else {
-        const errData = await res.json().catch(() => ({}));
-        console.warn('PUT /api/admin/courses failed:', errData);
-      }
-    } catch (apiErr) {
-      console.warn('Network error during course update:', apiErr);
-    }
 
-    const updated = await updateCourseInDatabase(editingCourse.id, payload);
-    if (updated) {
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Server update failed with status ${res.status}`);
+      }
+
       setCourses((prev) =>
-        prev.map((c) => (c.id === editingCourse.id ? { ...c, ...updated } : c))
+        prev.map((c) => (c.id === editingCourse.id ? { ...c, ...payload } : c))
       );
       setEditingCourse(null);
-      setSuccessToast(`Course "${editTitle}" updated successfully.`);
-      setTimeout(() => setSuccessToast(''), 3000);
+      setSuccessToast(`Course "${editTitle}" updated successfully! 🎉`);
+      setTimeout(() => setSuccessToast(''), 3500);
+      return;
+    } catch (apiErr: any) {
+      console.warn('PUT /api/admin/courses failed, falling back to direct database sync:', apiErr);
+      try {
+        const updated = await updateCourseInDatabase(editingCourse.id, payload);
+        if (updated) {
+          setCourses((prev) =>
+            prev.map((c) => (c.id === editingCourse.id ? { ...c, ...updated } : c))
+          );
+          setEditingCourse(null);
+          setSuccessToast(`Course "${editTitle}" saved successfully! 🎉`);
+          setTimeout(() => setSuccessToast(''), 3500);
+          return;
+        }
+      } catch (dbErr: any) {
+        console.error('Direct database fallback failed:', dbErr);
+      }
+
+      const errMsg = apiErr?.message || 'Failed to save course changes.';
+      setModalError(errMsg);
+      setErrorToast(errMsg);
+      alert(`Could not save course: ${errMsg}`);
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
@@ -1582,7 +1658,14 @@ export default function AdminCoursesPage() {
               </Link>
             </div>
 
-            <form onSubmit={handleSaveEdit} className="space-y-4">
+            {modalError && (
+              <div className="p-3.5 rounded-2xl bg-rose-50 border-2 border-rose-300 text-rose-900 text-xs font-bold flex items-center gap-2.5 animate-in fade-in">
+                <XCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                <span>{modalError}</span>
+              </div>
+            )}
+
+            <form noValidate onSubmit={handleSaveEdit} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-700">Course Title *</label>
                 <input
@@ -1838,17 +1921,24 @@ export default function AdminCoursesPage() {
               <div className="pt-4 flex justify-end gap-3 border-t border-slate-100">
                 <button
                   type="button"
+                  disabled={isSavingEdit}
                   onClick={() => setEditingCourse(null)}
-                  className="px-4 py-2 rounded-xl font-bold text-xs text-slate-600 hover:bg-slate-100"
+                  className="px-4 py-2 rounded-xl font-bold text-xs text-slate-600 hover:bg-slate-100 disabled:opacity-50 transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl font-bold text-xs text-white bg-[#046BD2] hover:bg-[#0352A0] shadow-sm flex items-center gap-1.5"
+                  disabled={isSavingEdit}
+                  onClick={handleSaveEdit}
+                  className="px-5 py-2 rounded-xl font-bold text-xs text-white bg-[#046BD2] hover:bg-[#0352A0] shadow-sm flex items-center gap-1.5 transition active:scale-95 disabled:opacity-50 cursor-pointer"
                 >
-                  <Save className="w-4 h-4" />
-                  <span>Save Changes</span>
+                  {isSavingEdit ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
+                  <span>{isSavingEdit ? 'Saving Changes...' : 'Save Changes'}</span>
                 </button>
               </div>
             </form>

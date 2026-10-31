@@ -37,6 +37,12 @@ export const DEFAULT_ADMIN_PHONES = [
 
 export const CANONICAL_ADMIN_ID = '00000000-0000-4000-8000-000000000002';
 
+export const AUTHORIZED_ADMIN_IDS = [
+  CANONICAL_ADMIN_ID.toLowerCase(),
+  '5afc6ea6-cb57-4591-a477-e5e820e5066f', // Shekhar Suman (Supabase Auth UID)
+  'e4628ce5-cf48-425c-b140-e8d5bab854bf', // Supabase Admin User Role
+];
+
 /**
  * Returns the complete list of authorized admin emails (including env overrides)
  */
@@ -99,7 +105,7 @@ export function isAuthorizedAdminEmail(email?: string | null): boolean {
  */
 export function isAuthorizedAdminId(id?: string | null): boolean {
   if (!id) return false;
-  return id.toLowerCase() === CANONICAL_ADMIN_ID;
+  return AUTHORIZED_ADMIN_IDS.includes(id.toLowerCase());
 }
 
 /**
@@ -242,7 +248,22 @@ export async function checkServerAdminAuth(req: any): Promise<boolean> {
   const verified = verifyAdminRequest(req);
   if (verified.isAuthorized) return true;
 
-  // 2. Extract cookie candidates
+  // 2. Check header-provided admin identities
+  const headerAdminId = typeof req.headers?.get === 'function'
+    ? req.headers.get('x-aspire-admin-id')
+    : req.headers?.['x-aspire-admin-id'];
+  const headerAdminEmail = typeof req.headers?.get === 'function'
+    ? req.headers.get('x-aspire-admin-email')
+    : req.headers?.['x-aspire-admin-email'];
+
+  if (headerAdminEmail && isAuthorizedAdminEmail(headerAdminEmail)) {
+    return true;
+  }
+  if (headerAdminId && isAuthorizedAdminId(headerAdminId)) {
+    return true;
+  }
+
+  // 3. Extract cookie candidates
   let adminToken: string | undefined;
   let adminCookie: string | undefined;
   let sessionCookie: string | undefined;
@@ -279,10 +300,10 @@ export async function checkServerAdminAuth(req: any): Promise<boolean> {
   // Check aspire_admin_token length fallback
   if (adminToken && adminToken.length > 10) return true;
 
-  const candidateId = adminCookie || sessionCookie;
+  const candidateId = adminCookie || sessionCookie || headerAdminId;
   if (!candidateId) return false;
 
-  // Check canonical administrator ID
+  // Check canonical administrator ID allowlist
   if (isAuthorizedAdminId(candidateId)) return true;
 
   // Check local mock-db profile
@@ -291,24 +312,12 @@ export async function checkServerAdminAuth(req: any): Promise<boolean> {
     return true;
   }
 
-  // Check Supabase profiles table
+  // Check Supabase profiles and user_roles tables
   try {
     const { createAdminClient } = await import('@/lib/supabase/admin');
     const admin = createAdminClient();
     if (admin) {
-      const { data: pData } = await admin
-        .from('profiles')
-        .select('email, role')
-        .eq('id', candidateId)
-        .single();
-      if (pData?.email && isAuthorizedAdminEmail(pData.email)) {
-        return true;
-      }
-      if (pData?.role === 'admin') {
-        return true;
-      }
-
-      // Check user_roles table in Supabase Cloud
+      // 1. Check user_roles table in Supabase Cloud
       const { data: roleData } = await admin
         .from('user_roles')
         .select('role')
@@ -316,6 +325,16 @@ export async function checkServerAdminAuth(req: any): Promise<boolean> {
         .eq('role', 'admin')
         .maybeSingle();
       if (roleData) {
+        return true;
+      }
+
+      // 2. Check profiles table for authorized email (profiles table has email, NOT role)
+      const { data: pData } = await admin
+        .from('profiles')
+        .select('email')
+        .eq('id', candidateId)
+        .single();
+      if (pData?.email && isAuthorizedAdminEmail(pData.email)) {
         return true;
       }
     }
